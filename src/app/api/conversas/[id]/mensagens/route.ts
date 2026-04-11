@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { enviarMensagemWhatsApp } from '@/lib/whatsapp'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -24,6 +25,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ erro: 'Conteúdo vazio.' }, { status: 400 })
   }
 
+  // Busca a conversa com o telefone do lead para enviar via WhatsApp
+  const conversa = await prisma.conversas.findUnique({
+    where: { id: Number(id) },
+    include: { leads: { select: { telefone: true } } }
+  })
+
+  if (!conversa) {
+    return NextResponse.json({ erro: 'Conversa não encontrada.' }, { status: 404 })
+  }
+
   const mensagem = await prisma.mensagens.create({
     data: {
       conversa_id: Number(id),
@@ -45,6 +56,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...mensagem,
       operador: payload?.nome ?? 'Operador'
     })
+  }
+
+  // Envia via WhatsApp se houver telefone e credenciais configuradas
+  if (conversa.leads?.telefone && process.env.WHATSAPP_TOKEN && process.env.PHONE_NUMBER_ID) {
+    enviarMensagemWhatsApp(conversa.leads.telefone, conteudo.trim()).catch(err =>
+      console.error('Erro ao enviar WhatsApp:', err.message)
+    )
   }
 
   return NextResponse.json(mensagem, { status: 201 })

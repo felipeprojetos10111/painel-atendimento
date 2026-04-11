@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
+import ModalRespostasRapidas from './ModalRespostasRapidas'
 
 interface Mensagem {
   id: number
@@ -10,14 +11,24 @@ interface Mensagem {
   enviado_em: string | null
 }
 
+interface RespostaRapida {
+  id: number
+  titulo: string
+  tipo: string
+  conteudo: string | null
+  url_midia: string | null
+  categoria: string | null
+  atalho: string | null
+}
+
 interface Props {
   conversaId: number
 }
 
 const ORIGEM_CONFIG: Record<string, { label: string; alinhamento: string; bolha: string }> = {
-  lead:     { label: 'Lead',     alinhamento: 'items-start', bolha: 'bg-white border border-gray-200 text-gray-800' },
-  ia:       { label: 'IA',      alinhamento: 'items-start', bolha: 'bg-blue-50 border border-blue-200 text-blue-900' },
-  operador: { label: 'Você',    alinhamento: 'items-end',   bolha: 'bg-green-500 text-white' }
+  lead:     { label: 'Lead',  alinhamento: 'items-start', bolha: 'bg-white border border-gray-200 text-gray-800' },
+  ia:       { label: 'IA',   alinhamento: 'items-start', bolha: 'bg-blue-50 border border-blue-200 text-blue-900' },
+  operador: { label: 'Você', alinhamento: 'items-end',   bolha: 'bg-green-500 text-white' }
 }
 
 let socket: Socket | null = null
@@ -27,7 +38,9 @@ export default function Chat({ conversaId }: Props) {
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [status, setStatus] = useState('')
+  const [modalAberto, setModalAberto] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   async function carregarMensagens() {
     const res = await fetch(`/api/conversas/${conversaId}/mensagens`)
@@ -66,24 +79,36 @@ export default function Chat({ conversaId }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensagens])
 
-  async function enviar(e: React.FormEvent) {
-    e.preventDefault()
-    if (!texto.trim() || enviando) return
+  async function enviarConteudo(conteudo: string) {
+    if (!conteudo.trim() || enviando) return
     setEnviando(true)
 
     const res = await fetch(`/api/conversas/${conversaId}/mensagens`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conteudo: texto.trim() })
+      body: JSON.stringify({ conteudo: conteudo.trim() })
     })
 
     if (res.ok) {
       const nova = await res.json()
       setMensagens(prev => [...prev, nova])
-      setTexto('')
     }
 
     setEnviando(false)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await enviarConteudo(texto)
+    setTexto('')
+  }
+
+  async function handleSelecionarResposta(resposta: RespostaRapida) {
+    setModalAberto(false)
+    const conteudo = resposta.conteudo ?? resposta.url_midia ?? ''
+    if (!conteudo) return
+    await enviarConteudo(conteudo)
+    inputRef.current?.focus()
   }
 
   async function atualizarStatus(novoStatus: string) {
@@ -125,7 +150,9 @@ export default function Chat({ conversaId }: Props) {
                 <p className="leading-relaxed">{m.conteudo}</p>
               </div>
               <span className="text-xs text-gray-400">
-                {cfg.label} · {m.enviado_em ? new Date(m.enviado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                {cfg.label} · {m.enviado_em
+                  ? new Date(m.enviado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                  : ''}
               </span>
             </div>
           )
@@ -134,24 +161,50 @@ export default function Chat({ conversaId }: Props) {
       </div>
 
       {/* Input */}
-      <form onSubmit={enviar} className="flex items-center gap-3 px-6 py-4 bg-white border-t border-gray-200">
-        <input
-          type="text"
-          value={texto}
-          onChange={e => setTexto(e.target.value)}
-          placeholder="Digite sua mensagem..."
-          className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+      <div className="bg-white border-t border-gray-200 px-4 py-3">
+        {/* Barra de ações acima do input */}
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => setModalAberto(true)}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+          >
+            <span>⚡</span>
+            Respostas rápidas
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex items-center gap-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={texto}
+            onChange={e => setTexto(e.target.value)}
+            placeholder="Digite sua mensagem..."
+            className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            type="submit"
+            disabled={enviando || !texto.trim()}
+            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors shrink-0"
+          >
+            {enviando
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <svg className="w-5 h-5 rotate-90" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            }
+          </button>
+        </form>
+      </div>
+
+      {/* Modal de Respostas Rápidas */}
+      {modalAberto && (
+        <ModalRespostasRapidas
+          onSelecionar={handleSelecionarResposta}
+          onFechar={() => setModalAberto(false)}
         />
-        <button
-          type="submit"
-          disabled={enviando || !texto.trim()}
-          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors"
-        >
-          <svg className="w-5 h-5 rotate-90" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
-      </form>
+      )}
     </div>
   )
 }
