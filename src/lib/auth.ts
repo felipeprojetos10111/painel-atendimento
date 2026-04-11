@@ -1,6 +1,6 @@
-import jwt from 'jsonwebtoken'
+import { SignJWT, jwtVerify } from 'jose'
 
-const SECRET = process.env.JWT_SECRET!
+const secret = () => new TextEncoder().encode(process.env.JWT_SECRET!)
 
 export interface TokenPayload {
   id: number
@@ -9,13 +9,17 @@ export interface TokenPayload {
   nivel: string
 }
 
-export function signToken(payload: TokenPayload): string {
-  return jwt.sign(payload, SECRET, { expiresIn: '8h' })
+export async function signToken(payload: TokenPayload): Promise<string> {
+  return new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('8h')
+    .sign(await secret())
 }
 
-export function verifyToken(token: string): TokenPayload | null {
+export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
-    return jwt.verify(token, SECRET) as TokenPayload
+    const { payload } = await jwtVerify(token, await secret())
+    return payload as unknown as TokenPayload
   } catch {
     return null
   }

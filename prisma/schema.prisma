@@ -61,3 +61,15 @@ model operadores {
   criado_em  DateTime?   @default(now()) @db.Timestamp(6)
   conversas  conversas[]
 }
+
+model respostas_rapidas {
+  id         Int       @id @default(autoincrement())
+  titulo     String    @db.VarChar(150)
+  tipo       String    @default("texto") @db.VarChar(20)
+  conteudo   String?
+  url_midia  String?
+  categoria  String?   @db.VarChar(80)
+  atalho     String?   @unique @db.VarChar(50)
+  ativo      Boolean?  @default(true)
+  criado_em  DateTime? @default(now()) @db.Timestamp(6)
+}

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'Credenciais inválidas.' }, { status: 401 })
   }
 
-  const token = signToken({
+  const token = await signToken({
     id: operador.id,
     nome: operador.nome,
     email: operador.email,
