@@ -1,3 +1,7 @@
+// Carrega variáveis de ambiente antes de qualquer coisa
+const { loadEnvConfig } = require('@next/env')
+loadEnvConfig(process.cwd())
+
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
@@ -32,5 +36,6 @@ app.prepare().then(() => {
   const PORT = process.env.PORT || 3001
   httpServer.listen(PORT, () => {
     console.log(`Painel de atendimento rodando em http://localhost:${PORT}`)
+    console.log(`DATABASE_URL carregado: ${process.env.DATABASE_URL ? 'sim' : 'NÃO'}`)
   })
 })
