@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/respostas-rapidas?categoria=X&atalho=X&tipo=X
+// GET /api/respostas-rapidas?categoria=X&atalho=X&tipo=X&todos=true
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const categoria = searchParams.get('categoria')
   const atalho = searchParams.get('atalho')
   const tipo = searchParams.get('tipo')
+  const todos = searchParams.get('todos') === 'true'
 
   const respostas = await prisma.respostas_rapidas.findMany({
     where: {
-      ativo: true,
+      ...(!todos && { ativo: true }),
       ...(categoria && { categoria }),
       ...(tipo && { tipo }),
       ...(atalho && { atalho: { contains: atalho, mode: 'insensitive' } })
