@@ -6,6 +6,10 @@ export async function enviarMensagemWhatsApp(telefone: string, texto: string): P
     throw new Error('PHONE_NUMBER_ID ou WHATSAPP_TOKEN não configurados')
   }
 
+  // Sanitiza o número: remove +, espaços e traços
+  const numeroLimpo = telefone.replace(/[\s+\-]/g, '')
+  console.log(`[WhatsApp] Enviando para: "${numeroLimpo}" (original: "${telefone}")`)
+
   const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`
 
   const res = await fetch(url, {
@@ -16,7 +20,7 @@ export async function enviarMensagemWhatsApp(telefone: string, texto: string): P
     },
     body: JSON.stringify({
       messaging_product: 'whatsapp',
-      to: telefone,
+      to: numeroLimpo,
       type: 'text',
       text: { body: texto }
     })
@@ -27,5 +31,5 @@ export async function enviarMensagemWhatsApp(telefone: string, texto: string): P
     throw new Error(`WhatsApp API ${res.status}: ${corpo}`)
   }
 
-  console.log(`[WhatsApp] Mensagem enviada para ${telefone}`)
+  console.log(`[WhatsApp] Mensagem enviada com sucesso para ${numeroLimpo}`)
 }
