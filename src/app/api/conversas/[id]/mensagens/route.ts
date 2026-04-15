@@ -58,11 +58,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
   }
 
-  // Envia via WhatsApp se houver telefone e credenciais configuradas
-  if (conversa.leads?.telefone && process.env.WHATSAPP_TOKEN && process.env.PHONE_NUMBER_ID) {
+  // Envia via WhatsApp (fire-and-forget: não bloqueia a resposta ao operador)
+  if (conversa.leads?.telefone) {
     enviarMensagemWhatsApp(conversa.leads.telefone, conteudo.trim()).catch(err =>
-      console.error('Erro ao enviar WhatsApp:', err.message)
+      console.error('[WhatsApp] Falha ao enviar para', conversa.leads?.telefone, '—', String(err))
     )
+  } else {
+    console.warn('[WhatsApp] Conversa sem telefone de lead, mensagem não enviada. conversa_id:', id)
   }
 
   return NextResponse.json(mensagem, { status: 201 })
