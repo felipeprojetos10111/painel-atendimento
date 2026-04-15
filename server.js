@@ -29,6 +29,10 @@ app.prepare().then(() => {
     socket.on('leave-conversa', (conversaId) => {
       socket.leave(`conversa-${conversaId}`)
     })
+
+    socket.on('join-operadores', () => {
+      socket.join('operadores')
+    })
   })
 
   global.io = io

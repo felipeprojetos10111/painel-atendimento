@@ -10,6 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: {
       ...(body.status && { status: body.status }),
       ...(body.operador_id && { operador_id: body.operador_id }),
+      ...(body.nao_lidas !== undefined && { nao_lidas: body.nao_lidas }),
       atualizado_em: new Date()
     }
   })

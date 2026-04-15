@@ -31,6 +31,25 @@ const ORIGEM_CONFIG: Record<string, { label: string; alinhamento: string; bolha:
   operador: { label: 'Você', alinhamento: 'items-end',   bolha: 'bg-green-500 text-white' }
 }
 
+// Toca um bip curto via Web Audio API
+function tocarSom() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.25)
+    osc.onended = () => ctx.close()
+  } catch {
+    // Navegador pode bloquear sem interação do usuário
+  }
+}
+
 let socket: Socket | null = null
 
 export default function Chat({ conversaId }: Props) {
@@ -55,9 +74,18 @@ export default function Chat({ conversaId }: Props) {
     if (conversa) setStatus(conversa.status ?? '')
   }
 
+  async function zerarNaoLidas() {
+    await fetch(`/api/conversas/${conversaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nao_lidas: 0 })
+    })
+  }
+
   useEffect(() => {
     carregarMensagens()
     carregarStatus()
+    zerarNaoLidas()
 
     if (!socket) {
       socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!)
@@ -66,13 +94,22 @@ export default function Chat({ conversaId }: Props) {
     socket.emit('join-conversa', conversaId)
 
     socket.on('nova-mensagem', (msg: Mensagem) => {
-      setMensagens(prev => [...prev, msg])
+      // Só toca som para mensagens do lead (não as que o próprio operador enviou)
+      if (msg.origem === 'lead' || msg.origem === 'ia') {
+        tocarSom()
+      }
+      setMensagens(prev => {
+        // Evita duplicar se a mensagem já foi adicionada (via POST do operador)
+        if (prev.some(m => m.id === msg.id)) return prev
+        return [...prev, msg]
+      })
     })
 
     return () => {
       socket?.emit('leave-conversa', conversaId)
       socket?.off('nova-mensagem')
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaId])
 
   useEffect(() => {

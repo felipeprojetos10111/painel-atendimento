@@ -13,6 +13,7 @@ model conversas {
   operador_id   Int?
   status        String?     @default("aguardando") @db.VarChar(20)
   canal         String?     @default("whatsapp") @db.VarChar(20)
+  nao_lidas     Int?        @default(0)
   criado_em     DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em DateTime?   @default(now()) @db.Timestamp(6)
   leads         leads?      @relation(fields: [lead_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
