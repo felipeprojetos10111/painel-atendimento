@@ -44,11 +44,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   })
 
-  // Quando um operador (não supervisor) responde, reivindica a conversa automaticamente
+  // Quando um operador (não supervisor) responde, reivindica a conversa automaticamente.
+  // Só reivindica se ainda não há dono — evita sobrescrever caso dois operadores
+  // vejam a mesma conversa sem dono e respondam quase ao mesmo tempo.
   const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date() }
-  if (payload?.nivel === 'operador') {
+  if (payload?.nivel === 'operador' && !conversa.operador_id) {
     atualizacaoConversa.operador_id = payload.id
-    // Marca como em_atendimento se estava aguardando
     if (['aguardando', 'aguardando_humano'].includes(conversa.status ?? '')) {
       atualizacaoConversa.status = 'em_atendimento'
     }
