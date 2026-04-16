@@ -44,9 +44,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   })
 
+  // Quando um operador (não supervisor) responde, reivindica a conversa automaticamente
+  const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date() }
+  if (payload?.nivel === 'operador') {
+    atualizacaoConversa.operador_id = payload.id
+    // Marca como em_atendimento se estava aguardando
+    if (['aguardando', 'aguardando_humano'].includes(conversa.status ?? '')) {
+      atualizacaoConversa.status = 'em_atendimento'
+    }
+  }
+
   await prisma.conversas.update({
     where: { id: Number(id) },
-    data: { atualizado_em: new Date() }
+    data: atualizacaoConversa
   })
 
   // Emite evento em tempo real via Socket.io
@@ -56,6 +66,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...mensagem,
       operador: payload?.nome ?? 'Operador'
     })
+    // Atualiza a lista de todos (badge de operador mudou)
+    io.to('operadores').emit('atualizar-lista', { conversaId: Number(id) })
   }
 
   // Envia via WhatsApp (fire-and-forget: não bloqueia a resposta ao operador)

@@ -26,6 +26,7 @@ interface Operador {
   nivel: string | null
   ativo: boolean | null
   criado_em: string | null
+  conversasAtivas: number
 }
 
 // ─── Config de tipos de resposta ──────────────────────────────────────────────
@@ -358,8 +359,10 @@ function SecaoOperadores() {
   useEffect(() => {
     carregar()
     carregarOnline()
-    const interval = setInterval(carregarOnline, 10000)
-    return () => clearInterval(interval)
+    // Atualiza presença a cada 10s e contagem de conversas a cada 15s
+    const timerOnline = setInterval(carregarOnline, 10000)
+    const timerOperadores = setInterval(carregar, 15000)
+    return () => { clearInterval(timerOnline); clearInterval(timerOperadores) }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -492,7 +495,14 @@ function SecaoOperadores() {
                       )}
                       {!op.ativo && <span className="text-xs text-red-400 italic">{tr('inativo')}</span>}
                     </div>
-                    <span className="text-xs text-gray-400">{op.email}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400">{op.email}</span>
+                      {op.conversasAtivas > 0 && (
+                        <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full font-medium">
+                          {op.conversasAtivas} {op.conversasAtivas === 1 ? 'conversa' : 'conversas'}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">

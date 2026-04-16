@@ -12,12 +12,30 @@ export async function GET() {
         email: true,
         nivel: true,
         ativo: true,
-        criado_em: true
+        criado_em: true,
+        _count: {
+          select: {
+            conversas: {
+              where: { status: { in: ['em_atendimento', 'aguardando_humano'] } }
+            }
+          }
+        }
       },
       orderBy: { criado_em: 'desc' }
     })
 
-    return NextResponse.json(operadores)
+    // Normaliza para conversasAtivas no nível raiz
+    const resultado = operadores.map(op => ({
+      id: op.id,
+      nome: op.nome,
+      email: op.email,
+      nivel: op.nivel,
+      ativo: op.ativo,
+      criado_em: op.criado_em,
+      conversasAtivas: op._count.conversas,
+    }))
+
+    return NextResponse.json(resultado)
   } catch (err) {
     console.error('[GET /api/operadores]', err)
     return NextResponse.json({ erro: 'Erro ao listar operadores.' }, { status: 500 })
