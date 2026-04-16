@@ -206,9 +206,24 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
                   {ultimaMensagem.conteudo}
                 </p>
               )}
-              <span className="text-xs text-gray-400">
-                {c.atualizado_em ? formatarHorario(c.atualizado_em) : ''}
-              </span>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs text-gray-400">
+                  {c.atualizado_em ? formatarHorario(c.atualizado_em) : ''}
+                </span>
+                {c.operadores?.nome ? (
+                  <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full shrink-0 max-w-[110px] truncate" title={`${tr('atendidoPor')} ${c.operadores.nome}`}>
+                    🧑‍💼 {c.operadores.nome}
+                  </span>
+                ) : ultimaMensagem?.origem === 'ia' ? (
+                  <span className="text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full shrink-0">
+                    🤖 {tr('respondendoIA')}
+                  </span>
+                ) : c.status === 'aguardando_humano' ? (
+                  <span className="text-xs text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full shrink-0">
+                    ⏳ {tr('aguardandoFila')}
+                  </span>
+                ) : null}
+              </div>
             </li>
           )
         })}

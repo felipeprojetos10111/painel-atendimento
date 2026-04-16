@@ -112,6 +112,12 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   confirmarDeletarOp1:   { pt: 'Deletar o operador',     en: 'Delete operator',       es: '¿Eliminar el operador' },
   confirmarDeletarOp2:   { pt: 'Esta ação não pode ser desfeita.', en: 'This action cannot be undone.', es: 'Esta acción no se puede deshacer.' },
 
+  // ── Presença e atendimento ─────────────────────────────────────────────────
+  operadoresOnline:  { pt: 'online',             en: 'online',         es: 'en línea' },
+  respondendoIA:     { pt: 'IA respondendo',     en: 'AI responding',  es: 'IA respondiendo' },
+  atendidoPor:       { pt: 'Atendido por',       en: 'Handled by',     es: 'Atendido por' },
+  aguardandoFila:    { pt: 'Aguardando operador', en: 'Waiting for operator', es: 'Esperando operador' },
+
   // ── Compartilhado ──────────────────────────────────────────────────────────
   erroDesconhecido: { pt: 'Erro desconhecido.', en: 'Unknown error.', es: 'Error desconocido.' },
 }

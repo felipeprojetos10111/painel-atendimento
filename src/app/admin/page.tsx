@@ -334,6 +334,7 @@ function SecaoRespostas() {
 function SecaoOperadores() {
   const { tr } = useLingua()
   const [operadores, setOperadores] = useState<Operador[]>([])
+  const [idsOnline, setIdsOnline] = useState<Set<number>>(new Set())
   const [form, setForm] = useState(FORM_OPERADOR_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -346,7 +347,20 @@ function SecaoOperadores() {
     setOperadores(await res.json())
   }
 
-  useEffect(() => { carregar() }, [])
+  async function carregarOnline() {
+    const res = await fetch('/api/operadores/online')
+    if (res.ok) {
+      const data = await res.json()
+      setIdsOnline(new Set(data.online))
+    }
+  }
+
+  useEffect(() => {
+    carregar()
+    carregarOnline()
+    const interval = setInterval(carregarOnline, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -431,20 +445,36 @@ function SecaoOperadores() {
       {/* Lista */}
       <section className="lg:col-span-3">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-semibold text-gray-800 text-base">
               {tr('operadoresCadastrados')} <span className="text-sm font-normal text-gray-400">({operadores.length})</span>
             </h2>
+            {idsOnline.size > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full font-medium">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                {idsOnline.size} {tr('operadoresOnline')}
+              </span>
+            )}
           </div>
 
           {operadores.length === 0 ? (
             <EmptyState icone="👥" texto={tr('nenhumOperador')} />
           ) : (
             <ul className="divide-y divide-gray-50">
-              {operadores.map(op => (
+              {operadores.map(op => {
+                const online = idsOnline.has(op.id)
+                return (
                 <li key={op.id} className={`flex items-center gap-4 px-6 py-4 ${!op.ativo ? 'opacity-60' : ''}`}>
-                  <div className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-semibold text-sm shrink-0">
-                    {op.nome.charAt(0).toUpperCase()}
+                  <div className="relative shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-semibold text-sm">
+                      {op.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <span
+                      title={online ? 'Online' : 'Offline'}
+                      className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+                        online ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -457,6 +487,9 @@ function SecaoOperadores() {
                       }`}>
                         {op.nivel === 'supervisor' ? tr('nivelSupervisor') : tr('nivelOperador')}
                       </span>
+                      {online && op.ativo && (
+                        <span className="text-xs text-green-600 font-medium">● online</span>
+                      )}
                       {!op.ativo && <span className="text-xs text-red-400 italic">{tr('inativo')}</span>}
                     </div>
                     <span className="text-xs text-gray-400">{op.email}</span>
@@ -479,7 +512,8 @@ function SecaoOperadores() {
                     <BotaoDeletar onClick={() => handleDeletar(op)} carregando={deletando === op.id} />
                   </div>
                 </li>
-              ))}
+              )
+              })}
             </ul>
           )}
         </div>
