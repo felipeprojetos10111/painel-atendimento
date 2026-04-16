@@ -21,6 +21,9 @@ app.prepare().then(() => {
     cors: { origin: '*' }
   })
 
+  // Map<operadorId, socketId> — presença em tempo real
+  const onlineOperators = new Map()
+
   io.on('connection', (socket) => {
     socket.on('join-conversa', (conversaId) => {
       socket.join(`conversa-${conversaId}`)
@@ -33,9 +36,25 @@ app.prepare().then(() => {
     socket.on('join-operadores', () => {
       socket.join('operadores')
     })
+
+    socket.on('operador-online', (operadorId) => {
+      onlineOperators.set(operadorId, socket.id)
+      console.log(`[presença] operador ${operadorId} online (socket ${socket.id})`)
+    })
+
+    socket.on('disconnect', () => {
+      for (const [operadorId, socketId] of onlineOperators.entries()) {
+        if (socketId === socket.id) {
+          onlineOperators.delete(operadorId)
+          console.log(`[presença] operador ${operadorId} offline`)
+          break
+        }
+      }
+    })
   })
 
   global.io = io
+  global.onlineOperators = onlineOperators
 
   const PORT = process.env.PORT || 3001
   httpServer.listen(PORT, () => {

@@ -66,6 +66,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   const [busca, setBusca] = useState('')
   const [toasts, setToasts] = useState<ToastEscalacao[]>([])
   const timerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const operadorIdRef = useRef<number | null>(null)
 
   async function carregar() {
     const res = await fetch('/api/conversas')
@@ -88,20 +89,34 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   useEffect(() => {
     carregar()
 
-    if (!socket) {
-      socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!)
-    }
+    // Busca dados do operador atual para registrar presença
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(me => {
+        if (!me) return
+        operadorIdRef.current = me.id
 
-    socket.emit('join-operadores')
-    socket.on('atualizar-lista', () => carregar())
-    socket.on('nova-conversa-fila', (dados: Omit<ToastEscalacao, 'id'>) => {
-      carregar()
-      adicionarToast(dados)
-    })
+        if (!socket) {
+          socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!)
+        }
+
+        socket.emit('join-operadores')
+
+        // Registra presença — supervisores também emitem, mas /api/fila/atribuir os ignora
+        socket.emit('operador-online', me.id)
+
+        socket.on('atualizar-lista', () => carregar())
+        socket.on('nova-conversa-fila', (dados: Omit<ToastEscalacao, 'id'>) => {
+          carregar()
+          adicionarToast(dados)
+        })
+        socket.on('conversa-atribuida', () => carregar())
+      })
 
     return () => {
       socket?.off('atualizar-lista')
       socket?.off('nova-conversa-fila')
+      socket?.off('conversa-atribuida')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
