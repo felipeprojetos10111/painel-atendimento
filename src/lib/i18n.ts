@@ -1,7 +1,7 @@
 export type Lingua = 'pt' | 'en' | 'es'
 
 export const LINGUAS = [
-  { codigo: 'pt' as Lingua, label: 'Português', bandeira: '🇧🇷' },
+  { codigo: 'pt' as Lingua, label: 'Português', bandeira: '🇵🇹' },
   { codigo: 'en' as Lingua, label: 'English',   bandeira: '🇺🇸' },
   { codigo: 'es' as Lingua, label: 'Español',   bandeira: '🇪🇸' },
 ] as const

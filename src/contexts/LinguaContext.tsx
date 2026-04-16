@@ -10,24 +10,42 @@ interface LinguaContextType {
 }
 
 const LinguaContext = createContext<LinguaContextType>({
-  lingua: 'pt',
+  lingua: 'en',
   setLingua: () => {},
   tr: (chave) => chave,
 })
 
 export function LinguaProvider({ children }: { children: ReactNode }) {
-  const [lingua, setLinguaState] = useState<Lingua>('pt')
+  const [lingua, setLinguaState] = useState<Lingua>('en')
 
   useEffect(() => {
+    // Aplica localStorage imediatamente para evitar flash
     const salva = localStorage.getItem('lingua') as Lingua | null
     if (salva && ['pt', 'en', 'es'].includes(salva)) {
       setLinguaState(salva)
     }
+
+    // Busca preferência salva na conta (tem precedência sobre localStorage)
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.lingua && ['pt', 'en', 'es'].includes(data.lingua)) {
+          setLinguaState(data.lingua as Lingua)
+          localStorage.setItem('lingua', data.lingua)
+        }
+      })
+      .catch(() => {}) // página de login não tem auth, ignora silenciosamente
   }, [])
 
   function setLingua(l: Lingua) {
     setLinguaState(l)
     localStorage.setItem('lingua', l)
+    // Salva na conta em segundo plano
+    fetch('/api/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lingua: l })
+    }).catch(() => {})
   }
 
   function tr(chave: string): string {

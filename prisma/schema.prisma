@@ -59,6 +59,7 @@ model operadores {
   senha_hash String      @db.VarChar(255)
   nivel      String?     @default("operador") @db.VarChar(20)
   ativo      Boolean?    @default(true)
+  lingua     String?     @default("en") @db.VarChar(5)
   criado_em  DateTime?   @default(now()) @db.Timestamp(6)
   conversas  conversas[]
 }
