@@ -113,10 +113,18 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   confirmarDeletarOp2:   { pt: 'Esta ação não pode ser desfeita.', en: 'This action cannot be undone.', es: 'Esta acción no se puede deshacer.' },
 
   // ── Presença e atendimento ─────────────────────────────────────────────────
-  operadoresOnline:  { pt: 'online',             en: 'online',         es: 'en línea' },
-  respondendoIA:     { pt: 'IA respondendo',     en: 'AI responding',  es: 'IA respondiendo' },
-  atendidoPor:       { pt: 'Atendido por',       en: 'Handled by',     es: 'Atendido por' },
+  operadoresOnline:  { pt: 'online',              en: 'online',               es: 'en línea' },
+  respondendoIA:     { pt: 'IA respondendo',      en: 'AI responding',        es: 'IA respondiendo' },
+  atendidoPor:       { pt: 'Atendido por',        en: 'Handled by',           es: 'Atendido por' },
   aguardandoFila:    { pt: 'Aguardando operador', en: 'Waiting for operator', es: 'Esperando operador' },
+
+  // ── Encerrar / Transferir ─────────────────────────────────────────────────
+  encerrarConversa:       { pt: 'Encerrar',               en: 'Close',                  es: 'Cerrar' },
+  confirmarEncerrar:      { pt: 'Encerrar esta conversa?', en: 'Close this conversation?', es: '¿Cerrar esta conversación?' },
+  conversaEncerrada:      { pt: 'Conversa encerrada',     en: 'Conversation closed',    es: 'Conversación cerrada' },
+  transferirConversa:     { pt: 'Transferir',             en: 'Transfer',               es: 'Transferir' },
+  selecionarOperador:     { pt: 'Selecionar operador...',  en: 'Select operator...',     es: 'Seleccionar operador...' },
+  confirmarTransferencia: { pt: 'Transferir para',        en: 'Transfer to',            es: 'Transferir a' },
 
   // ── Compartilhado ──────────────────────────────────────────────────────────
   erroDesconhecido: { pt: 'Erro desconhecido.', en: 'Unknown error.', es: 'Error desconocido.' },

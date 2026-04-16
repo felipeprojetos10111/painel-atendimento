@@ -13,13 +13,21 @@ export async function GET(req: NextRequest) {
 
   // Supervisores veem todas as conversas
   // Operadores veem apenas as suas próprias + aguardando_humano sem operador atribuído
+  // Conversas resolvidas nunca aparecem na lista ativa
+  const baseWhere = { status: { not: 'resolvida' } }
+
   const where = payload.nivel === 'supervisor'
-    ? {}
+    ? baseWhere
     : {
-        OR: [
-          { operador_id: payload.id },
-          { operador_id: null, status: 'aguardando_humano' },
-          { operador_id: null, status: 'aguardando' },
+        AND: [
+          baseWhere,
+          {
+            OR: [
+              { operador_id: payload.id },
+              { operador_id: null, status: 'aguardando_humano' },
+              { operador_id: null, status: 'aguardando' },
+            ]
+          }
         ]
       }
 

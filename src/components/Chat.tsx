@@ -22,6 +22,19 @@ interface RespostaRapida {
   atalho: string | null
 }
 
+interface Operador {
+  id: number
+  nome: string
+  nivel: string | null
+  ativo: boolean | null
+}
+
+interface Me {
+  id: number
+  nome: string
+  nivel: string
+}
+
 interface Props {
   conversaId: number
 }
@@ -36,6 +49,20 @@ const ORIGEM_CHAVE: Record<string, string> = {
   lead:     'origemLead',
   ia:       'origemIA',
   operador: 'origemVoce',
+}
+
+const STATUS_COR: Record<string, string> = {
+  aguardando:        'bg-yellow-100 text-yellow-800',
+  em_atendimento:   'bg-blue-100 text-blue-800',
+  aguardando_humano: 'bg-red-100 text-red-800',
+  resolvida:        'bg-green-100 text-green-800',
+}
+
+const STATUS_CHAVE: Record<string, string> = {
+  aguardando:        'statusAguardando',
+  em_atendimento:   'statusEmAtendimento',
+  aguardando_humano: 'statusEscalada',
+  resolvida:        'statusResolvida',
 }
 
 // Toca um bip curto via Web Audio API
@@ -66,6 +93,10 @@ export default function Chat({ conversaId }: Props) {
   const [enviando, setEnviando] = useState(false)
   const [status, setStatus] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
+  const [me, setMe] = useState<Me | null>(null)
+  const [operadores, setOperadores] = useState<Operador[]>([])
+  const [transferindo, setTransferindo] = useState(false)
+  const [encerrando, setEncerrando] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -95,6 +126,22 @@ export default function Chat({ conversaId }: Props) {
     carregarStatus()
     zerarNaoLidas()
 
+    // Carrega dados do usuário atual
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: Me | null) => {
+        if (!data) return
+        setMe(data)
+        // Supervisores carregam lista de operadores para transferência
+        if (data.nivel === 'supervisor') {
+          fetch('/api/operadores')
+            .then(r => r.json())
+            .then((ops: Operador[]) =>
+              setOperadores(ops.filter(o => o.nivel === 'operador' && o.ativo))
+            )
+        }
+      })
+
     if (!socket) {
       socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!)
     }
@@ -111,9 +158,17 @@ export default function Chat({ conversaId }: Props) {
       })
     })
 
+    // Atualiza status quando outra pessoa encerra ou transfere a conversa
+    socket.on('status-alterado', (data: { conversaId: number; status: string }) => {
+      if (data.conversaId === conversaId) {
+        setStatus(data.status)
+      }
+    })
+
     return () => {
       socket?.emit('leave-conversa', conversaId)
       socket?.off('nova-mensagem')
+      socket?.off('status-alterado')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaId])
@@ -154,32 +209,88 @@ export default function Chat({ conversaId }: Props) {
     inputRef.current?.focus()
   }
 
-  async function atualizarStatus(novoStatus: string) {
+  async function encerrar() {
+    if (!confirm(tr('confirmarEncerrar'))) return
+    setEncerrando(true)
     await fetch(`/api/conversas/${conversaId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: novoStatus })
+      body: JSON.stringify({ status: 'resolvida' })
     })
-    setStatus(novoStatus)
+    setStatus('resolvida')
+    setEncerrando(false)
   }
+
+  async function transferir(novoOperadorId: number) {
+    const op = operadores.find(o => o.id === novoOperadorId)
+    if (!op) return
+    if (!confirm(`${tr('confirmarTransferencia')} ${op.nome}?`)) return
+    setTransferindo(false)
+    await fetch(`/api/conversas/${conversaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operador_id: novoOperadorId, status: 'em_atendimento' })
+    })
+  }
+
+  const resolvida = status === 'resolvida'
+  const statusCor = STATUS_COR[status] ?? 'bg-gray-100 text-gray-600'
+  const statusLabel = STATUS_CHAVE[status] ? tr(STATUS_CHAVE[status]) : status
 
   return (
     <div className="flex flex-col flex-1 bg-gray-50">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
         <h3 className="font-semibold text-gray-800">{tr('conversa')} #{conversaId}</h3>
+
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">{tr('statusLabel')}</span>
-          <select
-            value={status}
-            onChange={e => atualizarStatus(e.target.value)}
-            className="text-xs text-gray-900 bg-white border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="aguardando">{tr('statusAguardando')}</option>
-            <option value="em_atendimento">{tr('statusEmAtendimento')}</option>
-            <option value="aguardando_humano">{tr('statusEscalada')}</option>
-            <option value="resolvida">{tr('statusResolvida')}</option>
-          </select>
+          {/* Badge de status (somente leitura) */}
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusCor}`}>
+            {statusLabel}
+          </span>
+
+          {/* Transferir — somente supervisor, conversa não resolvida */}
+          {me?.nivel === 'supervisor' && !resolvida && (
+            transferindo ? (
+              <div className="flex items-center gap-1">
+                <select
+                  autoFocus
+                  defaultValue=""
+                  onChange={e => e.target.value && transferir(Number(e.target.value))}
+                  className="text-xs text-gray-900 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="" disabled>{tr('selecionarOperador')}</option>
+                  {operadores.map(op => (
+                    <option key={op.id} value={op.id}>{op.nome}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setTransferindo(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setTransferindo(true)}
+                className="text-xs text-blue-600 border border-blue-200 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors"
+              >
+                {tr('transferirConversa')}
+              </button>
+            )
+          )}
+
+          {/* Encerrar — conversa não resolvida */}
+          {!resolvida && (
+            <button
+              onClick={encerrar}
+              disabled={encerrando}
+              className="text-xs text-red-600 border border-red-200 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {tr('encerrarConversa')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -204,40 +315,47 @@ export default function Chat({ conversaId }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-white border-t border-gray-200 px-4 py-3">
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            type="button"
-            onClick={() => setModalAberto(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
-          >
-            <span>⚡</span>
-            {tr('respostasRapidas')}
-          </button>
+      {/* Input ou banner de encerrada */}
+      {resolvida ? (
+        <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-center gap-2 text-sm text-gray-400">
+          <span>✓</span>
+          <span>{tr('conversaEncerrada')}</span>
         </div>
+      ) : (
+        <div className="bg-white border-t border-gray-200 px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setModalAberto(true)}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+            >
+              <span>⚡</span>
+              {tr('respostasRapidas')}
+            </button>
+          </div>
 
-        <form onSubmit={handleSubmit} className="flex items-center gap-3">
-          <input
-            ref={inputRef}
-            type="text"
-            value={texto}
-            onChange={e => setTexto(e.target.value)}
-            placeholder={tr('digiteMensagem')}
-            className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <button
-            type="submit"
-            disabled={enviando || !texto.trim()}
-            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors shrink-0"
-          >
-            {enviando
-              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-              : tr('enviar')
-            }
-          </button>
-        </form>
-      </div>
+          <form onSubmit={handleSubmit} className="flex items-center gap-3">
+            <input
+              ref={inputRef}
+              type="text"
+              value={texto}
+              onChange={e => setTexto(e.target.value)}
+              placeholder={tr('digiteMensagem')}
+              className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="submit"
+              disabled={enviando || !texto.trim()}
+              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors shrink-0"
+            >
+              {enviando
+                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                : tr('enviar')
+              }
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Modal de Respostas Rápidas */}
       {modalAberto && (
