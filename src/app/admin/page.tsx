@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLingua } from '@/contexts/LinguaContext'
 import SeletorLingua from '@/components/SeletorLingua'
@@ -58,7 +58,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'respostas' | 'operadores'>('respostas')
+  const [aba, setAba] = useState<'respostas' | 'operadores' | 'ia'>('respostas')
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -87,7 +87,8 @@ export default function AdminPage() {
         <nav className="flex gap-1 -mb-px">
           {([
             { key: 'respostas', chave: 'abaRespostas' },
-            { key: 'operadores', chave: 'abaOperadores' }
+            { key: 'operadores', chave: 'abaOperadores' },
+            { key: 'ia', chave: 'abaIA' },
           ] as const).map(({ key, chave }) => (
             <button
               key={key}
@@ -107,6 +108,7 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto px-6 py-8">
         {aba === 'respostas' && <SecaoRespostas />}
         {aba === 'operadores' && <SecaoOperadores />}
+        {aba === 'ia' && <SecaoIA />}
       </div>
     </div>
   )
@@ -528,6 +530,318 @@ function SecaoOperadores() {
           )}
         </div>
       </section>
+    </div>
+  )
+}
+
+// ─── Seção: Gestão de IA ─────────────────────────────────────────────────────
+
+interface ConfigIA {
+  ativo: boolean
+  modelo: string
+  prompt_sistema: string
+  idioma_resposta: string
+  max_rodadas: number
+  criterios_escalacao: string[]
+  atualizado_em: string | null
+  atualizado_por: string | null
+}
+
+interface TesteResultado {
+  resposta: string
+  acao: string
+  intencao: string
+  urgencia: string
+}
+
+const MODELOS = [
+  { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 — Rápido / Econômico' },
+  { value: 'claude-sonnet-4-6',         label: 'Sonnet 4.6 — Equilibrado (recomendado)' },
+  { value: 'claude-opus-4-6',           label: 'Opus 4.6 — Máxima qualidade' },
+]
+
+const IDIOMAS_IA = [
+  { value: 'auto', chave: 'iaIdiomaAuto' },
+  { value: 'pt',   chave: 'tipoTexto',   label: 'Português' },
+  { value: 'en',   chave: 'tipoTexto',   label: 'English' },
+  { value: 'es',   chave: 'tipoTexto',   label: 'Español' },
+]
+
+const CONFIG_PADRAO: ConfigIA = {
+  ativo: true,
+  modelo: 'claude-sonnet-4-6',
+  prompt_sistema: 'Você é um assistente de atendimento ao cliente prestativo e profissional. Analise a mensagem do lead e responda em JSON com os campos: resposta (mensagem para enviar ao lead), acao (resolver se você consegue ajudar sozinho, ou escalar se precisa de um humano), intencao (o que o lead quer em poucas palavras), urgencia (baixa, media ou alta). Sempre responda APENAS com JSON válido, sem texto adicional.',
+  idioma_resposta: 'auto',
+  max_rodadas: 5,
+  criterios_escalacao: [],
+  atualizado_em: null,
+  atualizado_por: null,
+}
+
+function SecaoIA() {
+  const { tr } = useLingua()
+  const [form, setForm] = useState<ConfigIA>(CONFIG_PADRAO)
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+  const [sucesso, setSucesso] = useState('')
+  const [novoCriterio, setNovoCriterio] = useState('')
+  const [testeMensagem, setTesteMensagem] = useState('')
+  const [testeResultado, setTesteResultado] = useState<TesteResultado | null>(null)
+  const [testeErro, setTesteErro] = useState('')
+  const [testando, setTestando] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/ia/config')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setForm(data) })
+  }, [])
+
+  function setField<K extends keyof ConfigIA>(campo: K, valor: ConfigIA[K]) {
+    setForm(f => ({ ...f, [campo]: valor }))
+  }
+
+  function adicionarCriterio() {
+    const val = novoCriterio.trim().toLowerCase()
+    if (!val || form.criterios_escalacao.includes(val)) return
+    setField('criterios_escalacao', [...form.criterios_escalacao, val])
+    setNovoCriterio('')
+  }
+
+  function removerCriterio(c: string) {
+    setField('criterios_escalacao', form.criterios_escalacao.filter(x => x !== c))
+  }
+
+  async function salvar() {
+    setErro(''); setSucesso(''); setSalvando(true)
+    try {
+      const res = await fetch('/api/ia/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? tr('erroDesconhecido'))
+      setSucesso(tr('iaSucessoConfig'))
+      const data = await res.json()
+      setForm(data)
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : tr('erroDesconhecido'))
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function testar() {
+    if (!testeMensagem.trim()) return
+    setTesteErro(''); setTesteResultado(null); setTestando(true)
+    try {
+      const res = await fetch('/api/ia/testar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mensagem: testeMensagem,
+          prompt_sistema: form.prompt_sistema,
+          modelo: form.modelo,
+          idioma_resposta: form.idioma_resposta,
+          criterios_escalacao: form.criterios_escalacao,
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? tr('erroDesconhecido'))
+      setTesteResultado(data.decisao)
+    } catch (err) {
+      setTesteErro(err instanceof Error ? err.message : tr('erroDesconhecido'))
+    } finally {
+      setTestando(false)
+    }
+  }
+
+  const charCount = form.prompt_sistema.length
+  const charMax = 4000
+
+  return (
+    <div className="space-y-6">
+      {/* Header: toggle + salvar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setField('ativo', !form.ativo)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.ativo ? 'bg-green-500' : 'bg-gray-300'}`}
+          >
+            <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${form.ativo ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+          <span className={`text-sm font-semibold ${form.ativo ? 'text-green-700' : 'text-gray-400'}`}>
+            {form.ativo ? tr('iaAtiva') : tr('iaInativa')}
+          </span>
+          {!form.ativo && (
+            <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+              Mensagens entram direto na fila humana
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {form.atualizado_em && (
+            <span className="text-xs text-gray-400 hidden sm:block">
+              {tr('iaUltimaAtualizacao')}: {new Date(form.atualizado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })} {tr('iaPor')} {form.atualizado_por}
+            </span>
+          )}
+          <Feedback erro={erro} sucesso={sucesso} />
+          <button onClick={salvar} disabled={salvando} className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shrink-0">
+            {salvando ? tr('iaSalvandoConfig') : tr('iaSalvarConfig')}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Coluna esquerda — configurações */}
+        <div className="lg:col-span-2 space-y-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+            {/* Modelo */}
+            <Field label={tr('iaModelo')}>
+              <select value={form.modelo} onChange={e => setField('modelo', e.target.value)} className={inputCls}>
+                {MODELOS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </Field>
+
+            {/* Idioma */}
+            <Field label={tr('iaIdioma')}>
+              <select value={form.idioma_resposta} onChange={e => setField('idioma_resposta', e.target.value)} className={inputCls}>
+                <option value="auto">{tr('iaIdiomaAuto')}</option>
+                <option value="pt">🇵🇹 Português</option>
+                <option value="en">🇺🇸 English</option>
+                <option value="es">🇪🇸 Español</option>
+              </select>
+            </Field>
+
+            {/* Máx. rodadas */}
+            <Field label={tr('iaMaxRodadas')} hint={tr('iaMaxRodasDica')}>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range" min={1} max={20} value={form.max_rodadas}
+                  onChange={e => setField('max_rodadas', Number(e.target.value))}
+                  className="flex-1 accent-green-500"
+                />
+                <span className="text-sm font-bold text-gray-700 w-6 text-center">{form.max_rodadas}</span>
+              </div>
+            </Field>
+
+            {/* Critérios de escalação */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{tr('iaCriterios')}</label>
+              <p className="text-xs text-gray-400 mb-2">{tr('iaCriteriosDica')}</p>
+              <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                {form.criterios_escalacao.map(c => (
+                  <span key={c} className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-full">
+                    {c}
+                    <button onClick={() => removerCriterio(c)} className="hover:text-red-900 font-bold leading-none">×</button>
+                  </span>
+                ))}
+                {form.criterios_escalacao.length === 0 && (
+                  <span className="text-xs text-gray-400 italic">Nenhum critério adicionado</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={novoCriterio}
+                  onChange={e => setNovoCriterio(e.target.value)}
+                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') { e.preventDefault(); adicionarCriterio() }}}
+                  placeholder={tr('iaCriterioAdd')}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button onClick={adicionarCriterio} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm px-3 py-1.5 rounded-lg transition-colors font-medium">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna direita — prompt + teste */}
+        <div className="lg:col-span-3 space-y-5">
+          {/* Prompt do sistema */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">{tr('iaPromptSistema')}</label>
+                <p className="text-xs text-gray-400 mt-0.5">{tr('iaPromptDica')}</p>
+              </div>
+              <span className={`text-xs font-mono shrink-0 ml-2 ${charCount > charMax * 0.9 ? 'text-red-500' : 'text-gray-400'}`}>
+                {charCount} / {charMax} {tr('iaCaracteres')}
+              </span>
+            </div>
+            <textarea
+              value={form.prompt_sistema}
+              onChange={e => setField('prompt_sistema', e.target.value)}
+              maxLength={charMax}
+              rows={10}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none font-mono leading-relaxed"
+              placeholder="Você é um assistente..."
+            />
+          </div>
+
+          {/* Teste ao vivo */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">{tr('iaTesteAoVivo')}</h3>
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-4">{tr('iaTesteAviso')}</p>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={testeMensagem}
+                onChange={e => setTesteMensagem(e.target.value)}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') testar() }}
+                placeholder={tr('iaMensagemTeste')}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                onClick={testar}
+                disabled={testando || !testeMensagem.trim()}
+                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+              >
+                {testando
+                  ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                  : tr('iaTestar')
+                }
+              </button>
+            </div>
+
+            {testeErro && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{testeErro}</p>
+            )}
+
+            {testeResultado && (
+              <div className={`rounded-xl border-2 p-4 ${testeResultado.acao === 'resolver' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-sm font-bold px-3 py-1 rounded-full ${testeResultado.acao === 'resolver' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                    {testeResultado.acao === 'resolver' ? `✓ ${tr('iaAcaoResolver')}` : `⚡ ${tr('iaAcaoEscalar')}`}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    testeResultado.urgencia === 'alta' ? 'bg-red-100 text-red-700' :
+                    testeResultado.urgencia === 'media' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    Urgência: {testeResultado.urgencia}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Resposta</span>
+                    <p className="text-sm text-gray-800 mt-0.5">{testeResultado.resposta}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Intenção</span>
+                    <p className="text-sm text-gray-600 mt-0.5">{testeResultado.intencao}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!testeResultado && !testeErro && !testando && (
+              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center text-gray-400 text-sm">
+                {tr('iaResultado')} aparece aqui
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

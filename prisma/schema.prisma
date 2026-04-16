@@ -64,6 +64,18 @@ model operadores {
   conversas  conversas[]
 }
 
+model config_ia {
+  id                   Int       @id @default(autoincrement())
+  ativo                Boolean   @default(true)
+  modelo               String    @default("claude-sonnet-4-6") @db.VarChar(60)
+  prompt_sistema       String    @db.Text
+  idioma_resposta      String    @default("auto") @db.VarChar(10)
+  max_rodadas          Int       @default(5)
+  criterios_escalacao  String[]
+  atualizado_em        DateTime? @default(now()) @db.Timestamp(6)
+  atualizado_por       String?   @db.VarChar(100)
+}
+
 model respostas_rapidas {
   id         Int       @id @default(autoincrement())
   titulo     String    @db.VarChar(150)
