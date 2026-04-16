@@ -2,9 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLingua } from '@/contexts/LinguaContext'
+import SeletorLingua from '@/components/SeletorLingua'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { tr } = useLingua()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
@@ -27,12 +30,17 @@ export default function LoginPage() {
       router.push('/painel')
     } else {
       const data = await res.json()
-      setErro(data.erro ?? 'Erro ao fazer login.')
+      setErro(data.erro ?? tr('erroLogin'))
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      {/* Seletor de idioma — canto superior direito */}
+      <div className="absolute top-4 right-4">
+        <SeletorLingua variante="card" />
+      </div>
+
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm p-8">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-500 mb-4">
@@ -41,31 +49,31 @@ export default function LoginPage() {
               <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.556 4.112 1.528 5.837L.057 23.943l6.254-1.641A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.848 0-3.579-.476-5.088-1.31l-.365-.216-3.71.974.99-3.617-.237-.376A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Painel de Atendimento</h1>
-          <p className="text-sm text-gray-500 mt-1">Faça login para continuar</p>
+          <h1 className="text-2xl font-bold text-gray-800">{tr('loginTitulo')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{tr('loginSubtitulo')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{tr('email')}</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="operador@empresa.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{tr('senha')}</label>
             <input
               type="password"
               value={senha}
               onChange={e => setSenha(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="••••••••"
             />
           </div>
@@ -81,7 +89,7 @@ export default function LoginPage() {
             disabled={carregando}
             className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors"
           >
-            {carregando ? 'Entrando...' : 'Entrar'}
+            {carregando ? tr('entrando') : tr('entrar')}
           </button>
         </form>
       </div>

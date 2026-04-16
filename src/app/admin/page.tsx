@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLingua } from '@/contexts/LinguaContext'
+import SeletorLingua from '@/components/SeletorLingua'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -31,12 +33,20 @@ interface Operador {
 const TIPOS = ['texto', 'imagem', 'audio', 'video', 'documento'] as const
 type Tipo = typeof TIPOS[number]
 
-const TIPO_CONFIG: Record<Tipo, { label: string; accept: string; icone: string; cor: string }> = {
-  texto:     { label: 'Texto',     accept: '',                                                                                                              icone: '💬', cor: 'bg-gray-100 text-gray-700'   },
-  imagem:    { label: 'Imagem',    accept: 'image/jpeg,image/png,image/webp,image/gif',                                                                    icone: '🖼️', cor: 'bg-blue-100 text-blue-700'   },
-  audio:     { label: 'Áudio',     accept: 'audio/mpeg,audio/ogg,audio/wav',                                                                               icone: '🎵', cor: 'bg-purple-100 text-purple-700'},
-  video:     { label: 'Vídeo',     accept: 'video/mp4,video/webm',                                                                                         icone: '🎬', cor: 'bg-red-100 text-red-700'     },
-  documento: { label: 'Documento', accept: 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',    icone: '📄', cor: 'bg-yellow-100 text-yellow-700'},
+const TIPO_CONFIG: Record<Tipo, { accept: string; icone: string; chave: string }> = {
+  texto:     { accept: '',                                                                                                              icone: '💬', chave: 'tipoTexto' },
+  imagem:    { accept: 'image/jpeg,image/png,image/webp,image/gif',                                                                    icone: '🖼️', chave: 'tipoImagem' },
+  audio:     { accept: 'audio/mpeg,audio/ogg,audio/wav',                                                                               icone: '🎵', chave: 'tipoAudio' },
+  video:     { accept: 'video/mp4,video/webm',                                                                                         icone: '🎬', chave: 'tipoVideo' },
+  documento: { accept: 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',    icone: '📄', chave: 'tipoDocumento' },
+}
+
+const TIPO_COR: Record<Tipo, string> = {
+  texto:     'bg-gray-100 text-gray-700',
+  imagem:    'bg-blue-100 text-blue-700',
+  audio:     'bg-purple-100 text-purple-700',
+  video:     'bg-red-100 text-red-700',
+  documento: 'bg-yellow-100 text-yellow-700',
 }
 
 const FORM_RESPOSTA_VAZIO = { titulo: '', categoria: '', tipo: 'texto' as Tipo, conteudo: '', atalho: '' }
@@ -46,6 +56,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 
 export default function AdminPage() {
   const router = useRouter()
+  const { tr } = useLingua()
   const [aba, setAba] = useState<'respostas' | 'operadores'>('respostas')
 
   return (
@@ -56,24 +67,27 @@ export default function AdminPage() {
           <button
             onClick={() => router.push('/painel')}
             className="hover:bg-green-700 p-1.5 rounded-lg transition-colors"
-            title="Voltar ao painel"
+            title={tr('voltarAoPainel')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          <span className="font-semibold text-lg">Administração</span>
+          <span className="font-semibold text-lg">{tr('administracao')}</span>
         </div>
-        <span className="text-xs bg-green-700 px-2.5 py-1 rounded-full font-medium">supervisor</span>
+        <div className="flex items-center gap-2">
+          <SeletorLingua variante="topbar" />
+          <span className="text-xs bg-green-700 px-2.5 py-1 rounded-full font-medium">{tr('supervisorLabel')}</span>
+        </div>
       </header>
 
       {/* Abas */}
       <div className="border-b border-gray-200 bg-white px-6">
         <nav className="flex gap-1 -mb-px">
           {([
-            { key: 'respostas', label: '⚡ Respostas Rápidas' },
-            { key: 'operadores', label: '👥 Operadores' }
-          ] as const).map(({ key, label }) => (
+            { key: 'respostas', chave: 'abaRespostas' },
+            { key: 'operadores', chave: 'abaOperadores' }
+          ] as const).map(({ key, chave }) => (
             <button
               key={key}
               onClick={() => setAba(key)}
@@ -83,7 +97,7 @@ export default function AdminPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {label}
+              {tr(chave)}
             </button>
           ))}
         </nav>
@@ -100,6 +114,7 @@ export default function AdminPage() {
 // ─── Seção: Respostas Rápidas ─────────────────────────────────────────────────
 
 function SecaoRespostas() {
+  const { tr } = useLingua()
   const fileRef = useRef<HTMLInputElement>(null)
   const [respostas, setRespostas] = useState<RespostaRapida[]>([])
   const [form, setForm] = useState(FORM_RESPOSTA_VAZIO)
@@ -134,18 +149,18 @@ function SecaoRespostas() {
       let url_midia: string | null = null
 
       if (form.tipo !== 'texto' && arquivo) {
-        setUploadProgresso('Enviando arquivo...')
+        setUploadProgresso(tr('enviandoArquivo'))
 
         const uploadRes = await fetch('/api/respostas-rapidas/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nome: arquivo.name, contentType: arquivo.type })
         })
-        if (!uploadRes.ok) throw new Error((await uploadRes.json()).erro ?? 'Erro ao gerar URL de upload.')
+        if (!uploadRes.ok) throw new Error((await uploadRes.json()).erro ?? tr('erroDesconhecido'))
 
         const { uploadUrl, urlPublica } = await uploadRes.json()
         const putRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': arquivo.type }, body: arquivo })
-        if (!putRes.ok) throw new Error('Falha no upload para o armazenamento.')
+        if (!putRes.ok) throw new Error(tr('erroDesconhecido'))
 
         url_midia = urlPublica
         setUploadProgresso('')
@@ -163,22 +178,22 @@ function SecaoRespostas() {
           url_midia
         })
       })
-      if (!res.ok) throw new Error((await res.json()).erro ?? 'Erro ao cadastrar.')
+      if (!res.ok) throw new Error((await res.json()).erro ?? tr('erroDesconhecido'))
 
-      setSucesso('Resposta rápida cadastrada com sucesso!')
+      setSucesso(tr('sucessoResposta'))
       setForm(FORM_RESPOSTA_VAZIO)
       setArquivo(null)
       if (fileRef.current) fileRef.current.value = ''
       await carregar()
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Erro desconhecido.')
+      setErro(err instanceof Error ? err.message : tr('erroDesconhecido'))
     } finally {
       setSalvando(false); setUploadProgresso('')
     }
   }
 
   async function handleDeletar(id: number) {
-    if (!confirm('Deletar esta resposta rápida?')) return
+    if (!confirm(tr('confirmarDeletarResposta'))) return
     setDeletando(id)
     await fetch(`/api/respostas-rapidas/${id}`, { method: 'DELETE' })
     setDeletando(null)
@@ -198,20 +213,20 @@ function SecaoRespostas() {
       {/* Formulário */}
       <section className="lg:col-span-2">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-800 text-base mb-5">Nova resposta rápida</h2>
+          <h2 className="font-semibold text-gray-800 text-base mb-5">{tr('novaRespostaRapida')}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            <Field label="Título" required>
+            <Field label={tr('tituloField')} required>
               <input type="text" value={form.titulo} onChange={e => setField('titulo', e.target.value)}
                 required placeholder="Ex: Saudação inicial" className={inputCls} />
             </Field>
 
-            <Field label="Categoria">
+            <Field label={tr('categoriaField')}>
               <input type="text" value={form.categoria} onChange={e => setField('categoria', e.target.value)}
                 placeholder="Ex: Vendas, Suporte" className={inputCls} />
             </Field>
 
-            <Field label="Atalho" hint="opcional">
+            <Field label={tr('atalhoField')} hint={tr('opcional')}>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono">#</span>
                 <input type="text" value={form.atalho}
@@ -221,7 +236,7 @@ function SecaoRespostas() {
             </Field>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{tr('tipoField')}</label>
               <div className="grid grid-cols-5 gap-1">
                 {TIPOS.map(t => (
                   <button key={t} type="button" onClick={() => setField('tipo', t)}
@@ -229,25 +244,25 @@ function SecaoRespostas() {
                       form.tipo === t ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
                     }`}>
                     <span className="text-base leading-none">{TIPO_CONFIG[t].icone}</span>
-                    {TIPO_CONFIG[t].label}
+                    {tr(TIPO_CONFIG[t].chave)}
                   </button>
                 ))}
               </div>
             </div>
 
             {!isMidia && (
-              <Field label="Conteúdo">
+              <Field label={tr('conteudoField')}>
                 <textarea value={form.conteudo} onChange={e => setField('conteudo', e.target.value)}
-                  rows={4} placeholder="Digite o texto da resposta rápida..."
+                  rows={4} placeholder={tr('conteudoPlaceholder')}
                   className={`${inputCls} resize-none`} />
               </Field>
             )}
 
             {isMidia && (
-              <Field label={`Arquivo de ${TIPO_CONFIG[form.tipo].label}`} required>
+              <Field label={`${tr('arquivoDe')} ${tr(TIPO_CONFIG[form.tipo].chave)}`} required>
                 <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl py-6 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors">
                   <span className="text-2xl mb-1">{TIPO_CONFIG[form.tipo].icone}</span>
-                  <span className="text-sm text-gray-500">{arquivo ? arquivo.name : 'Clique para selecionar'}</span>
+                  <span className="text-sm text-gray-500">{arquivo ? arquivo.name : tr('cliqueSelecionarArquivo')}</span>
                   {arquivo && <span className="text-xs text-gray-400 mt-0.5">{(arquivo.size / 1024 / 1024).toFixed(2)} MB</span>}
                   <input ref={fileRef} type="file" accept={TIPO_CONFIG[form.tipo].accept}
                     onChange={e => setArquivo(e.target.files?.[0] ?? null)} className="hidden" />
@@ -258,7 +273,7 @@ function SecaoRespostas() {
             <Feedback erro={erro} sucesso={sucesso} />
 
             <button type="submit" disabled={salvando || (isMidia && !arquivo)} className={btnPrimario}>
-              {salvando ? (uploadProgresso || 'Salvando...') : 'Cadastrar resposta'}
+              {salvando ? (uploadProgresso || tr('salvando')) : tr('cadastrarResposta')}
             </button>
           </form>
         </div>
@@ -269,28 +284,29 @@ function SecaoRespostas() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
             <h2 className="font-semibold text-gray-800 text-base shrink-0">
-              Respostas cadastradas <span className="text-sm font-normal text-gray-400">({filtradas.length})</span>
+              {tr('respostasCadastradas')} <span className="text-sm font-normal text-gray-400">({filtradas.length})</span>
             </h2>
             <input type="text" value={busca} onChange={e => setBusca(e.target.value)}
-              placeholder="Filtrar..." className="w-44 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              placeholder={tr('filtrarPlaceholder')} className="w-44 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
 
           {filtradas.length === 0 ? (
-            <EmptyState icone="⚡" texto="Nenhuma resposta rápida cadastrada." />
+            <EmptyState icone="⚡" texto={tr('nenhumaRespostaCadastrada')} />
           ) : (
             <ul className="divide-y divide-gray-50">
               {filtradas.map(r => {
                 const cfg = TIPO_CONFIG[r.tipo as Tipo] ?? TIPO_CONFIG.texto
+                const cor = TIPO_COR[r.tipo as Tipo] ?? TIPO_COR.texto
                 return (
                   <li key={r.id} className={`flex items-start gap-4 px-6 py-4 ${!r.ativo ? 'opacity-50' : ''}`}>
                     <span className="text-2xl mt-0.5 select-none">{cfg.icone}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="text-sm font-medium text-gray-800">{r.titulo}</span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${cfg.cor}`}>{cfg.label}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${cor}`}>{tr(cfg.chave)}</span>
                         {r.atalho && <span className="text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">#{r.atalho}</span>}
                         {r.categoria && <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.categoria}</span>}
-                        {!r.ativo && <span className="text-xs text-gray-400 italic">inativa</span>}
+                        {!r.ativo && <span className="text-xs text-gray-400 italic">{tr('inativa')}</span>}
                       </div>
                       {r.conteudo && <p className="text-xs text-gray-500 line-clamp-2">{r.conteudo}</p>}
                       {r.url_midia && (
@@ -316,6 +332,7 @@ function SecaoRespostas() {
 // ─── Seção: Operadores ────────────────────────────────────────────────────────
 
 function SecaoOperadores() {
+  const { tr } = useLingua()
   const [operadores, setOperadores] = useState<Operador[]>([])
   const [form, setForm] = useState(FORM_OPERADOR_VAZIO)
   const [salvando, setSalvando] = useState(false)
@@ -341,13 +358,13 @@ function SecaoOperadores() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       })
-      if (!res.ok) throw new Error((await res.json()).erro ?? 'Erro ao cadastrar.')
+      if (!res.ok) throw new Error((await res.json()).erro ?? tr('erroDesconhecido'))
 
-      setSucesso(`Operador ${form.nome} cadastrado com sucesso!`)
+      setSucesso(`${tr('nivelOperador')} ${form.nome} ${tr('operadorCadastrado')}`)
       setForm(FORM_OPERADOR_VAZIO)
       await carregar()
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Erro desconhecido.')
+      setErro(err instanceof Error ? err.message : tr('erroDesconhecido'))
     } finally {
       setSalvando(false)
     }
@@ -365,7 +382,7 @@ function SecaoOperadores() {
   }
 
   async function handleDeletar(op: Operador) {
-    if (!confirm(`Deletar o operador ${op.nome}? Esta ação não pode ser desfeita.`)) return
+    if (!confirm(`${tr('confirmarDeletarOp1')} ${op.nome}? ${tr('confirmarDeletarOp2')}`)) return
     setDeletando(op.id)
     await fetch(`/api/operadores/${op.id}`, { method: 'DELETE' })
     setDeletando(null)
@@ -377,35 +394,35 @@ function SecaoOperadores() {
       {/* Formulário */}
       <section className="lg:col-span-2">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-800 text-base mb-5">Novo operador</h2>
+          <h2 className="font-semibold text-gray-800 text-base mb-5">{tr('novoOperador')}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            <Field label="Nome" required>
+            <Field label={tr('nomeField')} required>
               <input type="text" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
                 required placeholder="Ex: João Silva" className={inputCls} />
             </Field>
 
-            <Field label="Email" required>
+            <Field label={tr('email')} required>
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 required placeholder="joao@empresa.com" className={inputCls} />
             </Field>
 
-            <Field label="Senha" required>
+            <Field label={tr('senha')} required>
               <input type="password" value={form.senha} onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
-                required minLength={6} placeholder="Mínimo 6 caracteres" className={inputCls} />
+                required minLength={6} placeholder={tr('minimoSenha')} className={inputCls} />
             </Field>
 
-            <Field label="Nível">
+            <Field label={tr('nivelField')}>
               <select value={form.nivel} onChange={e => setForm(f => ({ ...f, nivel: e.target.value }))} className={inputCls}>
-                <option value="operador">Operador</option>
-                <option value="supervisor">Supervisor</option>
+                <option value="operador">{tr('nivelOperador')}</option>
+                <option value="supervisor">{tr('nivelSupervisor')}</option>
               </select>
             </Field>
 
             <Feedback erro={erro} sucesso={sucesso} />
 
             <button type="submit" disabled={salvando} className={btnPrimario}>
-              {salvando ? 'Cadastrando...' : 'Cadastrar operador'}
+              {salvando ? tr('cadastrando') : tr('cadastrarOperador')}
             </button>
           </form>
         </div>
@@ -416,22 +433,20 @@ function SecaoOperadores() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-800 text-base">
-              Operadores cadastrados <span className="text-sm font-normal text-gray-400">({operadores.length})</span>
+              {tr('operadoresCadastrados')} <span className="text-sm font-normal text-gray-400">({operadores.length})</span>
             </h2>
           </div>
 
           {operadores.length === 0 ? (
-            <EmptyState icone="👥" texto="Nenhum operador cadastrado." />
+            <EmptyState icone="👥" texto={tr('nenhumOperador')} />
           ) : (
             <ul className="divide-y divide-gray-50">
               {operadores.map(op => (
                 <li key={op.id} className={`flex items-center gap-4 px-6 py-4 ${!op.ativo ? 'opacity-60' : ''}`}>
-                  {/* Avatar */}
                   <div className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-semibold text-sm shrink-0">
                     {op.nome.charAt(0).toUpperCase()}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">{op.nome}</span>
@@ -440,16 +455,14 @@ function SecaoOperadores() {
                           ? 'bg-purple-100 text-purple-700'
                           : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {op.nivel ?? 'operador'}
+                        {op.nivel === 'supervisor' ? tr('nivelSupervisor') : tr('nivelOperador')}
                       </span>
-                      {!op.ativo && <span className="text-xs text-red-400 italic">inativo</span>}
+                      {!op.ativo && <span className="text-xs text-red-400 italic">{tr('inativo')}</span>}
                     </div>
                     <span className="text-xs text-gray-400">{op.email}</span>
                   </div>
 
-                  {/* Ações */}
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Toggle ativo */}
                     <button
                       onClick={() => toggleAtivo(op)}
                       disabled={atualizando === op.id}
@@ -477,7 +490,7 @@ function SecaoOperadores() {
 
 // ─── Componentes auxiliares ───────────────────────────────────────────────────
 
-const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500'
+const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500'
 const btnPrimario = 'w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors'
 
 function Field({ label, children, required, hint }: { label: string; children: React.ReactNode; required?: boolean; hint?: string }) {

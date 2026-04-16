@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import ModalRespostasRapidas from './ModalRespostasRapidas'
+import { useLingua } from '@/contexts/LinguaContext'
 
 interface Mensagem {
   id: number
@@ -25,10 +26,16 @@ interface Props {
   conversaId: number
 }
 
-const ORIGEM_CONFIG: Record<string, { label: string; alinhamento: string; bolha: string }> = {
-  lead:     { label: 'Lead',  alinhamento: 'items-start', bolha: 'bg-white border border-gray-200 text-gray-800' },
-  ia:       { label: 'IA',   alinhamento: 'items-start', bolha: 'bg-blue-50 border border-blue-200 text-blue-900' },
-  operador: { label: 'Você', alinhamento: 'items-end',   bolha: 'bg-green-500 text-white' }
+const ORIGEM_ESTILO: Record<string, { alinhamento: string; bolha: string }> = {
+  lead:     { alinhamento: 'items-start', bolha: 'bg-white border border-gray-200 text-gray-800' },
+  ia:       { alinhamento: 'items-start', bolha: 'bg-blue-50 border border-blue-200 text-blue-900' },
+  operador: { alinhamento: 'items-end',   bolha: 'bg-green-500 text-white' },
+}
+
+const ORIGEM_CHAVE: Record<string, string> = {
+  lead:     'origemLead',
+  ia:       'origemIA',
+  operador: 'origemVoce',
 }
 
 // Toca um bip curto via Web Audio API
@@ -53,6 +60,7 @@ function tocarSom() {
 let socket: Socket | null = null
 
 export default function Chat({ conversaId }: Props) {
+  const { tr } = useLingua()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -94,12 +102,10 @@ export default function Chat({ conversaId }: Props) {
     socket.emit('join-conversa', conversaId)
 
     socket.on('nova-mensagem', (msg: Mensagem) => {
-      // Só toca som para mensagens do lead (não as que o próprio operador enviou)
       if (msg.origem === 'lead' || msg.origem === 'ia') {
         tocarSom()
       }
       setMensagens(prev => {
-        // Evita duplicar se a mensagem já foi adicionada (via POST do operador)
         if (prev.some(m => m.id === msg.id)) return prev
         return [...prev, msg]
       })
@@ -161,18 +167,18 @@ export default function Chat({ conversaId }: Props) {
     <div className="flex flex-col flex-1 bg-gray-50">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
-        <h3 className="font-semibold text-gray-800">Conversa #{conversaId}</h3>
+        <h3 className="font-semibold text-gray-800">{tr('conversa')} #{conversaId}</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Status:</span>
+          <span className="text-xs text-gray-500">{tr('statusLabel')}</span>
           <select
             value={status}
             onChange={e => atualizarStatus(e.target.value)}
-            className="text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="text-xs text-gray-900 bg-white border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
-            <option value="aguardando">Aguardando</option>
-            <option value="em_atendimento">Em atendimento</option>
-            <option value="aguardando_humano">Escalada</option>
-            <option value="resolvida">Resolvida</option>
+            <option value="aguardando">{tr('statusAguardando')}</option>
+            <option value="em_atendimento">{tr('statusEmAtendimento')}</option>
+            <option value="aguardando_humano">{tr('statusEscalada')}</option>
+            <option value="resolvida">{tr('statusResolvida')}</option>
           </select>
         </div>
       </div>
@@ -180,14 +186,15 @@ export default function Chat({ conversaId }: Props) {
       {/* Mensagens */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
         {mensagens.map(m => {
-          const cfg = ORIGEM_CONFIG[m.origem] ?? ORIGEM_CONFIG.lead
+          const estilo = ORIGEM_ESTILO[m.origem] ?? ORIGEM_ESTILO.lead
+          const label = ORIGEM_CHAVE[m.origem] ? tr(ORIGEM_CHAVE[m.origem]) : m.origem
           return (
-            <div key={m.id} className={`flex flex-col gap-1 ${cfg.alinhamento}`}>
-              <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm shadow-sm ${cfg.bolha}`}>
+            <div key={m.id} className={`flex flex-col gap-1 ${estilo.alinhamento}`}>
+              <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm shadow-sm ${estilo.bolha}`}>
                 <p className="leading-relaxed">{m.conteudo}</p>
               </div>
               <span className="text-xs text-gray-400">
-                {cfg.label} · {m.enviado_em
+                {label} · {m.enviado_em
                   ? new Date(m.enviado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                   : ''}
               </span>
@@ -199,7 +206,6 @@ export default function Chat({ conversaId }: Props) {
 
       {/* Input */}
       <div className="bg-white border-t border-gray-200 px-4 py-3">
-        {/* Barra de ações acima do input */}
         <div className="flex items-center gap-2 mb-2">
           <button
             type="button"
@@ -207,7 +213,7 @@ export default function Chat({ conversaId }: Props) {
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
           >
             <span>⚡</span>
-            Respostas rápidas
+            {tr('respostasRapidas')}
           </button>
         </div>
 
@@ -217,19 +223,17 @@ export default function Chat({ conversaId }: Props) {
             type="text"
             value={texto}
             onChange={e => setTexto(e.target.value)}
-            placeholder="Digite sua mensagem..."
-            className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            placeholder={tr('digiteMensagem')}
+            className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
           />
           <button
             type="submit"
             disabled={enviando || !texto.trim()}
-            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors shrink-0"
+            className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors shrink-0"
           >
             {enviando
-              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <svg className="w-5 h-5 rotate-90" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+              : tr('enviar')
             }
           </button>
         </form>

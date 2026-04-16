@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useLingua } from '@/contexts/LinguaContext'
 
 interface RespostaRapida {
   id: number
@@ -17,15 +18,16 @@ interface Props {
   onFechar: () => void
 }
 
-const TIPO_CONFIG: Record<string, { label: string; cor: string; icone: string }> = {
-  texto:     { label: 'Texto',     cor: 'bg-gray-100 text-gray-700',   icone: '💬' },
-  imagem:    { label: 'Imagem',    cor: 'bg-blue-100 text-blue-700',   icone: '🖼️' },
-  audio:     { label: 'Áudio',     cor: 'bg-purple-100 text-purple-700', icone: '🎵' },
-  video:     { label: 'Vídeo',     cor: 'bg-red-100 text-red-700',     icone: '🎬' },
-  documento: { label: 'Documento', cor: 'bg-yellow-100 text-yellow-700', icone: '📄' }
+const TIPO_ESTILO: Record<string, { cor: string; icone: string; chave: string }> = {
+  texto:     { cor: 'bg-gray-100 text-gray-700',    icone: '💬', chave: 'tipoTexto' },
+  imagem:    { cor: 'bg-blue-100 text-blue-700',    icone: '🖼️', chave: 'tipoImagem' },
+  audio:     { cor: 'bg-purple-100 text-purple-700', icone: '🎵', chave: 'tipoAudio' },
+  video:     { cor: 'bg-red-100 text-red-700',      icone: '🎬', chave: 'tipoVideo' },
+  documento: { cor: 'bg-yellow-100 text-yellow-700', icone: '📄', chave: 'tipoDocumento' },
 }
 
 export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props) {
+  const { tr } = useLingua()
   const [respostas, setRespostas] = useState<RespostaRapida[]>([])
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
@@ -40,7 +42,6 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
       .finally(() => setCarregando(false))
   }, [])
 
-  // Fecha com Escape
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onFechar()
@@ -52,13 +53,10 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
   const filtradas = respostas.filter(r => {
     const termo = busca.toLowerCase().trim()
     if (!termo) return true
-
-    // Busca por atalho: digitar #saudacao filtra pelo campo atalho
     if (termo.startsWith('#')) {
       const atalho = termo.slice(1)
       return r.atalho?.toLowerCase().includes(atalho) ?? false
     }
-
     return (
       r.titulo.toLowerCase().includes(termo) ||
       r.conteudo?.toLowerCase().includes(termo) ||
@@ -67,8 +65,7 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
     )
   })
 
-  // Agrupa por categoria para exibição
-  const categorias = [...new Set(filtradas.map(r => r.categoria ?? 'Sem categoria'))]
+  const categorias = [...new Set(filtradas.map(r => r.categoria ?? tr('semCategoria')))]
 
   return (
     <div
@@ -81,7 +78,7 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="text-lg">⚡</span>
-            <h2 className="font-semibold text-gray-800">Respostas Rápidas</h2>
+            <h2 className="font-semibold text-gray-800">{tr('respostasRapidasTitulo')}</h2>
           </div>
           <button
             onClick={onFechar}
@@ -104,12 +101,14 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
               type="text"
               value={busca}
               onChange={e => setBusca(e.target.value)}
-              placeholder="Buscar por título, #atalho ou categoria..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
+              placeholder={tr('buscarRespostas')}
+              className="w-full pl-9 pr-4 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
             />
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
-            Digite <span className="font-mono bg-gray-100 px-1 rounded">#atalho</span> para buscar pelo atalho diretamente
+            {tr('dicaAtalho')}{' '}
+            <span className="font-mono bg-gray-100 px-1 rounded">#atalho</span>{' '}
+            {tr('dicaAtalhoMeio')}
           </p>
         </div>
 
@@ -117,19 +116,19 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
         <div className="flex-1 overflow-y-auto">
           {carregando && (
             <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
-              Carregando...
+              {tr('carregando')}
             </div>
           )}
 
           {!carregando && filtradas.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <span className="text-3xl mb-2">🔍</span>
-              <p className="text-sm">Nenhuma resposta encontrada.</p>
+              <p className="text-sm">{tr('nenhumaRespostaEncontrada')}</p>
             </div>
           )}
 
           {!carregando && categorias.map(categoria => {
-            const itens = filtradas.filter(r => (r.categoria ?? 'Sem categoria') === categoria)
+            const itens = filtradas.filter(r => (r.categoria ?? tr('semCategoria')) === categoria)
             return (
               <div key={categoria}>
                 <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
@@ -139,7 +138,7 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
                 </div>
                 <ul className="divide-y divide-gray-50">
                   {itens.map(r => {
-                    const cfg = TIPO_CONFIG[r.tipo] ?? TIPO_CONFIG.texto
+                    const cfg = TIPO_ESTILO[r.tipo] ?? TIPO_ESTILO.texto
                     return (
                       <li
                         key={r.id}
@@ -153,7 +152,7 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
                               {r.titulo}
                             </span>
                             <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium ${cfg.cor}`}>
-                              {cfg.label}
+                              {tr(cfg.chave)}
                             </span>
                             {r.atalho && (
                               <span className="shrink-0 text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
@@ -188,7 +187,7 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
           <p className="text-xs text-gray-400 text-center">
-            {filtradas.length} {filtradas.length === 1 ? 'resposta disponível' : 'respostas disponíveis'} · Clique para enviar direto
+            {filtradas.length} {filtradas.length === 1 ? tr('respostaDisponivel') : tr('respostasDisponiveis')} · {tr('cliqueEnviar')}
           </p>
         </div>
       </div>
