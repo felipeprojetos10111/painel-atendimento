@@ -189,7 +189,10 @@ export default function Chat({ conversaId }: Props) {
 
     if (res.ok) {
       const nova = await res.json()
-      setMensagens(prev => [...prev, nova])
+      setMensagens(prev => {
+        if (prev.some(m => m.id === nova.id)) return prev
+        return [...prev, nova]
+      })
     }
 
     setEnviando(false)
