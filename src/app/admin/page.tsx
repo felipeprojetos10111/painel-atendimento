@@ -538,6 +538,7 @@ function SecaoOperadores() {
 
 interface ConfigIA {
   ativo: boolean
+  modo_distribuicao: string
   modelo: string
   prompt_sistema: string
   idioma_resposta: string
@@ -569,6 +570,7 @@ const IDIOMAS_IA = [
 
 const CONFIG_PADRAO: ConfigIA = {
   ativo: true,
+  modo_distribuicao: 'ia',
   modelo: 'claude-sonnet-4-6',
   prompt_sistema: 'Você é um assistente de atendimento ao cliente prestativo e profissional. Analise a mensagem do lead e responda em JSON com os campos: resposta (mensagem para enviar ao lead), acao (resolver se você consegue ajudar sozinho, ou escalar se precisa de um humano), intencao (o que o lead quer em poucas palavras), urgencia (baixa, media ou alta). Sempre responda APENAS com JSON válido, sem texto adicional.',
   idioma_resposta: 'auto',
@@ -691,9 +693,65 @@ function SecaoIA() {
         </div>
       </div>
 
+      {/* Seletor de modo de distribuição */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-3">{tr('iaModoDistribuicao')}</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Modo IA */}
+          <button
+            onClick={() => setField('modo_distribuicao', 'ia')}
+            className={`relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+              form.modo_distribuicao === 'ia'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:border-gray-300 bg-white'
+            }`}
+          >
+            <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+              form.modo_distribuicao === 'ia' ? 'border-blue-500' : 'border-gray-300'
+            }`}>
+              {form.modo_distribuicao === 'ia' && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🤖</span>
+                <span className={`text-sm font-semibold ${form.modo_distribuicao === 'ia' ? 'text-blue-700' : 'text-gray-700'}`}>
+                  {tr('iaModoIA')}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{tr('iaModoIADesc')}</p>
+            </div>
+          </button>
+
+          {/* Modo Balanceamento */}
+          <button
+            onClick={() => setField('modo_distribuicao', 'balanceamento')}
+            className={`relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+              form.modo_distribuicao === 'balanceamento'
+                ? 'border-green-500 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300 bg-white'
+            }`}
+          >
+            <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+              form.modo_distribuicao === 'balanceamento' ? 'border-green-500' : 'border-gray-300'
+            }`}>
+              {form.modo_distribuicao === 'balanceamento' && <div className="w-2.5 h-2.5 rounded-full bg-green-500" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚖️</span>
+                <span className={`text-sm font-semibold ${form.modo_distribuicao === 'balanceamento' ? 'text-green-700' : 'text-gray-700'}`}>
+                  {tr('iaModoBalanceamento')}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{tr('iaModoBalanceamentoDesc')}</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Coluna esquerda — configurações */}
-        <div className="lg:col-span-2 space-y-5">
+        {/* Coluna esquerda — configurações (só visível no modo IA) */}
+        <div className={`lg:col-span-2 space-y-5 ${form.modo_distribuicao === 'balanceamento' ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
             {/* Modelo */}
             <Field label={tr('iaModelo')}>
@@ -754,8 +812,8 @@ function SecaoIA() {
           </div>
         </div>
 
-        {/* Coluna direita — prompt + teste */}
-        <div className="lg:col-span-3 space-y-5">
+        {/* Coluna direita — prompt + teste (só visível no modo IA) */}
+        <div className={`lg:col-span-3 space-y-5 ${form.modo_distribuicao === 'balanceamento' ? 'opacity-40 pointer-events-none' : ''}`}>
           {/* Prompt do sistema */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-start justify-between mb-2">

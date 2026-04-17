@@ -24,6 +24,7 @@ export async function GET() {
     // Retorna padrão sem salvar — supervisor verá o formulário pré-preenchido
     return NextResponse.json({
       ativo: true,
+      modo_distribuicao: 'ia',
       modelo: 'claude-sonnet-4-6',
       prompt_sistema: PROMPT_PADRAO,
       idioma_resposta: 'auto',
@@ -42,14 +43,16 @@ export async function PUT(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
   const body = await req.json()
-  const { ativo, modelo, prompt_sistema, idioma_resposta, max_rodadas, criterios_escalacao } = body
+  const { ativo, modo_distribuicao, modelo, prompt_sistema, idioma_resposta, max_rodadas, criterios_escalacao } = body
 
   if (!prompt_sistema?.trim()) {
     return NextResponse.json({ error: 'Prompt do sistema é obrigatório.' }, { status: 400 })
   }
 
+  const modos = ['ia', 'balanceamento']
   const data = {
     ativo:               Boolean(ativo),
+    modo_distribuicao:   modos.includes(modo_distribuicao) ? modo_distribuicao : 'ia',
     modelo:              String(modelo || 'claude-sonnet-4-6'),
     prompt_sistema:      String(prompt_sistema).trim(),
     idioma_resposta:     String(idioma_resposta || 'auto'),

@@ -67,6 +67,7 @@ model operadores {
 model config_ia {
   id                   Int       @id @default(autoincrement())
   ativo                Boolean   @default(true)
+  modo_distribuicao    String    @default("ia") @db.VarChar(20)
   modelo               String    @default("claude-sonnet-4-6") @db.VarChar(60)
   prompt_sistema       String    @db.Text
   idioma_resposta      String    @default("auto") @db.VarChar(10)
