@@ -97,6 +97,10 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
             src={msg.url_midia}
             alt={msg.conteudo}
             className="max-w-[220px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            onError={e => {
+              const parent = (e.target as HTMLElement).parentElement
+              if (parent) parent.innerHTML = `<span class="text-sm underline">📎 ${msg.conteudo}</span>`
+            }}
           />
         </a>
         {msg.conteudo && msg.conteudo !== msg.url_midia && (
@@ -146,6 +150,7 @@ export default function Chat({ conversaId }: Props) {
   const [enviando, setEnviando] = useState(false)
   const [enviandoArquivo, setEnviandoArquivo] = useState(false)
   const [erroUpload, setErroUpload] = useState('')
+  const [arquivoPreview, setArquivoPreview] = useState<{ file: File; previewUrl: string | null; tipo: string } | null>(null)
   const [gravando, setGravando] = useState(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -366,21 +371,32 @@ export default function Chat({ conversaId }: Props) {
     setEnviandoArquivo(true)
 
     try {
-      // Upload via servidor (sem CORS) — arquivo vai para o Next.js que faz o upload no R2
-      const formData = new FormData()
-      formData.append('file', arquivo)
-
-      const uploadRes = await fetch('/api/chat/upload', {
-        method: 'POST',
-        body: formData
-      })
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({}))
-        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao fazer upload`)
+      // Detecta tipo — fallback por extensão
+      const EXT_MIME: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif',  webp: 'image/webp', mp3: 'audio/mpeg',
+        ogg: 'audio/ogg',  wav: 'audio/wav',   mp4: 'video/mp4',
+        webm: 'video/webm', pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       }
-      const { urlPublica, tipo } = await uploadRes.json()
+      const ext = arquivo.name.split('.').pop()?.toLowerCase() ?? ''
+      const contentType = arquivo.type || EXT_MIME[ext] || ''
+      if (!contentType) throw new Error(`Tipo não suportado: .${ext}`)
 
-      await enviarConteudo(arquivo.name, tipo, urlPublica)
+      const TIPOS: Record<string, string> = {
+        'image/jpeg': 'imagem', 'image/png': 'imagem', 'image/webp': 'imagem', 'image/gif': 'imagem',
+        'audio/mpeg': 'audio',  'audio/ogg': 'audio',  'audio/wav': 'audio', 'audio/webm': 'audio',
+        'video/mp4': 'video',   'video/webm': 'video',
+        'application/pdf': 'documento', 'application/msword': 'documento',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'documento',
+      }
+      const tipo = TIPOS[contentType]
+      if (!tipo) throw new Error(`Tipo não permitido: ${contentType}`)
+
+      // Gera preview local e aguarda confirmação do usuário
+      const previewUrl = tipo === 'imagem' ? URL.createObjectURL(arquivo) : null
+      setArquivoPreview({ file: arquivo, previewUrl, tipo })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido no upload'
       console.error('[upload]', msg)
@@ -389,6 +405,45 @@ export default function Chat({ conversaId }: Props) {
       setEnviandoArquivo(false)
       e.target.value = ''
     }
+  }
+
+  async function confirmarEnvioArquivo() {
+    if (!arquivoPreview) return
+    const { file, previewUrl, tipo } = arquivoPreview
+    setArquivoPreview(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setErroUpload('')
+    setEnviandoArquivo(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+      const contentType = file.type || ''
+      // Converte para base64
+      const buffer = await file.arrayBuffer()
+      const dados = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+
+      const uploadRes = await fetch('/api/chat/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: file.name, contentType: contentType || ext, dados })
+      })
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}))
+        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao fazer upload`)
+      }
+      const { urlPublica } = await uploadRes.json()
+      await enviarConteudo(file.name, tipo, urlPublica)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro no upload'
+      setErroUpload(msg)
+    } finally {
+      setEnviandoArquivo(false)
+    }
+  }
+
+  function cancelarArquivo() {
+    if (arquivoPreview?.previewUrl) URL.revokeObjectURL(arquivoPreview.previewUrl)
+    setArquivoPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   async function handleSelecionarResposta(resposta: RespostaRapida) {
@@ -570,6 +625,50 @@ export default function Chat({ conversaId }: Props) {
               <span>⚠</span>
               <span className="flex-1">{erroUpload}</span>
               <button onClick={() => setErroUpload('')} className="text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
+
+          {/* Preview de arquivo antes de enviar */}
+          {arquivoPreview && (
+            <div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+              {arquivoPreview.previewUrl ? (
+                <img
+                  src={arquivoPreview.previewUrl}
+                  alt={arquivoPreview.file.name}
+                  className="max-h-40 rounded-lg object-contain mx-auto block"
+                />
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <span className="text-xl">📄</span>
+                  <span className="truncate">{arquivoPreview.file.name}</span>
+                  <span className="text-xs text-gray-400 shrink-0">
+                    {(arquivoPreview.file.size / 1024).toFixed(0)} KB
+                  </span>
+                </div>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={cancelarArquivo}
+                  className="text-xs text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {tr('descartarAudio')}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmarEnvioArquivo}
+                  disabled={enviandoArquivo}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {enviandoArquivo
+                    ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                      </svg>
+                  }
+                  {tr('enviarAudio')}
+                </button>
+              </div>
             </div>
           )}
 
