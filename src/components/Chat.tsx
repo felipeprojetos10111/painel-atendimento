@@ -11,6 +11,7 @@ interface Mensagem {
   origem: string
   tipo: string | null
   url_midia: string | null
+  status: string | null
   enviado_em: string | null
 }
 
@@ -83,6 +84,42 @@ function tocarSom() {
   } catch {
     // bloqueado sem interação do usuário
   }
+}
+
+// Ícone de status para mensagens do operador
+function StatusMensagem({ status, onReenviar }: { status: string | null; onReenviar?: () => void }) {
+  if (!status) return null
+  if (status === 'enviando') return (
+    <span className="inline-block w-3 h-3 border-2 border-white/70 border-t-transparent rounded-full animate-spin ml-1" title="Enviando..." />
+  )
+  if (status === 'enviado') return (
+    <svg className="inline w-4 h-4 ml-1 text-white/70" viewBox="0 0 16 16" fill="currentColor" title="Enviado">
+      <path d="M13.5 3.5L6 11 2.5 7.5l-1 1L6 13l8.5-8.5z"/>
+    </svg>
+  )
+  if (status === 'entregue') return (
+    <svg className="inline w-4 h-4 ml-1 text-white/70" viewBox="0 0 20 16" fill="currentColor" title="Entregue">
+      <path d="M18 3.5L10.5 11 7 7.5l-1 1 4.5 4.5L19 4.5zM13 3.5L5.5 11 2 7.5l-1 1L5.5 13 14 4.5z"/>
+    </svg>
+  )
+  if (status === 'lido') return (
+    <svg className="inline w-4 h-4 ml-1 text-blue-200" viewBox="0 0 20 16" fill="currentColor" title="Lido">
+      <path d="M18 3.5L10.5 11 7 7.5l-1 1 4.5 4.5L19 4.5zM13 3.5L5.5 11 2 7.5l-1 1L5.5 13 14 4.5z"/>
+    </svg>
+  )
+  if (status === 'erro') return (
+    <button
+      onClick={onReenviar}
+      className="inline-flex items-center gap-1 ml-1 text-xs text-red-200 hover:text-white transition-colors"
+      title="Falha ao enviar — clique para reenviar"
+    >
+      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+      </svg>
+      Reenviar
+    </button>
+  )
+  return null
 }
 
 // Renderiza o conteúdo da mensagem (texto, imagem, documento, áudio, vídeo)
@@ -313,10 +350,17 @@ export default function Chat({ conversaId }: Props) {
       if (data.conversaId === conversaId) setStatus(data.status)
     })
 
+    socket.on('status-mensagem', (data: { mensagemId: number; status: string }) => {
+      setMensagens(prev => prev.map(m =>
+        m.id === data.mensagemId ? { ...m, status: data.status } : m
+      ))
+    })
+
     return () => {
       socket?.emit('leave-conversa', conversaId)
       socket?.off('nova-mensagem')
       socket?.off('status-alterado')
+      socket?.off('status-mensagem')
       if (timerRef.current) clearInterval(timerRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -325,6 +369,10 @@ export default function Chat({ conversaId }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensagens])
+
+  async function reenviarMensagem(mensagemId: number) {
+    await fetch(`/api/mensagens/${mensagemId}/reenviar`, { method: 'POST' })
+  }
 
   async function enviarConteudo(conteudo: string, tipo = 'texto', url_midia?: string) {
     if (tipo === 'texto' && !conteudo.trim()) return
@@ -567,6 +615,14 @@ export default function Chat({ conversaId }: Props) {
             <div key={m.id} className={`flex flex-col gap-1 ${estilo.alinhamento}`}>
               <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${estilo.bolha}`}>
                 <ConteudoMensagem msg={m} />
+                {m.origem === 'operador' && (
+                  <div className="flex justify-end items-center mt-1">
+                    <StatusMensagem
+                      status={m.status}
+                      onReenviar={() => reenviarMensagem(m.id)}
+                    />
+                  </div>
+                )}
               </div>
               <span className="text-xs text-gray-400">
                 {label} · {m.enviado_em

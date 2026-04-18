@@ -1,4 +1,4 @@
-export async function enviarMensagemWhatsApp(telefone: string, texto: string): Promise<void> {
+export async function enviarMensagemWhatsApp(telefone: string, texto: string): Promise<string | null> {
   const phoneNumberId = process.env.PHONE_NUMBER_ID
   const token = process.env.WHATSAPP_TOKEN
 
@@ -30,7 +30,10 @@ export async function enviarMensagemWhatsApp(telefone: string, texto: string): P
     throw new Error(`WhatsApp API ${res.status}: ${corpo}`)
   }
 
-  console.log(`[WhatsApp] Mensagem enviada com sucesso para ${numeroLimpo}`)
+  const data = await res.json()
+  const waId: string | null = data?.messages?.[0]?.id ?? null
+  console.log(`[WhatsApp] Mensagem enviada com sucesso para ${numeroLimpo} (id: ${waId})`)
+  return waId
 }
 
 export async function enviarMidiaWhatsApp(
@@ -38,7 +41,7 @@ export async function enviarMidiaWhatsApp(
   tipo: string,
   urlMidia: string,
   nomeArquivo?: string
-): Promise<void> {
+): Promise<string | null> {
   const phoneNumberId = process.env.PHONE_NUMBER_ID
   const token = process.env.WHATSAPP_TOKEN
 
@@ -78,5 +81,8 @@ export async function enviarMidiaWhatsApp(
     throw new Error(`WhatsApp API ${res.status}: ${corpo}`)
   }
 
-  console.log(`[WhatsApp] Mídia (${tipo}) enviada para ${numeroLimpo}`)
+  const data = await res.json()
+  const waId: string | null = data?.messages?.[0]?.id ?? null
+  console.log(`[WhatsApp] Mídia (${tipo}) enviada para ${numeroLimpo} (id: ${waId})`)
+  return waId
 }

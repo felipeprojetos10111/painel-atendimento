@@ -31,7 +31,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ erro: 'url_midia obrigatória para mídia.' }, { status: 400 })
   }
 
-  // Busca a conversa com o telefone do lead para enviar via WhatsApp
   const conversa = await prisma.conversas.findUnique({
     where: { id: Number(id) },
     include: { leads: { select: { telefone: true } } }
@@ -41,6 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ erro: 'Conversa não encontrada.' }, { status: 404 })
   }
 
+  // Salva mensagem com status inicial "enviando"
   const mensagem = await prisma.mensagens.create({
     data: {
       conversa_id: Number(id),
@@ -48,10 +48,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       conteudo:  isMidia ? (conteudo ?? '') : conteudo.trim(),
       tipo:      tipoFinal,
       url_midia: url_midia ?? null,
+      status:    'enviando',
     }
   })
 
-  // Auto-claim: operador reivindica a conversa ao responder (só se ainda sem dono)
+  // Auto-claim
   const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date() }
   if (payload?.nivel === 'operador' && !conversa.operador_id) {
     atualizacaoConversa.operador_id = payload.id
@@ -65,8 +66,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: atualizacaoConversa
   })
 
-  // Emite evento em tempo real via Socket.io
   const io = (global as unknown as { io: import('socket.io').Server }).io
+
+  // Emite mensagem em tempo real
   if (io) {
     io.to(`conversa-${id}`).emit('nova-mensagem', {
       ...mensagem,
@@ -75,17 +77,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     io.to('operadores').emit('atualizar-lista', { conversaId: Number(id) })
   }
 
-  // Envia via WhatsApp
+  // Envia via WhatsApp em background e atualiza status
   if (conversa.leads?.telefone) {
-    if (isMidia && url_midia) {
-      enviarMidiaWhatsApp(conversa.leads.telefone, tipoFinal, url_midia, conteudo ?? undefined).catch(err =>
-        console.error('[WhatsApp] Falha ao enviar mídia para', conversa.leads?.telefone, '—', String(err))
-      )
-    } else {
-      enviarMensagemWhatsApp(conversa.leads.telefone, conteudo.trim()).catch(err =>
-        console.error('[WhatsApp] Falha ao enviar para', conversa.leads?.telefone, '—', String(err))
-      )
+    const telefone = conversa.leads.telefone
+
+    const atualizarStatus = async (novoStatus: string, waId?: string | null) => {
+      const data: Record<string, unknown> = { status: novoStatus }
+      if (waId) data.whatsapp_id = waId
+      await prisma.mensagens.update({ where: { id: mensagem.id }, data })
+      if (io) {
+        io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: novoStatus })
+      }
     }
+
+    const enviar = async () => {
+      try {
+        let waId: string | null = null
+        if (isMidia && url_midia) {
+          waId = await enviarMidiaWhatsApp(telefone, tipoFinal, url_midia, conteudo ?? undefined)
+        } else {
+          waId = await enviarMensagemWhatsApp(telefone, conteudo.trim())
+        }
+        await atualizarStatus('enviado', waId)
+      } catch (err) {
+        console.error('[WhatsApp] Falha ao enviar para', telefone, '—', String(err))
+        await atualizarStatus('erro')
+      }
+    }
+
+    enviar()
   } else {
     console.warn('[WhatsApp] Conversa sem telefone de lead. conversa_id:', id)
   }
