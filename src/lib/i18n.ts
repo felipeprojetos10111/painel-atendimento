@@ -46,6 +46,7 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   digiteMensagem:   { pt: 'Digite sua mensagem...', en: 'Type your message...', es: 'Escribe tu mensaje...' },
   respostasRapidas: { pt: 'Respostas rápidas',      en: 'Quick replies',    es: 'Respuestas rápidas' },
   anexarArquivo:    { pt: 'Anexar',                 en: 'Attach',           es: 'Adjuntar' },
+  dicaEnvio:        { pt: 'Enter para enviar · Shift+Enter para nova linha', en: 'Enter to send · Shift+Enter for new line', es: 'Enter para enviar · Shift+Enter para nueva línea' },
   gravarAudio:      { pt: 'Gravar voz',             en: 'Record voice',     es: 'Grabar voz' },
   gravando:         { pt: 'Gravando...',             en: 'Recording...',     es: 'Grabando...' },
   enviarAudio:      { pt: 'Enviar áudio',            en: 'Send audio',       es: 'Enviar audio' },

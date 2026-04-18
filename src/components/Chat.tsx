@@ -641,7 +641,7 @@ export default function Chat({ conversaId }: Props) {
               }
             </button>
           </form>
-          <p className="text-xs text-gray-400 mt-1.5 ml-1">Enter para enviar · Shift+Enter para nova linha</p>
+          <p className="text-xs text-gray-400 mt-1.5 ml-1">{tr('dicaEnvio')}</p>
         </div>
       )}
 
