@@ -45,6 +45,7 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   enviar:           { pt: 'Enviar', en: 'Send', es: 'Enviar' },
   digiteMensagem:   { pt: 'Digite sua mensagem...', en: 'Type your message...', es: 'Escribe tu mensaje...' },
   respostasRapidas: { pt: 'Respostas rápidas',      en: 'Quick replies',    es: 'Respuestas rápidas' },
+  anexarArquivo:    { pt: 'Anexar',                 en: 'Attach',           es: 'Adjuntar' },
   origemLead:       { pt: 'Lead',                   en: 'Lead',             es: 'Lead' },
   origemIA:         { pt: 'IA',                     en: 'AI',               es: 'IA' },
   origemVoce:       { pt: 'Você',                   en: 'You',              es: 'Tú' },

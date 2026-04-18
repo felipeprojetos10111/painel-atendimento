@@ -47,6 +47,7 @@ model mensagens {
   origem      String     @db.VarChar(20)
   conteudo    String
   tipo        String?    @default("texto") @db.VarChar(20)
+  url_midia   String?
   whatsapp_id String?    @db.VarChar(100)
   enviado_em  DateTime?  @default(now()) @db.Timestamp(6)
   conversas   conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
-import { enviarMensagemWhatsApp } from '@/lib/whatsapp'
+import { enviarMensagemWhatsApp, enviarMidiaWhatsApp } from '@/lib/whatsapp'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -19,10 +19,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const token = req.cookies.get('token')?.value
   const payload = token ? await verifyToken(token) : null
 
-  const { conteudo } = await req.json()
+  const { conteudo, tipo, url_midia } = await req.json()
 
-  if (!conteudo?.trim()) {
+  const tipoFinal = tipo ?? 'texto'
+  const isMidia = tipoFinal !== 'texto'
+
+  if (!isMidia && !conteudo?.trim()) {
     return NextResponse.json({ erro: 'Conteúdo vazio.' }, { status: 400 })
+  }
+  if (isMidia && !url_midia) {
+    return NextResponse.json({ erro: 'url_midia obrigatória para mídia.' }, { status: 400 })
   }
 
   // Busca a conversa com o telefone do lead para enviar via WhatsApp
@@ -38,15 +44,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const mensagem = await prisma.mensagens.create({
     data: {
       conversa_id: Number(id),
-      origem: 'operador',
-      conteudo: conteudo.trim(),
-      tipo: 'texto'
+      origem:    'operador',
+      conteudo:  isMidia ? (conteudo ?? '') : conteudo.trim(),
+      tipo:      tipoFinal,
+      url_midia: url_midia ?? null,
     }
   })
 
-  // Quando um operador (não supervisor) responde, reivindica a conversa automaticamente.
-  // Só reivindica se ainda não há dono — evita sobrescrever caso dois operadores
-  // vejam a mesma conversa sem dono e respondam quase ao mesmo tempo.
+  // Auto-claim: operador reivindica a conversa ao responder (só se ainda sem dono)
   const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date() }
   if (payload?.nivel === 'operador' && !conversa.operador_id) {
     atualizacaoConversa.operador_id = payload.id
@@ -67,17 +72,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...mensagem,
       operador: payload?.nome ?? 'Operador'
     })
-    // Atualiza a lista de todos (badge de operador mudou)
     io.to('operadores').emit('atualizar-lista', { conversaId: Number(id) })
   }
 
-  // Envia via WhatsApp (fire-and-forget: não bloqueia a resposta ao operador)
+  // Envia via WhatsApp
   if (conversa.leads?.telefone) {
-    enviarMensagemWhatsApp(conversa.leads.telefone, conteudo.trim()).catch(err =>
-      console.error('[WhatsApp] Falha ao enviar para', conversa.leads?.telefone, '—', String(err))
-    )
+    if (isMidia && url_midia) {
+      enviarMidiaWhatsApp(conversa.leads.telefone, tipoFinal, url_midia, conteudo ?? undefined).catch(err =>
+        console.error('[WhatsApp] Falha ao enviar mídia para', conversa.leads?.telefone, '—', String(err))
+      )
+    } else {
+      enviarMensagemWhatsApp(conversa.leads.telefone, conteudo.trim()).catch(err =>
+        console.error('[WhatsApp] Falha ao enviar para', conversa.leads?.telefone, '—', String(err))
+      )
+    }
   } else {
-    console.warn('[WhatsApp] Conversa sem telefone de lead, mensagem não enviada. conversa_id:', id)
+    console.warn('[WhatsApp] Conversa sem telefone de lead. conversa_id:', id)
   }
 
   return NextResponse.json(mensagem, { status: 201 })
