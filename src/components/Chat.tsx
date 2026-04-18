@@ -145,6 +145,7 @@ export default function Chat({ conversaId }: Props) {
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [enviandoArquivo, setEnviandoArquivo] = useState(false)
+  const [erroUpload, setErroUpload] = useState('')
   const [gravando, setGravando] = useState(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -209,6 +210,7 @@ export default function Chat({ conversaId }: Props) {
 
   async function enviarAudio() {
     if (!audioBlob) return
+    setErroUpload('')
     setEnviandoArquivo(true)
     try {
       const uploadRes = await fetch('/api/chat/upload', {
@@ -216,19 +218,27 @@ export default function Chat({ conversaId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome: 'audio.ogg', contentType: 'audio/webm' })
       })
-      if (!uploadRes.ok) throw new Error('Erro ao preparar upload.')
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}))
+        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao preparar upload`)
+      }
       const { uploadUrl, urlPublica } = await uploadRes.json()
 
-      await fetch(uploadUrl, {
+      const putRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: audioBlob,
         headers: { 'Content-Type': 'audio/webm' }
       })
+      if (!putRes.ok) {
+        throw new Error(`Erro ao enviar áudio para o storage (${putRes.status})`)
+      }
 
       await enviarConteudo('Áudio', 'audio', urlPublica)
       descartarAudio()
     } catch (err) {
-      console.error('[audio upload]', err)
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido no upload'
+      console.error('[audio upload]', msg)
+      setErroUpload(msg)
     } finally {
       setEnviandoArquivo(false)
     }
@@ -358,30 +368,56 @@ export default function Chat({ conversaId }: Props) {
   async function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0]
     if (!arquivo) return
+    setErroUpload('')
     setEnviandoArquivo(true)
 
     try {
+      // Fallback: detecta MIME por extensão se browser não preencher arquivo.type
+      const EXT_MIME: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif',  webp: 'image/webp',
+        mp3: 'audio/mpeg', ogg: 'audio/ogg',  wav: 'audio/wav',
+        mp4: 'video/mp4',  webm: 'video/webm',
+        pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }
+      const ext = arquivo.name.split('.').pop()?.toLowerCase() ?? ''
+      const contentType = arquivo.type || EXT_MIME[ext] || ''
+
+      if (!contentType) {
+        throw new Error(`Tipo de arquivo não suportado: .${ext}`)
+      }
+
       // 1. Gera URL pré-assinada no R2
       const uploadRes = await fetch('/api/chat/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: arquivo.name, contentType: arquivo.type })
+        body: JSON.stringify({ nome: arquivo.name, contentType })
       })
-      if (!uploadRes.ok) throw new Error('Erro ao preparar upload.')
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}))
+        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao preparar upload`)
+      }
       const { uploadUrl, urlPublica, tipo } = await uploadRes.json()
 
-      // 2. Faz PUT direto no R2
+      // 2. PUT direto no R2
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: arquivo,
-        headers: { 'Content-Type': arquivo.type }
+        headers: { 'Content-Type': contentType }
       })
-      if (!putRes.ok) throw new Error('Erro ao enviar arquivo.')
+      if (!putRes.ok) {
+        const txt = await putRes.text().catch(() => '')
+        throw new Error(`Erro ao enviar para o storage (${putRes.status})${txt ? ': ' + txt.slice(0, 120) : ''}`)
+      }
 
-      // 3. Envia mensagem com a URL da mídia
+      // 3. Salva mensagem + envia no WhatsApp
       await enviarConteudo(arquivo.name, tipo, urlPublica)
     } catch (err) {
-      console.error('[upload]', err)
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido no upload'
+      console.error('[upload]', msg)
+      setErroUpload(msg)
     } finally {
       setEnviandoArquivo(false)
       e.target.value = ''
@@ -560,6 +596,15 @@ export default function Chat({ conversaId }: Props) {
               className="hidden"
             />
           </div>
+
+          {/* Erro de upload */}
+          {erroUpload && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <span>⚠</span>
+              <span className="flex-1">{erroUpload}</span>
+              <button onClick={() => setErroUpload('')} className="text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
 
           {/* Painel de gravação ativo */}
           {gravando && (
