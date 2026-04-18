@@ -93,17 +93,17 @@ function StatusMensagem({ status, onReenviar }: { status: string | null; onReenv
     <span className="inline-block w-3 h-3 border-2 border-white/70 border-t-transparent rounded-full animate-spin ml-1" title="Enviando..." />
   )
   if (status === 'enviado') return (
-    <svg className="inline w-4 h-4 ml-1 text-white/70" viewBox="0 0 16 16" fill="currentColor" title="Enviado">
+    <svg className="inline w-4 h-4 ml-1 text-white/70" viewBox="0 0 16 16" fill="currentColor" aria-label="Enviado">
       <path d="M13.5 3.5L6 11 2.5 7.5l-1 1L6 13l8.5-8.5z"/>
     </svg>
   )
   if (status === 'entregue') return (
-    <svg className="inline w-4 h-4 ml-1 text-white/70" viewBox="0 0 20 16" fill="currentColor" title="Entregue">
+    <svg className="inline w-4 h-4 ml-1 text-white/70" viewBox="0 0 20 16" fill="currentColor" aria-label="Entregue">
       <path d="M18 3.5L10.5 11 7 7.5l-1 1 4.5 4.5L19 4.5zM13 3.5L5.5 11 2 7.5l-1 1L5.5 13 14 4.5z"/>
     </svg>
   )
   if (status === 'lido') return (
-    <svg className="inline w-4 h-4 ml-1 text-blue-200" viewBox="0 0 20 16" fill="currentColor" title="Lido">
+    <svg className="inline w-4 h-4 ml-1 text-blue-200" viewBox="0 0 20 16" fill="currentColor" aria-label="Lido">
       <path d="M18 3.5L10.5 11 7 7.5l-1 1 4.5 4.5L19 4.5zM13 3.5L5.5 11 2 7.5l-1 1L5.5 13 14 4.5z"/>
     </svg>
   )
