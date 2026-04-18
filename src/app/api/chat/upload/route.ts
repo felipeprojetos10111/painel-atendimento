@@ -12,6 +12,7 @@ const TIPOS_PERMITIDOS: Record<string, string> = {
   'audio/mpeg':        'audio',
   'audio/ogg':         'audio',
   'audio/wav':         'audio',
+  'audio/webm':        'audio',
   'video/mp4':         'video',
   'video/webm':        'video',
   'application/pdf':   'documento',
@@ -36,7 +37,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: `Tipo não permitido: ${contentType}` }, { status: 400 })
   }
 
-  const ext = nome.split('.').pop() ?? 'bin'
+  // áudio gravado pelo browser vem como audio/webm → usa extensão .ogg (WhatsApp compatível)
+  const extMap: Record<string, string> = { 'audio/webm': 'ogg' }
+  const ext = extMap[contentType] ?? (nome.split('.').pop() || 'bin')
   const chave = `chat-uploads/${randomUUID()}.${ext}`
 
   const uploadUrl = await gerarUrlUpload(chave, contentType)

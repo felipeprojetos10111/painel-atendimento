@@ -145,6 +145,10 @@ export default function Chat({ conversaId }: Props) {
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [enviandoArquivo, setEnviandoArquivo] = useState(false)
+  const [gravando, setGravando] = useState(false)
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [tempoGravacao, setTempoGravacao] = useState(0)
   const [status, setStatus] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
   const [me, setMe] = useState<Me | null>(null)
@@ -154,12 +158,86 @@ export default function Chat({ conversaId }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function ajustarAltura() {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+  }
+
+  async function iniciarGravacao() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm'
+      const recorder = new MediaRecorder(stream, { mimeType })
+      chunksRef.current = []
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        setAudioBlob(blob)
+        setAudioUrl(URL.createObjectURL(blob))
+        stream.getTracks().forEach(t => t.stop())
+      }
+      recorder.start(100)
+      mediaRecorderRef.current = recorder
+      setGravando(true)
+      setTempoGravacao(0)
+      timerRef.current = setInterval(() => setTempoGravacao(t => t + 1), 1000)
+    } catch {
+      alert('Permissão de microfone negada.')
+    }
+  }
+
+  function pararGravacao() {
+    mediaRecorderRef.current?.stop()
+    setGravando(false)
+    if (timerRef.current) clearInterval(timerRef.current)
+  }
+
+  function descartarAudio() {
+    setAudioBlob(null)
+    if (audioUrl) URL.revokeObjectURL(audioUrl)
+    setAudioUrl(null)
+    setTempoGravacao(0)
+  }
+
+  async function enviarAudio() {
+    if (!audioBlob) return
+    setEnviandoArquivo(true)
+    try {
+      const uploadRes = await fetch('/api/chat/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: 'audio.ogg', contentType: 'audio/webm' })
+      })
+      if (!uploadRes.ok) throw new Error('Erro ao preparar upload.')
+      const { uploadUrl, urlPublica } = await uploadRes.json()
+
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        body: audioBlob,
+        headers: { 'Content-Type': 'audio/webm' }
+      })
+
+      await enviarConteudo('Áudio', 'audio', urlPublica)
+      descartarAudio()
+    } catch (err) {
+      console.error('[audio upload]', err)
+    } finally {
+      setEnviandoArquivo(false)
+    }
+  }
+
+  function formatarTempo(s: number) {
+    const m = Math.floor(s / 60).toString().padStart(2, '0')
+    const seg = (s % 60).toString().padStart(2, '0')
+    return `${m}:${seg}`
   }
 
   async function carregarMensagens() {
@@ -224,6 +302,7 @@ export default function Chat({ conversaId }: Props) {
       socket?.emit('leave-conversa', conversaId)
       socket?.off('nova-mensagem')
       socket?.off('status-alterado')
+      if (timerRef.current) clearInterval(timerRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaId])
@@ -457,6 +536,21 @@ export default function Chat({ conversaId }: Props) {
               {tr('anexarArquivo')}
             </button>
 
+            {/* Botão gravar voz */}
+            {!gravando && !audioBlob && (
+              <button
+                type="button"
+                disabled={ocupado}
+                onClick={iniciarGravacao}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-red-300 transition-colors disabled:opacity-50"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 17.93V21H9v2h6v-2h-2v-2.07A8.001 8.001 0 0 0 20 11h-2a6 6 0 0 1-12 0H4a8.001 8.001 0 0 0 7 6.93z"/>
+                </svg>
+                {tr('gravarAudio')}
+              </button>
+            )}
+
             {/* Input de arquivo oculto */}
             <input
               ref={fileInputRef}
@@ -467,8 +561,65 @@ export default function Chat({ conversaId }: Props) {
             />
           </div>
 
+          {/* Painel de gravação ativo */}
+          {gravando && (
+            <div className="flex items-center gap-3 mb-2 px-1 py-2 bg-red-50 border border-red-200 rounded-xl">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-sm font-semibold text-red-600">{tr('gravando')}</span>
+              </span>
+              <span className="text-sm font-mono text-red-500 tabular-nums">{formatarTempo(tempoGravacao)}</span>
+              <button
+                type="button"
+                onClick={pararGravacao}
+                className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1"/>
+                </svg>
+                Parar
+              </button>
+            </div>
+          )}
+
+          {/* Preview do áudio gravado */}
+          {audioBlob && audioUrl && !gravando && (
+            <div className="flex items-center gap-3 mb-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+              <svg className="w-4 h-4 text-gray-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
+                <path d="M19 11a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V22H9v2h6v-2h-2v-2.06A9 9 0 0 0 21 11h-2z"/>
+              </svg>
+              <audio controls src={audioUrl} className="flex-1 h-8" style={{ minWidth: 0 }} />
+              <span className="text-xs text-gray-400 shrink-0">{formatarTempo(tempoGravacao)}</span>
+              <button
+                type="button"
+                onClick={descartarAudio}
+                className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                title={tr('descartarAudio')}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={enviarAudio}
+                disabled={enviandoArquivo}
+                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+              >
+                {enviandoArquivo
+                  ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                }
+                {tr('enviarAudio')}
+              </button>
+            </div>
+          )}
+
           {/* Textarea + enviar */}
-          <form onSubmit={handleSubmit} className="flex items-end gap-3">
+          <form onSubmit={handleSubmit} className={`flex items-end gap-3 ${gravando || audioBlob ? 'opacity-40 pointer-events-none' : ''}`}>
             <textarea
               ref={textareaRef}
               value={texto}
