@@ -213,25 +213,19 @@ export default function Chat({ conversaId }: Props) {
     setErroUpload('')
     setEnviandoArquivo(true)
     try {
+      const audioFile = new File([audioBlob], 'audio.ogg', { type: 'audio/webm' })
+      const formData = new FormData()
+      formData.append('file', audioFile)
+
       const uploadRes = await fetch('/api/chat/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: 'audio.ogg', contentType: 'audio/webm' })
+        body: formData
       })
       if (!uploadRes.ok) {
         const err = await uploadRes.json().catch(() => ({}))
-        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao preparar upload`)
+        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao fazer upload do áudio`)
       }
-      const { uploadUrl, urlPublica } = await uploadRes.json()
-
-      const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: audioBlob,
-        headers: { 'Content-Type': 'audio/webm' }
-      })
-      if (!putRes.ok) {
-        throw new Error(`Erro ao enviar áudio para o storage (${putRes.status})`)
-      }
+      const { urlPublica } = await uploadRes.json()
 
       await enviarConteudo('Áudio', 'audio', urlPublica)
       descartarAudio()
@@ -372,47 +366,20 @@ export default function Chat({ conversaId }: Props) {
     setEnviandoArquivo(true)
 
     try {
-      // Fallback: detecta MIME por extensão se browser não preencher arquivo.type
-      const EXT_MIME: Record<string, string> = {
-        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-        gif: 'image/gif',  webp: 'image/webp',
-        mp3: 'audio/mpeg', ogg: 'audio/ogg',  wav: 'audio/wav',
-        mp4: 'video/mp4',  webm: 'video/webm',
-        pdf: 'application/pdf',
-        doc: 'application/msword',
-        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      }
-      const ext = arquivo.name.split('.').pop()?.toLowerCase() ?? ''
-      const contentType = arquivo.type || EXT_MIME[ext] || ''
+      // Upload via servidor (sem CORS) — arquivo vai para o Next.js que faz o upload no R2
+      const formData = new FormData()
+      formData.append('file', arquivo)
 
-      if (!contentType) {
-        throw new Error(`Tipo de arquivo não suportado: .${ext}`)
-      }
-
-      // 1. Gera URL pré-assinada no R2
       const uploadRes = await fetch('/api/chat/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: arquivo.name, contentType })
+        body: formData
       })
       if (!uploadRes.ok) {
         const err = await uploadRes.json().catch(() => ({}))
-        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao preparar upload`)
+        throw new Error(err.erro ?? `Erro ${uploadRes.status} ao fazer upload`)
       }
-      const { uploadUrl, urlPublica, tipo } = await uploadRes.json()
+      const { urlPublica, tipo } = await uploadRes.json()
 
-      // 2. PUT direto no R2
-      const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: arquivo,
-        headers: { 'Content-Type': contentType }
-      })
-      if (!putRes.ok) {
-        const txt = await putRes.text().catch(() => '')
-        throw new Error(`Erro ao enviar para o storage (${putRes.status})${txt ? ': ' + txt.slice(0, 120) : ''}`)
-      }
-
-      // 3. Salva mensagem + envia no WhatsApp
       await enviarConteudo(arquivo.name, tipo, urlPublica)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido no upload'
