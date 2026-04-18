@@ -34,6 +34,11 @@ const EXT_OVERRIDE: Record<string, string> = {
   'audio/webm': 'ogg',
 }
 
+// WhatsApp não aceita audio/webm — força content-type compatível ao salvar no R2
+const CONTENT_TYPE_OVERRIDE: Record<string, string> = {
+  'audio/webm': 'audio/ogg',
+}
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
   const token = cookieStore.get('token')?.value
@@ -66,9 +71,10 @@ export async function POST(req: NextRequest) {
 
   const extFinal = EXT_OVERRIDE[contentType] ?? ext
   const chave = `chat-uploads/${randomUUID()}.${extFinal}`
+  const contentTypeFinal = CONTENT_TYPE_OVERRIDE[contentType] ?? contentType
 
   const buffer = Buffer.from(dados as string, 'base64')
-  const urlPublica = await uploadBuffer(chave, buffer, contentType)
+  const urlPublica = await uploadBuffer(chave, buffer, contentTypeFinal)
 
   return NextResponse.json({ urlPublica, tipo })
 }
