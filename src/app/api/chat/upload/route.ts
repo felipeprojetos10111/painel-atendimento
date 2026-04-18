@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'R2_PUBLIC_URL não configurado no servidor.' }, { status: 500 })
   }
 
-  let buffer = Buffer.from(dados as string, 'base64')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let buffer: any = Buffer.from(dados as string, 'base64')
   let contentTypeFinal = contentType
   let extFinal = ext
 
