@@ -393,12 +393,22 @@ export default function Chat({ conversaId }: Props) {
       const TIPOS: Record<string, string> = {
         'image/jpeg': 'imagem', 'image/png': 'imagem', 'image/webp': 'imagem', 'image/gif': 'imagem',
         'audio/mpeg': 'audio',  'audio/ogg': 'audio',  'audio/wav': 'audio', 'audio/webm': 'audio',
-        'video/mp4': 'video',   'video/webm': 'video',
+        'video/mp4': 'video',   'video/webm': 'video',  'video/quicktime': 'video', 'video/x-msvideo': 'video',
         'application/pdf': 'documento', 'application/msword': 'documento',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'documento',
       }
-      const tipo = TIPOS[contentType]
+      // Suporte genérico a video/* e audio/* não mapeados explicitamente
+      let tipo = TIPOS[contentType]
+      if (!tipo && contentType.startsWith('video/')) tipo = 'video'
+      if (!tipo && contentType.startsWith('audio/')) tipo = 'audio'
       if (!tipo) throw new Error(`Tipo não permitido: ${contentType}`)
+
+      // Valida tamanho máximo (limites do WhatsApp)
+      const LIMITE_MB: Record<string, number> = { imagem: 5, audio: 16, video: 16, documento: 100 }
+      const limiteMB = LIMITE_MB[tipo] ?? 16
+      if (arquivo.size > limiteMB * 1024 * 1024) {
+        throw new Error(`Arquivo muito grande. Limite: ${limiteMB}MB para ${tipo}.`)
+      }
 
       // Gera preview local e aguarda confirmação do usuário
       const previewUrl = tipo === 'imagem' ? URL.createObjectURL(arquivo) : null
@@ -625,7 +635,7 @@ export default function Chat({ conversaId }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,.pdf,.doc,.docx,audio/*,video/mp4,video/webm"
+              accept="image/*,video/*,.pdf,.doc,.docx,audio/*"
               onChange={handleArquivo}
               className="hidden"
             />

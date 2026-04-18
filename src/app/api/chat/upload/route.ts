@@ -19,6 +19,8 @@ const TIPOS_PERMITIDOS: Record<string, string> = {
   'audio/webm':        'audio',
   'video/mp4':         'video',
   'video/webm':        'video',
+  'video/quicktime':   'video',
+  'video/x-msvideo':   'video',
   'application/pdf':   'documento',
   'application/msword': 'documento',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'documento',
