@@ -218,13 +218,19 @@ export default function Chat({ conversaId }: Props) {
     setErroUpload('')
     setEnviandoArquivo(true)
     try {
-      const audioFile = new File([audioBlob], 'audio.ogg', { type: 'audio/webm' })
-      const formData = new FormData()
-      formData.append('file', audioFile)
+      const buffer = await audioBlob.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      let binary = ''
+      const chunkSize = 8192
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
+      }
+      const dados = btoa(binary)
 
       const uploadRes = await fetch('/api/chat/upload', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: 'audio.ogg', contentType: 'audio/webm', dados })
       })
       if (!uploadRes.ok) {
         const err = await uploadRes.json().catch(() => ({}))
@@ -417,9 +423,15 @@ export default function Chat({ conversaId }: Props) {
     try {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
       const contentType = file.type || ''
-      // Converte para base64
+      // Converte para base64 em chunks para não estourar o call stack
       const buffer = await file.arrayBuffer()
-      const dados = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      const bytes = new Uint8Array(buffer)
+      let binary = ''
+      const chunkSize = 8192
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
+      }
+      const dados = btoa(binary)
 
       const uploadRes = await fetch('/api/chat/upload', {
         method: 'POST',
