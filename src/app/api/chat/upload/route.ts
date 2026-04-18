@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { uploadBuffer } from '@/lib/r2'
 import { randomUUID } from 'crypto'
+import { exec } from 'child_process'
+import { writeFile, readFile, unlink } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 const TIPOS_PERMITIDOS: Record<string, string> = {
   'image/jpeg':        'imagem',
@@ -30,13 +34,23 @@ const EXT_MIME: Record<string, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
-const EXT_OVERRIDE: Record<string, string> = {
-  'audio/webm': 'ogg',
-}
-
-// WhatsApp não aceita audio/webm — força content-type compatível ao salvar no R2
-const CONTENT_TYPE_OVERRIDE: Record<string, string> = {
-  'audio/webm': 'audio/ogg',
+// Converte audio/webm (container Matroska do browser) para OGG real via FFmpeg
+async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
+  const tmpIn  = join(tmpdir(), `${randomUUID()}.webm`)
+  const tmpOut = join(tmpdir(), `${randomUUID()}.ogg`)
+  try {
+    await writeFile(tmpIn, buffer)
+    await new Promise<void>((resolve, reject) => {
+      exec(`ffmpeg -y -i "${tmpIn}" -c:a libopus -f ogg "${tmpOut}"`, (err) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+    return await readFile(tmpOut)
+  } finally {
+    await unlink(tmpIn).catch(() => {})
+    await unlink(tmpOut).catch(() => {})
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -69,11 +83,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'R2_PUBLIC_URL não configurado no servidor.' }, { status: 500 })
   }
 
-  const extFinal = EXT_OVERRIDE[contentType] ?? ext
-  const chave = `chat-uploads/${randomUUID()}.${extFinal}`
-  const contentTypeFinal = CONTENT_TYPE_OVERRIDE[contentType] ?? contentType
+  let buffer = Buffer.from(dados as string, 'base64')
+  let contentTypeFinal = contentType
+  let extFinal = ext
 
-  const buffer = Buffer.from(dados as string, 'base64')
+  // Converte WebM (gravado pelo browser) para OGG real — WhatsApp exige OGG/Opus
+  if (contentType === 'audio/webm') {
+    try {
+      buffer = await converterWebmParaOgg(buffer)
+      contentTypeFinal = 'audio/ogg'
+      extFinal = 'ogg'
+    } catch (err) {
+      console.error('[upload] FFmpeg falhou ao converter áudio:', err)
+      return NextResponse.json({ erro: 'Falha ao converter áudio.' }, { status: 500 })
+    }
+  }
+
+  const chave = `chat-uploads/${randomUUID()}.${extFinal}`
   const urlPublica = await uploadBuffer(chave, buffer, contentTypeFinal)
 
   return NextResponse.json({ urlPublica, tipo })
