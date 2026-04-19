@@ -55,19 +55,43 @@ async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
   }
 }
 
-// Converte qualquer vídeo para MP4 H.264 + AAC — WhatsApp não aceita MOV, AVI, WebM
+// Converte qualquer vídeo para MP4 H.264 + AAC com tamanho ≤ 15MB (limite WhatsApp: 16MB)
 async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<Buffer> {
   const tmpIn  = join(tmpdir(), `${randomUUID()}.${extOrig}`)
   const tmpOut = join(tmpdir(), `${randomUUID()}.mp4`)
   try {
     await writeFile(tmpIn, buffer)
+
+    // Obtém duração para calcular bitrate alvo
+    const duration = await new Promise<number>((resolve) => {
+      exec(`ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${tmpIn}"`, (_err, stdout) => {
+        resolve(parseFloat(stdout?.trim() ?? '') || 60)
+      })
+    })
+
+    // Alvo: 14MB em kbits (reserva 128k/s para áudio)
+    const audioBitrate = 128
+    const videoBitrate = Math.max(200, Math.floor((14 * 8 * 1024) / duration) - audioBitrate)
+
+    console.log(`[upload] Vídeo: duração=${duration.toFixed(1)}s, bitrate alvo=${videoBitrate}k`)
+
     await new Promise<void>((resolve, reject) => {
       exec(
-        `ffmpeg -y -i "${tmpIn}" -c:v libx264 -preset ultrafast -profile:v baseline -level 3.0 -c:a aac -movflags +faststart -threads 0 "${tmpOut}"`,
+        `ffmpeg -y -i "${tmpIn}" ` +
+        `-vf "scale=trunc(min(iw\\,1280)/2)*2:trunc(min(ih\\,720)/2)*2" ` +
+        `-c:v libx264 -preset fast -profile:v baseline -level 3.1 ` +
+        `-b:v ${videoBitrate}k -maxrate ${videoBitrate * 2}k -bufsize ${videoBitrate * 4}k ` +
+        `-c:a aac -b:a ${audioBitrate}k -movflags +faststart -threads 0 "${tmpOut}"`,
         (err) => { if (err) reject(err); else resolve() }
       )
     })
-    return await readFile(tmpOut)
+
+    const resultado = await readFile(tmpOut)
+    if (resultado.length > 15 * 1024 * 1024) {
+      throw new Error(`Vídeo muito grande após compressão (${(resultado.length / 1024 / 1024).toFixed(1)}MB). Tente um vídeo mais curto.`)
+    }
+    console.log(`[upload] Vídeo convertido: ${(resultado.length / 1024 / 1024).toFixed(1)}MB`)
+    return resultado
   } finally {
     await unlink(tmpIn).catch(() => {})
     await unlink(tmpOut).catch(() => {})
