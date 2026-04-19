@@ -43,30 +43,38 @@ export async function PUT(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
   const body = await req.json()
-  const { ativo, modo_distribuicao, modelo, prompt_sistema, idioma_resposta, max_rodadas, criterios_escalacao } = body
+  const { ativo, prompt_sistema } = body
 
   if (!prompt_sistema?.trim()) {
     return NextResponse.json({ error: 'Prompt do sistema é obrigatório.' }, { status: 400 })
   }
 
-  const modos = ['ia', 'balanceamento']
+  // Só atualiza ativo e prompt — os demais campos mantêm o valor atual do banco
   const data = {
-    ativo:               Boolean(ativo),
-    modo_distribuicao:   modos.includes(modo_distribuicao) ? modo_distribuicao : 'ia',
-    modelo:              String(modelo || 'claude-sonnet-4-6'),
-    prompt_sistema:      String(prompt_sistema).trim(),
-    idioma_resposta:     String(idioma_resposta || 'auto'),
-    max_rodadas:         Number(max_rodadas) || 5,
-    criterios_escalacao: Array.isArray(criterios_escalacao) ? criterios_escalacao.map(String) : [],
-    atualizado_em:       new Date(),
-    atualizado_por:      payload.nome,
+    ativo:          Boolean(ativo),
+    prompt_sistema: String(prompt_sistema).trim(),
+    atualizado_em:  new Date(),
+    atualizado_por: payload.nome,
   }
 
   const config = await prisma.config_ia.upsert({
     where: { id: 1 },
     update: data,
-    create: { id: 1, ...data },
+    create: {
+      id: 1,
+      ...data,
+      modo_distribuicao:   'ia',
+      modelo:              'claude-sonnet-4-6',
+      idioma_resposta:     'auto',
+      max_rodadas:         5,
+      criterios_escalacao: [],
+    },
   })
 
-  return NextResponse.json(config)
+  return NextResponse.json({
+    ativo:         config.ativo,
+    prompt_sistema: config.prompt_sistema,
+    atualizado_em: config.atualizado_em,
+    atualizado_por: config.atualizado_por,
+  })
 }

@@ -538,12 +538,7 @@ function SecaoOperadores() {
 
 interface ConfigIA {
   ativo: boolean
-  modo_distribuicao: string
-  modelo: string
   prompt_sistema: string
-  idioma_resposta: string
-  max_rodadas: number
-  criterios_escalacao: string[]
   atualizado_em: string | null
   atualizado_por: string | null
 }
@@ -555,63 +550,34 @@ interface TesteResultado {
   urgencia: string
 }
 
-const MODELOS = [
-  { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 — Rápido / Econômico' },
-  { value: 'claude-sonnet-4-6',         label: 'Sonnet 4.6 — Equilibrado (recomendado)' },
-  { value: 'claude-opus-4-6',           label: 'Opus 4.6 — Máxima qualidade' },
-]
-
-const IDIOMAS_IA = [
-  { value: 'auto', chave: 'iaIdiomaAuto' },
-  { value: 'pt',   chave: 'tipoTexto',   label: 'Português' },
-  { value: 'en',   chave: 'tipoTexto',   label: 'English' },
-  { value: 'es',   chave: 'tipoTexto',   label: 'Español' },
-]
-
-const CONFIG_PADRAO: ConfigIA = {
-  ativo: true,
-  modo_distribuicao: 'ia',
-  modelo: 'claude-sonnet-4-6',
-  prompt_sistema: 'Você é um assistente de atendimento ao cliente prestativo e profissional. Analise a mensagem do lead e responda em JSON com os campos: resposta (mensagem para enviar ao lead), acao (resolver se você consegue ajudar sozinho, ou escalar se precisa de um humano), intencao (o que o lead quer em poucas palavras), urgencia (baixa, media ou alta). Sempre responda APENAS com JSON válido, sem texto adicional.',
-  idioma_resposta: 'auto',
-  max_rodadas: 5,
-  criterios_escalacao: [],
-  atualizado_em: null,
-  atualizado_por: null,
-}
+const PROMPT_PADRAO = 'Você é um assistente de atendimento ao cliente prestativo e profissional. Analise a mensagem do lead e responda em JSON com os campos: resposta (mensagem para enviar ao lead), acao (resolver se você consegue ajudar sozinho, ou escalar se precisa de um humano), intencao (o que o lead quer em poucas palavras), urgencia (baixa, media ou alta). Sempre responda APENAS com JSON válido, sem texto adicional.'
 
 function SecaoIA() {
   const { tr } = useLingua()
-  const [form, setForm] = useState<ConfigIA>(CONFIG_PADRAO)
+  const [ativo, setAtivo] = useState(true)
+  const [prompt, setPrompt] = useState(PROMPT_PADRAO)
+  const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null)
+  const [atualizadoPor, setAtualizadoPor] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
-  const [novoCriterio, setNovoCriterio] = useState('')
   const [testeMensagem, setTesteMensagem] = useState('')
   const [testeResultado, setTesteResultado] = useState<TesteResultado | null>(null)
   const [testeErro, setTesteErro] = useState('')
   const [testando, setTestando] = useState(false)
+  const [testeFoiRealizado, setTesteFoiRealizado] = useState(false)
 
   useEffect(() => {
     fetch('/api/ia/config')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setForm(data) })
+      .then((data: ConfigIA | null) => {
+        if (!data) return
+        setAtivo(data.ativo)
+        setPrompt(data.prompt_sistema)
+        setAtualizadoEm(data.atualizado_em)
+        setAtualizadoPor(data.atualizado_por)
+      })
   }, [])
-
-  function setField<K extends keyof ConfigIA>(campo: K, valor: ConfigIA[K]) {
-    setForm(f => ({ ...f, [campo]: valor }))
-  }
-
-  function adicionarCriterio() {
-    const val = novoCriterio.trim().toLowerCase()
-    if (!val || form.criterios_escalacao.includes(val)) return
-    setField('criterios_escalacao', [...form.criterios_escalacao, val])
-    setNovoCriterio('')
-  }
-
-  function removerCriterio(c: string) {
-    setField('criterios_escalacao', form.criterios_escalacao.filter(x => x !== c))
-  }
 
   async function salvar() {
     setErro(''); setSucesso(''); setSalvando(true)
@@ -619,12 +585,14 @@ function SecaoIA() {
       const res = await fetch('/api/ia/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ativo, prompt_sistema: prompt })
       })
       if (!res.ok) throw new Error((await res.json()).error ?? tr('erroDesconhecido'))
+      const data: ConfigIA = await res.json()
+      setAtualizadoEm(data.atualizado_em)
+      setAtualizadoPor(data.atualizado_por)
       setSucesso(tr('iaSucessoConfig'))
-      const data = await res.json()
-      setForm(data)
+      setTesteFoiRealizado(false)
     } catch (err) {
       setErro(err instanceof Error ? err.message : tr('erroDesconhecido'))
     } finally {
@@ -639,17 +607,12 @@ function SecaoIA() {
       const res = await fetch('/api/ia/testar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mensagem: testeMensagem,
-          prompt_sistema: form.prompt_sistema,
-          modelo: form.modelo,
-          idioma_resposta: form.idioma_resposta,
-          criterios_escalacao: form.criterios_escalacao,
-        })
+        body: JSON.stringify({ mensagem: testeMensagem, prompt_sistema: prompt })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? tr('erroDesconhecido'))
       setTesteResultado(data.decisao)
+      setTesteFoiRealizado(true)
     } catch (err) {
       setTesteErro(err instanceof Error ? err.message : tr('erroDesconhecido'))
     } finally {
@@ -657,248 +620,139 @@ function SecaoIA() {
     }
   }
 
-  const charCount = form.prompt_sistema.length
-  const charMax = 4000
+  const charCount = prompt.length
+  const charMax = 8000
 
   return (
-    <div className="space-y-6">
-      {/* Header: toggle + salvar */}
+    <div className="max-w-3xl mx-auto space-y-5">
+      {/* Cabeçalho: toggle ativo + última atualização */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setField('ativo', !form.ativo)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.ativo ? 'bg-green-500' : 'bg-gray-300'}`}
+            onClick={() => setAtivo(v => !v)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${ativo ? 'bg-green-500' : 'bg-gray-300'}`}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${form.ativo ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${ativo ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
-          <span className={`text-sm font-semibold ${form.ativo ? 'text-green-700' : 'text-gray-400'}`}>
-            {form.ativo ? tr('iaAtiva') : tr('iaInativa')}
+          <span className={`text-sm font-semibold ${ativo ? 'text-green-700' : 'text-gray-400'}`}>
+            {ativo ? tr('iaAtiva') : tr('iaInativa')}
           </span>
-          {!form.ativo && (
+          {!ativo && (
             <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
-              Mensagens entram direto na fila humana
+              Mensagens vão direto para fila humana
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          {form.atualizado_em && (
-            <span className="text-xs text-gray-400 hidden sm:block">
-              {tr('iaUltimaAtualizacao')}: {new Date(form.atualizado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })} {tr('iaPor')} {form.atualizado_por}
-            </span>
-          )}
-          <Feedback erro={erro} sucesso={sucesso} />
-          <button onClick={salvar} disabled={salvando} className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shrink-0">
-            {salvando ? tr('iaSalvandoConfig') : tr('iaSalvarConfig')}
-          </button>
-        </div>
+        {atualizadoEm && (
+          <span className="text-xs text-gray-400 hidden sm:block">
+            {tr('iaUltimaAtualizacao')}: {new Date(atualizadoEm).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })} {tr('iaPor')} {atualizadoPor}
+          </span>
+        )}
       </div>
 
-      {/* Seletor de modo de distribuição */}
+      {/* Prompt do sistema */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-3">{tr('iaModoDistribuicao')}</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Modo IA */}
-          <button
-            onClick={() => setField('modo_distribuicao', 'ia')}
-            className={`relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-              form.modo_distribuicao === 'ia'
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
-            }`}
-          >
-            <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-              form.modo_distribuicao === 'ia' ? 'border-blue-500' : 'border-gray-300'
-            }`}>
-              {form.modo_distribuicao === 'ia' && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🤖</span>
-                <span className={`text-sm font-semibold ${form.modo_distribuicao === 'ia' ? 'text-blue-700' : 'text-gray-700'}`}>
-                  {tr('iaModoIA')}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">{tr('iaModoIADesc')}</p>
-            </div>
-          </button>
-
-          {/* Modo Balanceamento */}
-          <button
-            onClick={() => setField('modo_distribuicao', 'balanceamento')}
-            className={`relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-              form.modo_distribuicao === 'balanceamento'
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
-            }`}
-          >
-            <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-              form.modo_distribuicao === 'balanceamento' ? 'border-green-500' : 'border-gray-300'
-            }`}>
-              {form.modo_distribuicao === 'balanceamento' && <div className="w-2.5 h-2.5 rounded-full bg-green-500" />}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⚖️</span>
-                <span className={`text-sm font-semibold ${form.modo_distribuicao === 'balanceamento' ? 'text-green-700' : 'text-gray-700'}`}>
-                  {tr('iaModoBalanceamento')}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">{tr('iaModoBalanceamentoDesc')}</p>
-            </div>
-          </button>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800">{tr('iaPromptSistema')}</label>
+            <p className="text-xs text-gray-400 mt-0.5">{tr('iaPromptDica')}</p>
+          </div>
+          <span className={`text-xs font-mono shrink-0 ml-2 ${charCount > charMax * 0.9 ? 'text-red-500' : 'text-gray-400'}`}>
+            {charCount} / {charMax}
+          </span>
         </div>
+        <textarea
+          value={prompt}
+          onChange={e => { setPrompt(e.target.value); setTesteFoiRealizado(false) }}
+          maxLength={charMax}
+          rows={14}
+          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-y font-mono leading-relaxed"
+          placeholder="Você é um assistente..."
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Coluna esquerda — configurações (só visível no modo IA) */}
-        <div className={`lg:col-span-2 space-y-5 ${form.modo_distribuicao === 'balanceamento' ? 'opacity-40 pointer-events-none' : ''}`}>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-            {/* Modelo */}
-            <Field label={tr('iaModelo')}>
-              <select value={form.modelo} onChange={e => setField('modelo', e.target.value)} className={inputCls}>
-                {MODELOS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
-            </Field>
+      {/* Teste interno */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-sm font-semibold text-gray-800 mb-1">{tr('iaTesteAoVivo')}</h3>
+        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-4">
+          {tr('iaTesteAviso')}
+        </p>
 
-            {/* Idioma */}
-            <Field label={tr('iaIdioma')}>
-              <select value={form.idioma_resposta} onChange={e => setField('idioma_resposta', e.target.value)} className={inputCls}>
-                <option value="auto">{tr('iaIdiomaAuto')}</option>
-                <option value="pt">🇵🇹 Português</option>
-                <option value="en">🇺🇸 English</option>
-                <option value="es">🇪🇸 Español</option>
-              </select>
-            </Field>
-
-            {/* Máx. rodadas */}
-            <Field label={tr('iaMaxRodadas')} hint={tr('iaMaxRodasDica')}>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range" min={1} max={20} value={form.max_rodadas}
-                  onChange={e => setField('max_rodadas', Number(e.target.value))}
-                  className="flex-1 accent-green-500"
-                />
-                <span className="text-sm font-bold text-gray-700 w-6 text-center">{form.max_rodadas}</span>
-              </div>
-            </Field>
-
-            {/* Critérios de escalação */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{tr('iaCriterios')}</label>
-              <p className="text-xs text-gray-400 mb-2">{tr('iaCriteriosDica')}</p>
-              <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
-                {form.criterios_escalacao.map(c => (
-                  <span key={c} className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-full">
-                    {c}
-                    <button onClick={() => removerCriterio(c)} className="hover:text-red-900 font-bold leading-none">×</button>
-                  </span>
-                ))}
-                {form.criterios_escalacao.length === 0 && (
-                  <span className="text-xs text-gray-400 italic">Nenhum critério adicionado</span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={novoCriterio}
-                  onChange={e => setNovoCriterio(e.target.value)}
-                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') { e.preventDefault(); adicionarCriterio() }}}
-                  placeholder={tr('iaCriterioAdd')}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <button onClick={adicionarCriterio} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm px-3 py-1.5 rounded-lg transition-colors font-medium">+</button>
-              </div>
-            </div>
-          </div>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={testeMensagem}
+            onChange={e => setTesteMensagem(e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') testar() }}
+            placeholder={tr('iaMensagemTeste')}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            onClick={testar}
+            disabled={testando || !testeMensagem.trim()}
+            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+          >
+            {testando
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+              : tr('iaTestar')
+            }
+          </button>
         </div>
 
-        {/* Coluna direita — prompt + teste (só visível no modo IA) */}
-        <div className={`lg:col-span-3 space-y-5 ${form.modo_distribuicao === 'balanceamento' ? 'opacity-40 pointer-events-none' : ''}`}>
-          {/* Prompt do sistema */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">{tr('iaPromptSistema')}</label>
-                <p className="text-xs text-gray-400 mt-0.5">{tr('iaPromptDica')}</p>
-              </div>
-              <span className={`text-xs font-mono shrink-0 ml-2 ${charCount > charMax * 0.9 ? 'text-red-500' : 'text-gray-400'}`}>
-                {charCount} / {charMax} {tr('iaCaracteres')}
+        {testeErro && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{testeErro}</p>
+        )}
+
+        {testeResultado && (
+          <div className={`rounded-xl border-2 p-4 ${testeResultado.acao === 'resolver' ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`text-sm font-bold px-3 py-1 rounded-full ${testeResultado.acao === 'resolver' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
+                {testeResultado.acao === 'resolver' ? `✓ ${tr('iaAcaoResolver')}` : `⚡ ${tr('iaAcaoEscalar')}`}
+              </span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                testeResultado.urgencia === 'alta' ? 'bg-red-100 text-red-700' :
+                testeResultado.urgencia === 'media' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                Urgência: {testeResultado.urgencia}
               </span>
             </div>
-            <textarea
-              value={form.prompt_sistema}
-              onChange={e => setField('prompt_sistema', e.target.value)}
-              maxLength={charMax}
-              rows={10}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none font-mono leading-relaxed"
-              placeholder="Você é um assistente..."
-            />
-          </div>
-
-          {/* Teste ao vivo */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-sm font-semibold text-gray-800 mb-1">{tr('iaTesteAoVivo')}</h3>
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-4">{tr('iaTesteAviso')}</p>
-
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={testeMensagem}
-                onChange={e => setTesteMensagem(e.target.value)}
-                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') testar() }}
-                placeholder={tr('iaMensagemTeste')}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <button
-                onClick={testar}
-                disabled={testando || !testeMensagem.trim()}
-                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
-              >
-                {testando
-                  ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                  : tr('iaTestar')
-                }
-              </button>
+            <div className="space-y-2">
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Resposta da IA</span>
+                <p className="text-sm text-gray-800 mt-0.5 whitespace-pre-wrap">{testeResultado.resposta}</p>
+              </div>
+              {testeResultado.intencao && (
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Intenção detectada</span>
+                  <p className="text-sm text-gray-600 mt-0.5">{testeResultado.intencao}</p>
+                </div>
+              )}
             </div>
-
-            {testeErro && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{testeErro}</p>
-            )}
-
-            {testeResultado && (
-              <div className={`rounded-xl border-2 p-4 ${testeResultado.acao === 'resolver' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-sm font-bold px-3 py-1 rounded-full ${testeResultado.acao === 'resolver' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                    {testeResultado.acao === 'resolver' ? `✓ ${tr('iaAcaoResolver')}` : `⚡ ${tr('iaAcaoEscalar')}`}
-                  </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    testeResultado.urgencia === 'alta' ? 'bg-red-100 text-red-700' :
-                    testeResultado.urgencia === 'media' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    Urgência: {testeResultado.urgencia}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Resposta</span>
-                    <p className="text-sm text-gray-800 mt-0.5">{testeResultado.resposta}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Intenção</span>
-                    <p className="text-sm text-gray-600 mt-0.5">{testeResultado.intencao}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {!testeResultado && !testeErro && !testando && (
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center text-gray-400 text-sm">
-                {tr('iaResultado')} aparece aqui
-              </div>
-            )}
           </div>
-        </div>
+        )}
+
+        {!testeResultado && !testeErro && !testando && (
+          <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">
+            Digite uma mensagem de teste e clique em Testar para ver como a IA responderia
+          </div>
+        )}
+      </div>
+
+      {/* Botão salvar — destaque quando teste foi realizado */}
+      <div className="flex items-center justify-between gap-4">
+        <Feedback erro={erro} sucesso={sucesso} />
+        <button
+          onClick={salvar}
+          disabled={salvando}
+          className={`shrink-0 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 ${
+            testeFoiRealizado
+              ? 'bg-green-500 hover:bg-green-600 ring-2 ring-green-300 ring-offset-2'
+              : 'bg-gray-400 hover:bg-gray-500'
+          }`}
+        >
+          {salvando ? tr('iaSalvandoConfig') : tr('iaSalvarConfig')}
+        </button>
       </div>
     </div>
   )
