@@ -32,6 +32,9 @@ export async function POST(req: NextRequest) {
     if (idioma) systemPrompt += `\n\nResponda SEMPRE em ${idioma}, independente do idioma da mensagem.`
   }
 
+  // Garante que a IA sempre retorne JSON — o usuário não precisa incluir isso no prompt
+  systemPrompt += '\n\nIMPORTANTE: Responda APENAS com um objeto JSON válido, sem texto adicional, no formato: {"resposta": "mensagem para o lead", "acao": "resolver" ou "escalar", "intencao": "resumo do que o lead quer", "urgencia": "baixa", "media" ou "alta"}'
+
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
