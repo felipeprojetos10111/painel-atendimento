@@ -63,7 +63,7 @@ async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<B
     await writeFile(tmpIn, buffer)
     await new Promise<void>((resolve, reject) => {
       exec(
-        `ffmpeg -y -i "${tmpIn}" -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -movflags +faststart "${tmpOut}"`,
+        `ffmpeg -y -i "${tmpIn}" -c:v libx264 -preset ultrafast -profile:v baseline -level 3.0 -c:a aac -movflags +faststart -threads 0 "${tmpOut}"`,
         (err) => { if (err) reject(err); else resolve() }
       )
     })

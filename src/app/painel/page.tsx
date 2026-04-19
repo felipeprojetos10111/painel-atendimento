@@ -12,6 +12,14 @@ export default function PainelPage() {
   const { tr } = useLingua()
   const [conversaSelecionada, setConversaSelecionada] = useState<number | null>(null)
   const [nivel, setNivel] = useState<string | null>(null)
+  const [uploadEmAndamento, setUploadEmAndamento] = useState(false)
+
+  function selecionarConversa(id: number) {
+    if (uploadEmAndamento) {
+      if (!confirm('Há um arquivo sendo enviado. Trocar de conversa vai cancelar o envio. Continuar?')) return
+    }
+    setConversaSelecionada(id)
+  }
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -62,12 +70,12 @@ export default function PainelPage() {
       <div className="flex flex-1 overflow-hidden">
         <ListaConversas
           conversaSelecionada={conversaSelecionada}
-          onSelecionar={setConversaSelecionada}
+          onSelecionar={selecionarConversa}
         />
 
         <main className="flex-1 flex">
           {conversaSelecionada ? (
-            <Chat key={conversaSelecionada} conversaId={conversaSelecionada} />
+            <Chat key={conversaSelecionada} conversaId={conversaSelecionada} onUploadChange={setUploadEmAndamento} />
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-400">
               <div className="text-center">

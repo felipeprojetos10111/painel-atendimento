@@ -40,6 +40,7 @@ interface Me {
 
 interface Props {
   conversaId: number
+  onUploadChange?: (emAndamento: boolean) => void
 }
 
 const ORIGEM_ESTILO: Record<string, { alinhamento: string; bolha: string }> = {
@@ -180,7 +181,7 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
 
 let socket: Socket | null = null
 
-export default function Chat({ conversaId }: Props) {
+export default function Chat({ conversaId, onUploadChange }: Props) {
   const { tr } = useLingua()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [texto, setTexto] = useState('')
@@ -361,6 +362,10 @@ export default function Chat({ conversaId }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensagens])
+
+  useEffect(() => {
+    onUploadChange?.(enviandoArquivo)
+  }, [enviandoArquivo, onUploadChange])
 
   async function reenviarMensagem(mensagemId: number) {
     await fetch(`/api/mensagens/${mensagemId}/reenviar`, { method: 'POST' })
