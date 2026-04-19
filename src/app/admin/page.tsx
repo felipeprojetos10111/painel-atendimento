@@ -564,6 +564,7 @@ function SecaoIA() {
   const [testeMensagem, setTesteMensagem] = useState('')
   const [testeResultado, setTesteResultado] = useState<TesteResultado | null>(null)
   const [testeErro, setTesteErro] = useState('')
+  const [testeRaw, setTesteRaw] = useState('')
   const [testando, setTestando] = useState(false)
   const [testeFoiRealizado, setTesteFoiRealizado] = useState(false)
 
@@ -602,7 +603,7 @@ function SecaoIA() {
 
   async function testar() {
     if (!testeMensagem.trim()) return
-    setTesteErro(''); setTesteResultado(null); setTestando(true)
+    setTesteErro(''); setTesteResultado(null); setTesteRaw(''); setTestando(true)
     try {
       const res = await fetch('/api/ia/testar', {
         method: 'POST',
@@ -610,7 +611,10 @@ function SecaoIA() {
         body: JSON.stringify({ mensagem: testeMensagem, prompt_sistema: prompt })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? tr('erroDesconhecido'))
+      if (!res.ok) {
+        if (data.raw) setTesteRaw(data.raw)
+        throw new Error(data.error ?? tr('erroDesconhecido'))
+      }
       setTesteResultado(data.decisao)
       setTesteFoiRealizado(true)
     } catch (err) {
@@ -700,7 +704,16 @@ function SecaoIA() {
         </div>
 
         {testeErro && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{testeErro}</p>
+          <div className="mb-3 space-y-2">
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{testeErro}</p>
+            {testeRaw && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                <p className="text-xs font-semibold text-gray-500 mb-1">Resposta bruta da IA:</p>
+                <p className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{testeRaw}</p>
+                <p className="text-xs text-amber-600 mt-2">⚠ O prompt precisa instruir a IA a responder APENAS com JSON válido.</p>
+              </div>
+            )}
+          </div>
         )}
 
         {testeResultado && (
