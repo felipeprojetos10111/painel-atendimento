@@ -30,13 +30,14 @@ const EXT_MIME: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif',  webp: 'image/webp',
   mp3: 'audio/mpeg', ogg: 'audio/ogg',  wav: 'audio/wav',
-  mp4: 'video/mp4',  webm: 'video/webm',
+  mp4: 'video/mp4',  webm: 'video/webm', mov: 'video/quicktime',
+  avi: 'video/x-msvideo',
   pdf: 'application/pdf',
   doc: 'application/msword',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
-// Converte audio/webm (container Matroska do browser) para OGG real via FFmpeg
+// Converte audio/webm para OGG/Opus — WhatsApp exige OGG/Opus
 async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
   const tmpIn  = join(tmpdir(), `${randomUUID()}.webm`)
   const tmpOut = join(tmpdir(), `${randomUUID()}.ogg`)
@@ -44,8 +45,7 @@ async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
     await writeFile(tmpIn, buffer)
     await new Promise<void>((resolve, reject) => {
       exec(`ffmpeg -y -i "${tmpIn}" -c:a libopus -f ogg "${tmpOut}"`, (err) => {
-        if (err) reject(err)
-        else resolve()
+        if (err) reject(err); else resolve()
       })
     })
     return await readFile(tmpOut)
@@ -55,7 +55,7 @@ async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
   }
 }
 
-// Converte qualquer vídeo para MP4 H.264 + AAC — WhatsApp exige esse formato
+// Converte qualquer vídeo para MP4 H.264 + AAC — WhatsApp não aceita MOV, AVI, WebM
 async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<Buffer> {
   const tmpIn  = join(tmpdir(), `${randomUUID()}.${extOrig}`)
   const tmpOut = join(tmpdir(), `${randomUUID()}.mp4`)
@@ -74,6 +74,8 @@ async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<B
   }
 }
 
+// Aceita arquivo como corpo binário (application/octet-stream).
+// Metadados passados via query: ?nome=arquivo.mp4&contentType=video/mp4
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
   const token = cookieStore.get('token')?.value
@@ -81,21 +83,20 @@ export async function POST(req: NextRequest) {
   const payload = await verifyToken(token)
   if (!payload) return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
 
-  // Recebe { nome, contentType, dados } onde dados é base64
-  const { nome, contentType: ct, dados } = await req.json()
+  const { searchParams } = new URL(req.url)
+  const nome = searchParams.get('nome') ?? 'arquivo'
+  const ctParam = searchParams.get('contentType') ?? ''
 
-  if (!nome || !dados) {
-    return NextResponse.json({ erro: 'nome e dados são obrigatórios.' }, { status: 400 })
-  }
-
-  const ext = (nome as string).split('.').pop()?.toLowerCase() ?? 'bin'
-  const contentType: string = ct || EXT_MIME[ext] || ''
+  const ext = nome.split('.').pop()?.toLowerCase() ?? 'bin'
+  const contentType: string = ctParam || EXT_MIME[ext] || ''
 
   if (!contentType) {
     return NextResponse.json({ erro: `Tipo de arquivo não suportado: .${ext}` }, { status: 400 })
   }
 
-  const tipo = TIPOS_PERMITIDOS[contentType]
+  let tipo = TIPOS_PERMITIDOS[contentType]
+  if (!tipo && contentType.startsWith('video/')) tipo = 'video'
+  if (!tipo && contentType.startsWith('audio/')) tipo = 'audio'
   if (!tipo) {
     return NextResponse.json({ erro: `Tipo não permitido: ${contentType}` }, { status: 400 })
   }
@@ -104,12 +105,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'R2_PUBLIC_URL não configurado no servidor.' }, { status: 500 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let buffer: any = Buffer.from(dados as string, 'base64')
+  const arrayBuffer = await req.arrayBuffer()
+  let buffer: Buffer = Buffer.from(arrayBuffer)
   let contentTypeFinal = contentType
   let extFinal = ext
 
-  // Converte WebM (gravado pelo browser) para OGG real — WhatsApp exige OGG/Opus
+  // Converte WebM de áudio → OGG/Opus
   if (contentType === 'audio/webm') {
     try {
       buffer = await converterWebmParaOgg(buffer)
@@ -121,18 +122,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Converte vídeos para MP4 H.264 + AAC — WhatsApp não aceita MOV, AVI, WebM, etc.
-  const VIDEO_CONVERTER = ['video/quicktime', 'video/x-msvideo', 'video/webm', 'video/mp4']
-  if (VIDEO_CONVERTER.includes(contentType)) {
+  // Converte vídeos → MP4 H.264 + AAC
+  if (['video/quicktime', 'video/x-msvideo', 'video/webm', 'video/mp4'].includes(contentType)) {
     try {
-      const extParaConversao = ext === 'mov' ? 'mov' : ext === 'avi' ? 'avi' : ext === 'webm' ? 'webm' : 'mp4'
-      buffer = await converterVideoParaMp4(buffer, extParaConversao)
+      buffer = await converterVideoParaMp4(buffer, ext)
       contentTypeFinal = 'video/mp4'
       extFinal = 'mp4'
       console.log('[upload] Vídeo convertido para MP4 H.264')
     } catch (err) {
       console.error('[upload] FFmpeg falhou ao converter vídeo:', err)
-      return NextResponse.json({ erro: 'Falha ao converter vídeo. Tente com um arquivo MP4.' }, { status: 500 })
+      return NextResponse.json({ erro: 'Falha ao converter vídeo. Tente com um arquivo menor ou no formato MP4.' }, { status: 500 })
     }
   }
 

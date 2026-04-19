@@ -255,19 +255,11 @@ export default function Chat({ conversaId }: Props) {
     setErroUpload('')
     setEnviandoArquivo(true)
     try {
-      const buffer = await audioBlob.arrayBuffer()
-      const bytes = new Uint8Array(buffer)
-      let binary = ''
-      const chunkSize = 8192
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
-      }
-      const dados = btoa(binary)
-
-      const uploadRes = await fetch('/api/chat/upload', {
+      const params = new URLSearchParams({ nome: 'audio.webm', contentType: 'audio/webm' })
+      const uploadRes = await fetch(`/api/chat/upload?${params}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: 'audio.ogg', contentType: 'audio/webm', dados })
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: audioBlob
       })
       if (!uploadRes.ok) {
         const err = await uploadRes.json().catch(() => ({}))
@@ -479,22 +471,12 @@ export default function Chat({ conversaId }: Props) {
     setErroUpload('')
     setEnviandoArquivo(true)
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
       const contentType = file.type || ''
-      // Converte para base64 em chunks para não estourar o call stack
-      const buffer = await file.arrayBuffer()
-      const bytes = new Uint8Array(buffer)
-      let binary = ''
-      const chunkSize = 8192
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
-      }
-      const dados = btoa(binary)
-
-      const uploadRes = await fetch('/api/chat/upload', {
+      const params = new URLSearchParams({ nome: file.name, contentType })
+      const uploadRes = await fetch(`/api/chat/upload?${params}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: file.name, contentType: contentType || ext, dados })
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file
       })
       if (!uploadRes.ok) {
         const err = await uploadRes.json().catch(() => ({}))
