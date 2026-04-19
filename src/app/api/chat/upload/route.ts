@@ -55,6 +55,25 @@ async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
   }
 }
 
+// Converte qualquer vídeo para MP4 H.264 + AAC — WhatsApp exige esse formato
+async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<Buffer> {
+  const tmpIn  = join(tmpdir(), `${randomUUID()}.${extOrig}`)
+  const tmpOut = join(tmpdir(), `${randomUUID()}.mp4`)
+  try {
+    await writeFile(tmpIn, buffer)
+    await new Promise<void>((resolve, reject) => {
+      exec(
+        `ffmpeg -y -i "${tmpIn}" -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -movflags +faststart "${tmpOut}"`,
+        (err) => { if (err) reject(err); else resolve() }
+      )
+    })
+    return await readFile(tmpOut)
+  } finally {
+    await unlink(tmpIn).catch(() => {})
+    await unlink(tmpOut).catch(() => {})
+  }
+}
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
   const token = cookieStore.get('token')?.value
@@ -99,6 +118,21 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error('[upload] FFmpeg falhou ao converter áudio:', err)
       return NextResponse.json({ erro: 'Falha ao converter áudio.' }, { status: 500 })
+    }
+  }
+
+  // Converte vídeos para MP4 H.264 + AAC — WhatsApp não aceita MOV, AVI, WebM, etc.
+  const VIDEO_CONVERTER = ['video/quicktime', 'video/x-msvideo', 'video/webm', 'video/mp4']
+  if (VIDEO_CONVERTER.includes(contentType)) {
+    try {
+      const extParaConversao = ext === 'mov' ? 'mov' : ext === 'avi' ? 'avi' : ext === 'webm' ? 'webm' : 'mp4'
+      buffer = await converterVideoParaMp4(buffer, extParaConversao)
+      contentTypeFinal = 'video/mp4'
+      extFinal = 'mp4'
+      console.log('[upload] Vídeo convertido para MP4 H.264')
+    } catch (err) {
+      console.error('[upload] FFmpeg falhou ao converter vídeo:', err)
+      return NextResponse.json({ erro: 'Falha ao converter vídeo. Tente com um arquivo MP4.' }, { status: 500 })
     }
   }
 
