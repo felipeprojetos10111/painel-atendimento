@@ -621,7 +621,7 @@ function SecaoIA() {
   }
 
   const charCount = prompt.length
-  const charMax = 8000
+  const charMax = 20000
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
