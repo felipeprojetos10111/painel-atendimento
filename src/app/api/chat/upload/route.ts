@@ -55,6 +55,12 @@ async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
   }
 }
 
+function execPromise(cmd: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err, stdout) => { if (err) reject(err); else resolve(stdout) })
+  })
+}
+
 // Converte qualquer vídeo para MP4 H.264 + AAC com tamanho ≤ 15MB (limite WhatsApp: 16MB)
 async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<Buffer> {
   const tmpIn  = join(tmpdir(), `${randomUUID()}.${extOrig}`)
@@ -62,35 +68,53 @@ async function converterVideoParaMp4(buffer: Buffer, extOrig: string): Promise<B
   try {
     await writeFile(tmpIn, buffer)
 
-    // Obtém duração para calcular bitrate alvo
-    const duration = await new Promise<number>((resolve) => {
-      exec(`ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${tmpIn}"`, (_err, stdout) => {
-        resolve(parseFloat(stdout?.trim() ?? '') || 60)
-      })
-    })
+    // Obtém codec de vídeo e duração
+    const probeJson = await execPromise(
+      `ffprobe -v quiet -print_format json -show_streams -show_format "${tmpIn}"`
+    )
+    const probe = JSON.parse(probeJson)
+    const videoStream = probe.streams?.find((s: {codec_type: string}) => s.codec_type === 'video')
+    const duration = parseFloat(probe.format?.duration ?? '60') || 60
+    const codec = videoStream?.codec_name ?? ''
 
-    // Alvo: 14MB em kbits (reserva 128k/s para áudio)
-    const audioBitrate = 128
-    const videoBitrate = Math.max(200, Math.floor((14 * 8 * 1024) / duration) - audioBitrate)
+    console.log(`[upload] Vídeo: codec=${codec}, duração=${duration.toFixed(1)}s`)
 
-    console.log(`[upload] Vídeo: duração=${duration.toFixed(1)}s, bitrate alvo=${videoBitrate}k`)
-
-    await new Promise<void>((resolve, reject) => {
-      exec(
-        `ffmpeg -y -i "${tmpIn}" ` +
-        `-vf "scale=trunc(min(iw\\,1280)/2)*2:trunc(min(ih\\,720)/2)*2" ` +
-        `-c:v libx264 -preset fast -profile:v baseline -level 3.1 ` +
-        `-b:v ${videoBitrate}k -maxrate ${videoBitrate * 2}k -bufsize ${videoBitrate * 4}k ` +
-        `-c:a aac -b:a ${audioBitrate}k -movflags +faststart -threads 0 "${tmpOut}"`,
-        (err) => { if (err) reject(err); else resolve() }
+    // Passo 1: remux rápido (só muda container, sem re-encode)
+    // Funciona para H.264 em MOV/AVI → MP4, praticamente instantâneo
+    const podeRemux = codec === 'h264'
+    if (podeRemux) {
+      await execPromise(
+        `ffmpeg -y -i "${tmpIn}" -c:v copy -c:a aac -b:a 128k -movflags +faststart "${tmpOut}"`
       )
-    })
+      const remuxado = await readFile(tmpOut)
+      if (remuxado.length <= 15 * 1024 * 1024) {
+        console.log(`[upload] Vídeo remuxado: ${(remuxado.length / 1024 / 1024).toFixed(1)}MB`)
+        return remuxado
+      }
+      console.log(`[upload] Remux resultou em ${(remuxado.length / 1024 / 1024).toFixed(1)}MB, re-encodando...`)
+    }
+
+    // Passo 2: re-encode com bitrate alvo para caber em 14MB
+    if (duration > 300) {
+      throw new Error(`Vídeo muito longo (${Math.round(duration / 60)} min). Máximo: 5 minutos.`)
+    }
+    const audioBitrate = 128
+    const videoBitrate = Math.max(150, Math.floor((14 * 8 * 1024) / duration) - audioBitrate)
+
+    console.log(`[upload] Re-encode: bitrate alvo=${videoBitrate}k`)
+    await execPromise(
+      `ffmpeg -y -i "${tmpIn}" ` +
+      `-vf "scale=trunc(min(iw\\,1280)/2)*2:trunc(min(ih\\,720)/2)*2" ` +
+      `-c:v libx264 -preset fast -profile:v baseline -level 3.1 ` +
+      `-b:v ${videoBitrate}k -maxrate ${videoBitrate * 2}k -bufsize ${videoBitrate * 4}k ` +
+      `-c:a aac -b:a ${audioBitrate}k -movflags +faststart -threads 0 "${tmpOut}"`
+    )
 
     const resultado = await readFile(tmpOut)
     if (resultado.length > 15 * 1024 * 1024) {
       throw new Error(`Vídeo muito grande após compressão (${(resultado.length / 1024 / 1024).toFixed(1)}MB). Tente um vídeo mais curto.`)
     }
-    console.log(`[upload] Vídeo convertido: ${(resultado.length / 1024 / 1024).toFixed(1)}MB`)
+    console.log(`[upload] Vídeo re-encodado: ${(resultado.length / 1024 / 1024).toFixed(1)}MB`)
     return resultado
   } finally {
     await unlink(tmpIn).catch(() => {})

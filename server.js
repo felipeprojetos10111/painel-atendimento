@@ -56,6 +56,10 @@ app.prepare().then(() => {
   global.io = io
   global.onlineOperators = onlineOperators
 
+  // Evita timeout em uploads grandes + conversão FFmpeg (padrão Node.js é 300s)
+  httpServer.requestTimeout = 600000  // 10 minutos
+  httpServer.headersTimeout = 620000
+
   const PORT = process.env.PORT || 3001
   httpServer.listen(PORT, () => {
     console.log(`Painel de atendimento rodando em http://localhost:${PORT}`)
