@@ -2,6 +2,56 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 
+const TOOLS = [
+  {
+    name: 'responder_lead',
+    description: 'Envia uma resposta ao lead resolvendo sua dúvida ou demanda. Use quando conseguir ajudar completamente sem precisar de um humano.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        mensagem: {
+          type: 'string',
+          description: 'Mensagem clara e completa para enviar ao lead via WhatsApp'
+        }
+      },
+      required: ['mensagem']
+    }
+  },
+  {
+    name: 'solicitar_informacao',
+    description: 'Faz uma pergunta ao lead para coletar informações necessárias antes de responder ou tomar uma decisão. Use quando precisar de dados adicionais.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pergunta: {
+          type: 'string',
+          description: 'Pergunta objetiva e direta para o lead'
+        }
+      },
+      required: ['pergunta']
+    }
+  },
+  {
+    name: 'escalar_humano',
+    description: 'Transfere a conversa para um operador humano. Use quando: o lead pedir para falar com humano, a situação envolver pagamento/reclamação/problema urgente, ou quando não conseguir resolver com as informações disponíveis.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        motivo: {
+          type: 'string',
+          description: 'Resumo do motivo da escalação para o operador humano'
+        },
+        urgencia: {
+          type: 'string',
+          enum: ['baixa', 'media', 'alta'],
+          description: 'baixa: dúvida simples | media: interesse em comprar ou avançar | alta: problema urgente, reclamação ou pedido explícito de humano'
+        }
+      },
+      required: ['motivo', 'urgencia']
+    }
+  }
+]
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
   const token = cookieStore.get('token')?.value
@@ -11,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
   }
 
-  const { mensagem, prompt_sistema, modelo, idioma_resposta, criterios_escalacao } = await req.json()
+  const { mensagem, prompt_sistema, modelo } = await req.json()
 
   if (!mensagem?.trim()) return NextResponse.json({ error: 'Mensagem é obrigatória.' }, { status: 400 })
   if (!prompt_sistema?.trim()) return NextResponse.json({ error: 'Prompt é obrigatório.' }, { status: 400 })
@@ -20,20 +70,12 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY não configurada no servidor.' }, { status: 500 })
 
   // Monta prompt final igual ao que a IA usaria em produção
-  let systemPrompt = prompt_sistema.trim()
-
-  if (Array.isArray(criterios_escalacao) && criterios_escalacao.length > 0) {
-    systemPrompt += `\n\nEscale imediatamente (acao: "escalar") se a mensagem envolver: ${criterios_escalacao.join(', ')}.`
-  }
-
-  if (idioma_resposta && idioma_resposta !== 'auto') {
-    const idiomas: Record<string, string> = { pt: 'português', en: 'inglês', es: 'espanhol' }
-    const idioma = idiomas[idioma_resposta]
-    if (idioma) systemPrompt += `\n\nResponda SEMPRE em ${idioma}, independente do idioma da mensagem.`
-  }
-
-  // Garante que a IA sempre retorne JSON — o usuário não precisa incluir isso no prompt
-  systemPrompt += '\n\nIMPORTANTE: Responda APENAS com um objeto JSON válido, sem texto adicional, no formato: {"resposta": "mensagem para o lead", "acao": "resolver" ou "escalar", "intencao": "resumo do que o lead quer", "urgencia": "baixa", "media" ou "alta"}'
+  const systemPrompt = prompt_sistema.trim() +
+    `\n\n--- CONTEXTO ---` +
+    `\nLead: (teste)` +
+    `\nPrimeira mensagem deste lead.` +
+    `\nRodadas restantes antes de escalar obrigatoriamente: 5` +
+    `\n\nVocê DEVE usar uma das ferramentas (tools) disponíveis. Nunca responda em texto livre.`
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -47,6 +89,8 @@ export async function POST(req: NextRequest) {
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: 'user', content: mensagem.trim() }],
+      tools: TOOLS,
+      tool_choice: { type: 'any' },
     }),
   })
 
@@ -56,17 +100,12 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await resp.json()
-  const texto: string = data.content?.[0]?.text ?? ''
+  const toolUse = data.content?.find((c: { type: string }) => c.type === 'tool_use')
 
-  const match = texto.match(/\{[\s\S]*\}/)
-  if (!match) {
-    return NextResponse.json({ error: 'IA não retornou JSON válido.', raw: texto }, { status: 422 })
+  if (!toolUse) {
+    return NextResponse.json({ error: 'IA não chamou nenhuma tool — resposta inesperada.', raw: data }, { status: 422 })
   }
 
-  try {
-    const decisao = JSON.parse(match[0])
-    return NextResponse.json({ ok: true, decisao, promptFinal: systemPrompt })
-  } catch {
-    return NextResponse.json({ error: 'JSON inválido na resposta da IA.', raw: texto }, { status: 422 })
-  }
+  const decisao = { acao: toolUse.name, ...toolUse.input }
+  return NextResponse.json({ ok: true, decisao, promptFinal: systemPrompt })
 }

@@ -544,13 +544,14 @@ interface ConfigIA {
 }
 
 interface TesteResultado {
-  resposta: string
-  acao: string
-  intencao: string
-  urgencia: string
+  acao: string        // responder_lead | solicitar_informacao | escalar_humano
+  mensagem?: string   // responder_lead
+  pergunta?: string   // solicitar_informacao
+  motivo?: string     // escalar_humano
+  urgencia?: string   // escalar_humano
 }
 
-const PROMPT_PADRAO = 'Você é um assistente de atendimento ao cliente prestativo e profissional. Analise a mensagem do lead e responda em JSON com os campos: resposta (mensagem para enviar ao lead), acao (resolver se você consegue ajudar sozinho, ou escalar se precisa de um humano), intencao (o que o lead quer em poucas palavras), urgencia (baixa, media ou alta). Sempre responda APENAS com JSON válido, sem texto adicional.'
+const PROMPT_PADRAO = 'Você é um assistente de atendimento ao cliente prestativo e profissional. Seu papel é triagem de leads via WhatsApp: responda dúvidas simples, colete informações quando necessário, e escale para um operador humano quando não conseguir resolver ou quando o lead pedir.'
 
 function SecaoIA() {
   const { tr } = useLingua()
@@ -704,46 +705,51 @@ function SecaoIA() {
         </div>
 
         {testeErro && (
-          <div className="mb-3 space-y-2">
+          <div className="mb-3">
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{testeErro}</p>
-            {testeRaw && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                <p className="text-xs font-semibold text-gray-500 mb-1">Resposta bruta da IA:</p>
-                <p className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{testeRaw}</p>
-                <p className="text-xs text-amber-600 mt-2">⚠ O prompt precisa instruir a IA a responder APENAS com JSON válido.</p>
-              </div>
-            )}
           </div>
         )}
 
-        {testeResultado && (
-          <div className={`rounded-xl border-2 p-4 ${testeResultado.acao === 'resolver' ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`text-sm font-bold px-3 py-1 rounded-full ${testeResultado.acao === 'resolver' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
-                {testeResultado.acao === 'resolver' ? `✓ ${tr('iaAcaoResolver')}` : `⚡ ${tr('iaAcaoEscalar')}`}
-              </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                testeResultado.urgencia === 'alta' ? 'bg-red-100 text-red-700' :
-                testeResultado.urgencia === 'media' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-gray-100 text-gray-600'
-              }`}>
-                Urgência: {testeResultado.urgencia}
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div>
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Resposta da IA</span>
-                <p className="text-sm text-gray-800 mt-0.5 whitespace-pre-wrap">{testeResultado.resposta}</p>
+        {testeResultado && (() => {
+          const isResponder = testeResultado.acao === 'responder_lead'
+          const isSolicitar = testeResultado.acao === 'solicitar_informacao'
+          const isEscalar   = testeResultado.acao === 'escalar_humano'
+          const texto = testeResultado.mensagem ?? testeResultado.pergunta ?? testeResultado.motivo ?? ''
+          const borderCls = isResponder ? 'border-green-200 bg-green-50'
+            : isSolicitar ? 'border-blue-200 bg-blue-50'
+            : 'border-orange-200 bg-orange-50'
+          const badgeCls = isResponder ? 'bg-green-500 text-white'
+            : isSolicitar ? 'bg-blue-500 text-white'
+            : 'bg-orange-500 text-white'
+          const badgeLabel = isResponder ? '✓ Respondeu ao lead'
+            : isSolicitar ? '? Pediu informação'
+            : '⚡ Escalou para humano'
+          const textoLabel = isResponder ? 'Mensagem ao lead'
+            : isSolicitar ? 'Pergunta ao lead'
+            : 'Motivo da escalação'
+          return (
+            <div className={`rounded-xl border-2 p-4 ${borderCls}`}>
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <span className={`text-sm font-bold px-3 py-1 rounded-full ${badgeCls}`}>
+                  {badgeLabel}
+                </span>
+                {testeResultado.urgencia && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    testeResultado.urgencia === 'alta' ? 'bg-red-100 text-red-700' :
+                    testeResultado.urgencia === 'media' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    Urgência: {testeResultado.urgencia}
+                  </span>
+                )}
               </div>
-              {testeResultado.intencao && (
-                <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Intenção detectada</span>
-                  <p className="text-sm text-gray-600 mt-0.5">{testeResultado.intencao}</p>
-                </div>
-              )}
+              <div>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{textoLabel}</span>
+                <p className="text-sm text-gray-800 mt-0.5 whitespace-pre-wrap">{texto}</p>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {!testeResultado && !testeErro && !testando && (
           <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">
