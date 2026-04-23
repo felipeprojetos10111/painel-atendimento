@@ -7,8 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model clientes {
+  id                 Int                 @id @default(autoincrement())
+  nome               String              @db.VarChar(150)
+  slug               String              @unique @db.VarChar(50)
+  whatsapp_token     String?             @db.Text
+  phone_number_id    String?             @db.VarChar(50)
+  app_secret         String?             @db.Text
+  verify_token       String?             @db.VarChar(100)
+  anthropic_api_key  String?             @db.Text
+  ativo              Boolean             @default(true)
+  criado_em          DateTime?           @default(now()) @db.Timestamp(6)
+  operadores         operadores[]
+  leads              leads[]
+  conversas          conversas[]
+  config_ia          config_ia[]
+  respostas_rapidas  respostas_rapidas[]
+  filas              filas[]
+}
+
 model conversas {
   id            Int         @id @default(autoincrement())
+  cliente_id    Int
   lead_id       Int?
   operador_id   Int?
   status        String?     @default("aguardando") @db.VarChar(20)
@@ -16,6 +36,7 @@ model conversas {
   nao_lidas     Int?        @default(0)
   criado_em     DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em DateTime?   @default(now()) @db.Timestamp(6)
+  clientes      clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   leads         leads?      @relation(fields: [lead_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   operadores    operadores? @relation(fields: [operador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   filas         filas[]
@@ -24,21 +45,27 @@ model conversas {
 
 model filas {
   id          Int        @id @default(autoincrement())
+  cliente_id  Int
   conversa_id Int?
   prioridade  Int?       @default(0)
   motivo      String?    @db.VarChar(100)
   criado_em   DateTime?  @default(now()) @db.Timestamp(6)
+  clientes    clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   conversas   conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model leads {
   id            Int         @id @default(autoincrement())
-  telefone      String      @unique @db.VarChar(20)
+  cliente_id    Int
+  telefone      String      @db.VarChar(20)
   nome          String?     @db.VarChar(100)
   email         String?     @db.VarChar(150)
   criado_em     DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em DateTime?   @default(now()) @db.Timestamp(6)
+  clientes      clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   conversas     conversas[]
+
+  @@unique([cliente_id, telefone])
 }
 
 model mensagens {
@@ -55,38 +82,46 @@ model mensagens {
 }
 
 model operadores {
-  id         Int         @id @default(autoincrement())
-  nome       String      @db.VarChar(100)
-  email      String      @unique @db.VarChar(150)
-  senha_hash String      @db.VarChar(255)
-  nivel      String?     @default("operador") @db.VarChar(20)
-  ativo      Boolean?    @default(true)
-  lingua     String?     @default("en") @db.VarChar(5)
-  criado_em  DateTime?   @default(now()) @db.Timestamp(6)
-  conversas  conversas[]
+  id          Int         @id @default(autoincrement())
+  cliente_id  Int
+  nome        String      @db.VarChar(100)
+  email       String      @unique @db.VarChar(150)
+  senha_hash  String      @db.VarChar(255)
+  nivel       String?     @default("operador") @db.VarChar(20)
+  ativo       Boolean?    @default(true)
+  lingua      String?     @default("pt") @db.VarChar(5)
+  criado_em   DateTime?   @default(now()) @db.Timestamp(6)
+  clientes    clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  conversas   conversas[]
 }
 
 model config_ia {
-  id                   Int       @id @default(autoincrement())
-  ativo                Boolean   @default(true)
-  modo_distribuicao    String    @default("ia") @db.VarChar(20)
-  modelo               String    @default("claude-sonnet-4-6") @db.VarChar(60)
-  prompt_sistema       String    @db.Text
-  idioma_resposta      String    @default("auto") @db.VarChar(10)
-  max_rodadas          Int       @default(5)
-  criterios_escalacao  String[]
-  atualizado_em        DateTime? @default(now()) @db.Timestamp(6)
-  atualizado_por       String?   @db.VarChar(100)
+  id                  Int       @id @default(autoincrement())
+  cliente_id          Int       @unique
+  ativo               Boolean   @default(true)
+  modo_distribuicao   String    @default("ia") @db.VarChar(20)
+  modelo              String    @default("claude-sonnet-4-6") @db.VarChar(60)
+  prompt_sistema      String    @db.Text
+  idioma_resposta     String    @default("auto") @db.VarChar(10)
+  max_rodadas         Int       @default(5)
+  criterios_escalacao String[]
+  atualizado_em       DateTime? @default(now()) @db.Timestamp(6)
+  atualizado_por      String?   @db.VarChar(100)
+  clientes            clientes  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
 }
 
 model respostas_rapidas {
-  id         Int       @id @default(autoincrement())
-  titulo     String    @db.VarChar(150)
-  tipo       String    @default("texto") @db.VarChar(20)
-  conteudo   String?
-  url_midia  String?
-  categoria  String?   @db.VarChar(80)
-  atalho     String?   @unique @db.VarChar(50)
-  ativo      Boolean?  @default(true)
-  criado_em  DateTime? @default(now()) @db.Timestamp(6)
+  id          Int       @id @default(autoincrement())
+  cliente_id  Int
+  titulo      String    @db.VarChar(150)
+  tipo        String    @default("texto") @db.VarChar(20)
+  conteudo    String?
+  url_midia   String?
+  categoria   String?   @db.VarChar(80)
+  atalho      String?   @db.VarChar(50)
+  ativo       Boolean?  @default(true)
+  criado_em   DateTime? @default(now()) @db.Timestamp(6)
+  clientes    clientes  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  @@unique([cliente_id, atalho])
 }
