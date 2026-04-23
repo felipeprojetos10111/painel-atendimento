@@ -15,7 +15,7 @@ model clientes {
   phone_number_id    String?             @db.VarChar(50)
   app_secret         String?             @db.Text
   verify_token       String?             @db.VarChar(100)
-  anthropic_api_key  String?             @db.Text
+  ia_api_key         String?             @db.Text
   ativo              Boolean             @default(true)
   criado_em          DateTime?           @default(now()) @db.Timestamp(6)
   operadores         operadores[]
@@ -105,6 +105,8 @@ model config_ia {
   idioma_resposta     String    @default("auto") @db.VarChar(10)
   max_rodadas         Int       @default(5)
   criterios_escalacao String[]
+  ia_provedor         String    @default("anthropic") @db.VarChar(20)
+  ia_api_key          String?   @db.Text
   atualizado_em       DateTime? @default(now()) @db.Timestamp(6)
   atualizado_por      String?   @db.VarChar(100)
   clientes            clientes  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
