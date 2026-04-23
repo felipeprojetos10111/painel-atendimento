@@ -10,8 +10,8 @@ async function verificarSupervisor() {
   const token = cookieStore.get('token')?.value
   if (!token) return null
   const payload = await verifyToken(token)
-  if (!payload || payload.nivel !== 'supervisor') return null
-  return payload
+  if (!payload || payload.nivel !== 'supervisor' || !payload.cliente_id) return null
+  return payload as typeof payload & { cliente_id: number }
 }
 
 export async function GET() {

@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
 
   const payload = await verifyToken(token)
   if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+  if (!payload.cliente_id) return NextResponse.json({ error: 'Sem contexto de cliente' }, { status: 403 })
 
   // Sempre filtra pelo cliente do operador logado
   const clienteFilter = { cliente_id: payload.cliente_id }

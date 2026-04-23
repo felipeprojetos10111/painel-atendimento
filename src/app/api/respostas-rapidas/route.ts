@@ -14,6 +14,7 @@ async function getPayload() {
 export async function GET(req: NextRequest) {
   const payload = await getPayload()
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const categoria = searchParams.get('categoria')
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     const payload = await getPayload()
     if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
     const body = await req.json()
     const { titulo, tipo, conteudo, url_midia, categoria, atalho } = body

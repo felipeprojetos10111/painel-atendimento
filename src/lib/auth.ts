@@ -7,7 +7,7 @@ export interface TokenPayload {
   nome: string
   email: string
   nivel: string
-  cliente_id: number  // ID do cliente ao qual o operador pertence
+  cliente_id: number | null  // null = super_admin (sem vínculo a cliente)
 }
 
 export async function signToken(payload: TokenPayload): Promise<string> {

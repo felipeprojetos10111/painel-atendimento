@@ -15,6 +15,7 @@ async function getPayload() {
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const payload = await getPayload()
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
   const { id } = await params
 
@@ -35,6 +36,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const payload = await getPayload()
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
   const { id } = await params
 

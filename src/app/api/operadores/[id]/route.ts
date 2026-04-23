@@ -16,13 +16,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const payload = await getPayload()
     if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
     if (payload.nivel !== 'supervisor') {
       return NextResponse.json({ erro: 'Apenas supervisores podem editar operadores.' }, { status: 403 })
     }
 
     const { id } = await params
 
-    // Verifica que o operador pertence ao mesmo cliente
     const existe = await prisma.operadores.findFirst({
       where: { id: Number(id), cliente_id: payload.cliente_id }
     })
@@ -52,6 +52,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const payload = await getPayload()
     if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
     if (payload.nivel !== 'supervisor') {
       return NextResponse.json({ erro: 'Apenas supervisores podem remover operadores.' }, { status: 403 })
     }

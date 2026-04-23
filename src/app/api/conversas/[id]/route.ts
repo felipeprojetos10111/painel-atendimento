@@ -10,6 +10,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const payload = token ? await verifyToken(token) : null
 
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
   const body = await req.json()
 

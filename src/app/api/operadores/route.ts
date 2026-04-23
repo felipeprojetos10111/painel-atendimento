@@ -16,16 +16,11 @@ export async function GET() {
   try {
     const payload = await getPayload()
     if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
     const operadores = await prisma.operadores.findMany({
       where: { cliente_id: payload.cliente_id },
-      select: {
-        id: true,
-        nome: true,
-        email: true,
-        nivel: true,
-        ativo: true,
-        criado_em: true,
+      include: {
         _count: {
           select: {
             conversas: {
@@ -59,6 +54,7 @@ export async function POST(req: NextRequest) {
   try {
     const payload = await getPayload()
     if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
     if (payload.nivel !== 'supervisor') {
       return NextResponse.json({ erro: 'Apenas supervisores podem cadastrar operadores.' }, { status: 403 })
     }
