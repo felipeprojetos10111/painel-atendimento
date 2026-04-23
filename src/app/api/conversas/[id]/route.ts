@@ -18,12 +18,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ erro: 'Apenas supervisores podem transferir conversas.' }, { status: 403 })
   }
 
+  // Verifica que a conversa pertence ao cliente do operador logado
+  const conversaExiste = await prisma.conversas.findFirst({
+    where: { id: Number(id), cliente_id: payload.cliente_id }
+  })
+  if (!conversaExiste) return NextResponse.json({ erro: 'Conversa não encontrada.' }, { status: 404 })
+
   const conversa = await prisma.conversas.update({
     where: { id: Number(id) },
     data: {
-      ...(body.status    !== undefined && { status: body.status }),
+      ...(body.status      !== undefined && { status: body.status }),
       ...(body.operador_id !== undefined && { operador_id: body.operador_id }),
-      ...(body.nao_lidas !== undefined && { nao_lidas: body.nao_lidas }),
+      ...(body.nao_lidas   !== undefined && { nao_lidas: body.nao_lidas }),
       atualizado_em: new Date()
     }
   })

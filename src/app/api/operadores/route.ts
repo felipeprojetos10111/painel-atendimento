@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
+import { verifyToken } from '@/lib/auth'
 
-// GET /api/operadores
+async function getPayload() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')?.value
+  if (!token) return null
+  return verifyToken(token)
+}
+
+// GET /api/operadores — lista operadores do cliente logado
 export async function GET() {
   try {
+    const payload = await getPayload()
+    if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+
     const operadores = await prisma.operadores.findMany({
+      where: { cliente_id: payload.cliente_id },
       select: {
         id: true,
         nome: true,
@@ -24,7 +37,6 @@ export async function GET() {
       orderBy: { criado_em: 'desc' }
     })
 
-    // Normaliza para conversasAtivas no nível raiz
     const resultado = operadores.map(op => ({
       id: op.id,
       nome: op.nome,
@@ -42,9 +54,15 @@ export async function GET() {
   }
 }
 
-// POST /api/operadores
+// POST /api/operadores — cria operador no cliente do supervisor logado
 export async function POST(req: NextRequest) {
   try {
+    const payload = await getPayload()
+    if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+    if (payload.nivel !== 'supervisor') {
+      return NextResponse.json({ erro: 'Apenas supervisores podem cadastrar operadores.' }, { status: 403 })
+    }
+
     const { nome, email, senha, nivel } = await req.json()
 
     if (!nome || !email || !senha) {
@@ -58,7 +76,7 @@ export async function POST(req: NextRequest) {
     const senha_hash = await bcrypt.hash(senha, 10)
 
     const operador = await prisma.operadores.create({
-      data: { nome, email, senha_hash, nivel: nivel ?? 'operador' },
+      data: { cliente_id: payload.cliente_id, nome, email, senha_hash, nivel: nivel ?? 'operador' },
       select: { id: true, nome: true, email: true, nivel: true, ativo: true, criado_em: true }
     })
 

@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     id: operador.id,
     nome: operador.nome,
     email: operador.email,
-    nivel: operador.nivel ?? 'operador'
+    nivel: operador.nivel ?? 'operador',
+    cliente_id: operador.cliente_id
   })
 
   const res = NextResponse.json({

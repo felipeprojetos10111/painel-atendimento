@@ -11,11 +11,12 @@ export async function GET(req: NextRequest) {
   const payload = await verifyToken(token)
   if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
 
-  // Supervisores veem todas as conversas
-  // Operadores veem apenas as suas próprias + aguardando_humano sem operador atribuído
-  // Conversas resolvidas nunca aparecem na lista ativa
-  const baseWhere = { status: { not: 'resolvida' } }
+  // Sempre filtra pelo cliente do operador logado
+  const clienteFilter = { cliente_id: payload.cliente_id }
+  const baseWhere = { ...clienteFilter, status: { not: 'resolvida' } }
 
+  // Supervisores veem todas as conversas do cliente
+  // Operadores veem apenas as suas próprias + aguardando sem operador
   const where = payload.nivel === 'supervisor'
     ? baseWhere
     : {

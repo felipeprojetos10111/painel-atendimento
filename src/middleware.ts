@@ -4,14 +4,20 @@ import { verifyToken } from './lib/auth'
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get('token')?.value
   const payload = token ? await verifyToken(token) : null
+  const path = req.nextUrl.pathname
 
   // Sem sessão válida: redireciona para login
   if (!payload) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Rota /admin: exige nivel supervisor
-  if (req.nextUrl.pathname.startsWith('/admin') && payload.nivel !== 'supervisor') {
+  // /super-admin: exclusivo para super_admin
+  if (path.startsWith('/super-admin') && payload.nivel !== 'super_admin') {
+    return NextResponse.redirect(new URL('/painel', req.url))
+  }
+
+  // /admin: supervisor do cliente ou super_admin
+  if (path.startsWith('/admin') && payload.nivel !== 'supervisor' && payload.nivel !== 'super_admin') {
     return NextResponse.redirect(new URL('/painel', req.url))
   }
 
@@ -19,5 +25,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/painel', '/painel/:path*', '/admin', '/admin/:path*']
+  matcher: ['/painel', '/painel/:path*', '/admin', '/admin/:path*', '/super-admin', '/super-admin/:path*']
 }

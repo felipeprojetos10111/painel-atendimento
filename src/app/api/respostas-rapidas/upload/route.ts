@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { verifyToken } from '@/lib/auth'
 import { gerarUrlUpload } from '@/lib/r2'
 import { randomUUID } from 'crypto'
 
@@ -26,6 +28,11 @@ const TIPOS_PERMITIDOS: Record<string, string> = {
  * depois salva urlPublica ao criar a resposta rápida.
  */
 export async function POST(req: NextRequest) {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')?.value
+  const payload = token ? await verifyToken(token) : null
+  if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+
   const { nome, contentType } = await req.json()
 
   if (!nome || !contentType) {
@@ -38,7 +45,8 @@ export async function POST(req: NextRequest) {
   }
 
   const ext = nome.split('.').pop() ?? 'bin'
-  const chave = `respostas-rapidas/${randomUUID()}.${ext}`
+  // Arquivo fica em pasta do cliente: cliente-{id}/respostas-rapidas/uuid.ext
+  const chave = `cliente-${payload.cliente_id}/respostas-rapidas/${randomUUID()}.${ext}`
 
   const uploadUrl = await gerarUrlUpload(chave, contentType)
   const urlPublica = `${process.env.R2_PUBLIC_URL}/${chave}`

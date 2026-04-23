@@ -31,13 +31,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ erro: 'url_midia obrigatória para mídia.' }, { status: 400 })
   }
 
-  const conversa = await prisma.conversas.findUnique({
-    where: { id: Number(id) },
-    include: { leads: { select: { telefone: true } } }
+  const conversa = await prisma.conversas.findFirst({
+    where: { id: Number(id), cliente_id: payload?.cliente_id ?? -1 },
+    include: {
+      leads:    { select: { telefone: true } },
+      clientes: { select: { whatsapp_token: true, phone_number_id: true } }
+    }
   })
 
   if (!conversa) {
     return NextResponse.json({ erro: 'Conversa não encontrada.' }, { status: 404 })
+  }
+
+  // Credenciais WhatsApp do cliente (fallback para env)
+  const waCreds = {
+    token:         conversa.clientes?.whatsapp_token,
+    phoneNumberId: conversa.clientes?.phone_number_id,
   }
 
   // Salva mensagem com status inicial "enviando"
@@ -94,9 +103,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       try {
         let waId: string | null = null
         if (isMidia && url_midia) {
-          waId = await enviarMidiaWhatsApp(telefone, tipoFinal, url_midia, conteudo ?? undefined)
+          waId = await enviarMidiaWhatsApp(telefone, tipoFinal, url_midia, conteudo ?? undefined, waCreds)
         } else {
-          waId = await enviarMensagemWhatsApp(telefone, conteudo.trim())
+          waId = await enviarMensagemWhatsApp(telefone, conteudo.trim(), waCreds)
         }
         await atualizarStatus('enviado', waId)
       } catch (err) {

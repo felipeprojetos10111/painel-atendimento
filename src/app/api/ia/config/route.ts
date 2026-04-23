@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
-const PROMPT_PADRAO = `Você é um assistente de atendimento ao cliente prestativo e profissional. Analise a mensagem do lead e responda em JSON com os campos: resposta (mensagem para enviar ao lead), acao (resolver se você consegue ajudar sozinho, ou escalar se precisa de um humano), intencao (o que o lead quer em poucas palavras), urgencia (baixa, media ou alta). Sempre responda APENAS com JSON válido, sem texto adicional.`
+const PROMPT_PADRAO = 'Você é um assistente de atendimento ao cliente prestativo e profissional.'
 
 async function verificarSupervisor() {
   const cookieStore = await cookies()
@@ -18,10 +18,11 @@ export async function GET() {
   const payload = await verificarSupervisor()
   if (!payload) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
-  const config = await prisma.config_ia.findFirst()
+  const config = await prisma.config_ia.findFirst({
+    where: { cliente_id: payload.cliente_id }
+  })
 
   if (!config) {
-    // Retorna padrão sem salvar — supervisor verá o formulário pré-preenchido
     return NextResponse.json({
       ativo: true,
       modo_distribuicao: 'ia',
@@ -30,12 +31,18 @@ export async function GET() {
       idioma_resposta: 'auto',
       max_rodadas: 5,
       criterios_escalacao: [],
+      ia_provedor: 'anthropic',
+      ia_api_key: null,
       atualizado_em: null,
       atualizado_por: null,
     })
   }
 
-  return NextResponse.json(config)
+  // Não expõe a chave de API completa — retorna apenas se está configurada
+  return NextResponse.json({
+    ...config,
+    ia_api_key: config.ia_api_key ? '••••••••' : null,
+  })
 }
 
 export async function PUT(req: NextRequest) {
@@ -43,38 +50,48 @@ export async function PUT(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
   const body = await req.json()
-  const { ativo, prompt_sistema } = body
+  const { ativo, prompt_sistema, ia_provedor, ia_api_key } = body
 
   if (!prompt_sistema?.trim()) {
     return NextResponse.json({ error: 'Prompt do sistema é obrigatório.' }, { status: 400 })
   }
 
-  // Só atualiza ativo e prompt — os demais campos mantêm o valor atual do banco
-  const data = {
+  const data: Record<string, unknown> = {
     ativo:          Boolean(ativo),
     prompt_sistema: String(prompt_sistema).trim(),
     atualizado_em:  new Date(),
     atualizado_por: payload.nome,
   }
 
+  if (ia_provedor) data.ia_provedor = ia_provedor
+  // Só atualiza a chave se foi enviada e não é máscara
+  if (ia_api_key && ia_api_key !== '••••••••') data.ia_api_key = ia_api_key
+
   const config = await prisma.config_ia.upsert({
-    where: { id: 1 },
+    where:  { cliente_id: payload.cliente_id },
     update: data,
     create: {
-      id: 1,
-      ...data,
+      cliente_id:          payload.cliente_id,
+      ativo:               Boolean(ativo),
+      prompt_sistema:      String(prompt_sistema).trim(),
+      atualizado_em:       new Date(),
+      atualizado_por:      payload.nome,
       modo_distribuicao:   'ia',
       modelo:              'claude-sonnet-4-6',
       idioma_resposta:     'auto',
       max_rodadas:         5,
       criterios_escalacao: [],
+      ia_provedor:         (ia_provedor as string) || 'anthropic',
+      ...(ia_api_key && ia_api_key !== '••••••••' && { ia_api_key }),
     },
   })
 
   return NextResponse.json({
-    ativo:         config.ativo,
+    ativo:          config.ativo,
     prompt_sistema: config.prompt_sistema,
-    atualizado_em: config.atualizado_em,
+    ia_provedor:    config.ia_provedor,
+    ia_api_key:     config.ia_api_key ? '••••••••' : null,
+    atualizado_em:  config.atualizado_em,
     atualizado_por: config.atualizado_por,
   })
 }
