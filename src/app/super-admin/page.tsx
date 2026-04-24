@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 interface Cliente {
@@ -62,6 +63,7 @@ function StatusBadge({ ativo }: { ativo: boolean }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function SuperAdminPage() {
+  const router = useRouter()
   const [clientes, setClientes]         = useState<Cliente[]>([])
   const [carregando, setCarregando]     = useState(true)
   const [modalAberto, setModalAberto]   = useState(false)
@@ -69,6 +71,11 @@ export default function SuperAdminPage() {
   const [form, setForm]                 = useState<FormCliente>(FORM_VAZIO)
   const [salvando, setSalvando]         = useState(false)
   const [erro, setErro]                 = useState('')
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+  }
 
   // Carrega clientes
   async function carregarClientes() {
@@ -172,12 +179,20 @@ export default function SuperAdminPage() {
           <h1 className="text-xl font-bold text-gray-900">Super Admin</h1>
           <p className="text-sm text-gray-500 mt-0.5">Gestão de clientes da plataforma</p>
         </div>
-        <button
-          onClick={abrirNovo}
-          className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-        >
-          + Novo Cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={abrirNovo}
+            className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            + Novo Cliente
+          </button>
+          <button
+            onClick={logout}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            Sair
+          </button>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
