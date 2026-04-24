@@ -118,8 +118,8 @@ function StatusMensagem({ status, onReenviar }: { status: string | null; onReenv
   )
 
   if (status === 'lido') return (
-    <span className="inline-flex items-center gap-1 ml-1 text-xs font-semibold" style={{ color: '#38bdf8' }}>
-      <svg className="w-4 h-4 shrink-0" viewBox="0 0 20 16" fill="currentColor">
+    <span className="inline-flex items-center gap-1 ml-1 text-white text-xs font-bold">
+      <svg className="w-4 h-4 shrink-0 drop-shadow" viewBox="0 0 20 16" fill="currentColor">
         <path d="M18 3.5L10.5 11 7 7.5l-1 1 4.5 4.5L19 4.5zM13 3.5L5.5 11 2 7.5l-1 1L5.5 13 14 4.5z"/>
       </svg>
       Lida
