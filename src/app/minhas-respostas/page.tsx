@@ -27,7 +27,7 @@ const TIPO_CONFIG: Record<Tipo, { accept: string; icone: string; label: string }
   texto:     { accept: '',                                                                                                           icone: '💬', label: 'Texto' },
   imagem:    { accept: 'image/jpeg,image/png,image/webp,image/gif',                                                                 icone: '🖼️', label: 'Imagem' },
   audio:     { accept: 'audio/mpeg,audio/ogg,audio/wav',                                                                            icone: '🎵', label: 'Áudio' },
-  video:     { accept: 'video/mp4,video/webm',                                                                                      icone: '🎬', label: 'Vídeo' },
+  video:     { accept: 'video/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi',                                            icone: '🎬', label: 'Vídeo' },
   documento: { accept: 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', icone: '📄', label: 'Doc' },
 }
 
