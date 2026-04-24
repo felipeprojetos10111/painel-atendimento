@@ -151,11 +151,12 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
 
   if (msg.tipo === 'video' && msg.url_midia) {
     return (
-      <video
-        controls
-        src={msg.url_midia}
-        className="max-w-[260px] rounded-lg"
-      />
+      <div className="space-y-1">
+        <video controls src={msg.url_midia} className="max-w-[260px] rounded-lg" />
+        {msg.conteudo && (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.conteudo}</p>
+        )}
+      </div>
     )
   }
 
