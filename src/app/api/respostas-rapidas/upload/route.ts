@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
-import { gerarUrlUpload } from '@/lib/r2'
+import { uploadBuffer } from '@/lib/r2'
 import { randomUUID } from 'crypto'
 
 const TIPOS_PERMITIDOS: Record<string, string> = {
@@ -21,11 +21,10 @@ const TIPOS_PERMITIDOS: Record<string, string> = {
 
 /**
  * POST /api/respostas-rapidas/upload
- * Body: { nome: string, contentType: string }
- * Retorna: { uploadUrl, chave, tipo, urlPublica }
+ * Body: multipart/form-data com campo "arquivo" (File)
+ * Retorna: { tipo, urlPublica }
  *
- * O frontend usa uploadUrl para fazer PUT direto no R2,
- * depois salva urlPublica ao criar a resposta rápida.
+ * O upload é feito server-side (sem CORS) usando uploadBuffer do r2.ts.
  */
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -33,23 +32,24 @@ export async function POST(req: NextRequest) {
   const payload = token ? await verifyToken(token) : null
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
 
-  const { nome, contentType } = await req.json()
+  const formData = await req.formData()
+  const arquivo = formData.get('arquivo') as File | null
 
-  if (!nome || !contentType) {
-    return NextResponse.json({ erro: 'nome e contentType são obrigatórios.' }, { status: 400 })
+  if (!arquivo) {
+    return NextResponse.json({ erro: 'Campo "arquivo" obrigatório.' }, { status: 400 })
   }
 
+  const contentType = arquivo.type
   const tipo = TIPOS_PERMITIDOS[contentType]
   if (!tipo) {
     return NextResponse.json({ erro: `Tipo de arquivo não permitido: ${contentType}` }, { status: 400 })
   }
 
-  const ext = nome.split('.').pop() ?? 'bin'
-  // Arquivo fica em pasta do cliente: cliente-{id}/respostas-rapidas/uuid.ext
+  const ext = arquivo.name.split('.').pop() ?? 'bin'
   const chave = `cliente-${payload.cliente_id}/respostas-rapidas/${randomUUID()}.${ext}`
 
-  const uploadUrl = await gerarUrlUpload(chave, contentType)
-  const urlPublica = `${process.env.R2_PUBLIC_URL}/${chave}`
+  const buffer = Buffer.from(await arquivo.arrayBuffer())
+  const urlPublica = await uploadBuffer(chave, buffer, contentType)
 
-  return NextResponse.json({ uploadUrl, chave, tipo, urlPublica })
+  return NextResponse.json({ tipo, urlPublica })
 }

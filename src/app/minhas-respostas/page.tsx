@@ -105,17 +105,12 @@ export default function MinhasRespostasPage() {
 
       if (form.tipo !== 'texto' && arquivo) {
         setUploadProgresso('Enviando arquivo...')
-        const uploadRes = await fetch('/api/respostas-rapidas/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome: arquivo.name, contentType: arquivo.type })
-        })
+        const fd = new FormData()
+        fd.append('arquivo', arquivo)
+        const uploadRes = await fetch('/api/respostas-rapidas/upload', { method: 'POST', body: fd })
         if (!uploadRes.ok) throw new Error((await uploadRes.json()).erro ?? 'Erro no upload')
 
-        const { uploadUrl, urlPublica } = await uploadRes.json()
-        const putRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': arquivo.type }, body: arquivo })
-        if (!putRes.ok) throw new Error('Falha no upload do arquivo')
-
+        const { urlPublica } = await uploadRes.json()
         url_midia = urlPublica
         setUploadProgresso('')
       }
