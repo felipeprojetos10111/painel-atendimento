@@ -52,6 +52,7 @@ export default function MinhasRespostasPage() {
   const [form, setForm]                     = useState(FORM_VAZIO)
   const [editandoId, setEditandoId]         = useState<number | null>(null)
   const [arquivo, setArquivo]               = useState<File | null>(null)
+  const [semTexto, setSemTexto]             = useState(false)
   const [salvando, setSalvando]             = useState(false)
   const [deletando, setDeletando]           = useState<number | null>(null)
   const [erro, setErro]                     = useState('')
@@ -70,19 +71,22 @@ export default function MinhasRespostasPage() {
     setForm(f => ({ ...f, [campo]: valor }))
     if (campo === 'tipo') {
       setArquivo(null)
+      setSemTexto(false)
       if (fileRef.current) fileRef.current.value = ''
     }
   }
 
   function iniciarEdicao(r: RespostaRapida) {
     setEditandoId(r.id)
+    const tipoR = (r.tipo as Tipo) ?? 'texto'
     setForm({
       titulo:    r.titulo,
       categoria: r.categoria ?? '',
-      tipo:      (r.tipo as Tipo) ?? 'texto',
+      tipo:      tipoR,
       conteudo:  r.conteudo ?? '',
       atalho:    r.atalho ?? '',
     })
+    setSemTexto(tipoR !== 'texto' && !r.titulo)
     setArquivo(null)
     setErro('')
     setSucesso('')
@@ -93,6 +97,7 @@ export default function MinhasRespostasPage() {
     setEditandoId(null)
     setForm(FORM_VAZIO)
     setArquivo(null)
+    setSemTexto(false)
     setErro('')
   }
 
@@ -116,7 +121,7 @@ export default function MinhasRespostasPage() {
       }
 
       const payload = {
-        titulo:    form.titulo,
+        titulo:    isMidia && semTexto ? '' : form.titulo,
         tipo:      form.tipo,
         categoria: form.categoria || null,
         atalho:    form.atalho    || null,
@@ -225,10 +230,47 @@ export default function MinhasRespostasPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Field label="Título" required>
-                <input type="text" value={form.titulo} onChange={e => setField('titulo', e.target.value)}
-                  required placeholder="Ex: Saudação inicial" className={inputCls} />
-              </Field>
+              {/* Título (texto) ou Mensagem de texto (mídia) */}
+              {!isMidia ? (
+                <Field label="Título" required>
+                  <input type="text" value={form.titulo} onChange={e => setField('titulo', e.target.value)}
+                    required placeholder="Ex: Saudação inicial" className={inputCls} />
+                </Field>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Mensagem de texto anexada à mídia
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={semTexto}
+                        onChange={e => {
+                          setSemTexto(e.target.checked)
+                          if (e.target.checked) setField('titulo', '')
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <span className="text-xs text-gray-500">Somente o arquivo, sem texto</span>
+                    </label>
+                  </div>
+                  {!semTexto && (
+                    <input
+                      type="text"
+                      value={form.titulo}
+                      onChange={e => setField('titulo', e.target.value)}
+                      placeholder="Ex: Confira nosso catálogo de produtos!"
+                      className={inputCls}
+                    />
+                  )}
+                  {semTexto && (
+                    <p className="text-xs text-gray-400 italic bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                      Nenhum texto será enviado junto com o arquivo.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <Field label="Categoria">
                 <input type="text" value={form.categoria} onChange={e => setField('categoria', e.target.value)}
@@ -298,7 +340,7 @@ export default function MinhasRespostasPage() {
 
               <button
                 type="submit"
-                disabled={salvando || (isMidia && !arquivo && !editandoId)}
+                disabled={salvando || (isMidia && !arquivo && !editandoId) || (!isMidia && !form.titulo) || (isMidia && !semTexto && !form.titulo)}
                 className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors"
               >
                 {salvando
@@ -344,7 +386,9 @@ export default function MinhasRespostasPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-sm font-medium text-gray-800">{r.titulo}</span>
+                          <span className="text-sm font-medium text-gray-800">
+                            {r.titulo || <span className="text-gray-400 italic text-xs">sem texto</span>}
+                          </span>
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${cor}`}>{cfg.label}</span>
                           {r.atalho && (
                             <span className="text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">#{r.atalho}</span>
