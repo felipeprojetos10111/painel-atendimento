@@ -523,7 +523,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   async function handleSelecionarResposta(resposta: RespostaRapida) {
     setModalAberto(false)
     if (resposta.url_midia) {
-      await enviarConteudo(resposta.titulo, resposta.tipo, resposta.url_midia)
+      await enviarConteudo(resposta.conteudo ?? '', resposta.tipo, resposta.url_midia)
     } else {
       const conteudo = resposta.conteudo ?? ''
       if (!conteudo) return
