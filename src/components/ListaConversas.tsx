@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useLingua } from '@/contexts/LinguaContext'
+import AvatarOperador from './AvatarOperador'
 
 interface Mensagem {
   id: number
@@ -211,9 +212,15 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
                   {c.atualizado_em ? formatarHorario(c.atualizado_em) : ''}
                 </span>
                 {c.operadores?.nome ? (
-                  <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full shrink-0 max-w-[110px] truncate" title={`${tr('atendidoPor')} ${c.operadores.nome}`}>
-                    🧑‍💼 {c.operadores.nome}
-                  </span>
+                  <div
+                    className="flex items-center gap-1.5 shrink-0 min-w-0"
+                    title={`${tr('atendidoPor')} ${c.operadores.nome}`}
+                  >
+                    <AvatarOperador nome={c.operadores.nome} tamanho="xs" />
+                    <span className="text-xs text-gray-600 font-medium truncate max-w-[90px]">
+                      {c.operadores.nome.split(' ')[0]}
+                    </span>
+                  </div>
                 ) : ultimaMensagem?.origem === 'ia' ? (
                   <span className="text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full shrink-0">
                     🤖 {tr('respondendoIA')}

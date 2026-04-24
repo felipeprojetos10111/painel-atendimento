@@ -45,6 +45,18 @@ export default function PainelPage() {
         </div>
         <div className="flex items-center gap-2">
           <SeletorLingua variante="topbar" />
+
+          {/* Minhas Respostas — visível a todos os operadores */}
+          <button
+            onClick={() => router.push('/minhas-respostas')}
+            className="text-sm bg-green-700 hover:bg-green-800 px-4 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+            title="Minhas respostas rápidas"
+          >
+            <span>⚡</span>
+            <span className="hidden sm:inline">Respostas</span>
+          </button>
+
+          {/* Administração — apenas supervisores */}
           {nivel === 'supervisor' && (
             <button
               onClick={() => router.push('/admin')}
@@ -57,6 +69,7 @@ export default function PainelPage() {
               {tr('administracao')}
             </button>
           )}
+
           <button
             onClick={logout}
             className="text-sm bg-green-700 hover:bg-green-800 px-4 py-1.5 rounded-lg transition-colors"

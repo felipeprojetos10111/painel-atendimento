@@ -10,7 +10,7 @@ async function getPayload() {
   return verifyToken(token)
 }
 
-// GET /api/respostas-rapidas
+// GET /api/respostas-rapidas — respostas do operador logado
 export async function GET(req: NextRequest) {
   const payload = await getPayload()
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
@@ -24,11 +24,11 @@ export async function GET(req: NextRequest) {
 
   const respostas = await prisma.respostas_rapidas.findMany({
     where: {
-      cliente_id: payload.cliente_id,
+      operador_id: payload.id,
       ...(!todos && { ativo: true }),
       ...(categoria && { categoria }),
-      ...(tipo && { tipo }),
-      ...(atalho && { atalho: { contains: atalho, mode: 'insensitive' } })
+      ...(tipo      && { tipo }),
+      ...(atalho    && { atalho: { contains: atalho, mode: 'insensitive' } })
     },
     orderBy: { criado_em: 'desc' }
   })
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(respostas)
 }
 
-// POST /api/respostas-rapidas
+// POST /api/respostas-rapidas — cria resposta para o operador logado
 export async function POST(req: NextRequest) {
   try {
     const payload = await getPayload()
@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
 
     const resposta = await prisma.respostas_rapidas.create({
       data: {
-        cliente_id: payload.cliente_id,
+        cliente_id:  payload.cliente_id,
+        operador_id: payload.id,
         titulo,
         tipo:      tipoFinal,
         conteudo:  conteudo  || null,

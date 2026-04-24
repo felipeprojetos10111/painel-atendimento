@@ -21,9 +21,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/painel', req.url))
   }
 
+  // /minhas-respostas: qualquer operador autenticado com cliente_id (não super_admin)
+  if (path.startsWith('/minhas-respostas') && payload.nivel === 'super_admin') {
+    return NextResponse.redirect(new URL('/super-admin', req.url))
+  }
+
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/painel', '/painel/:path*', '/admin', '/admin/:path*', '/super-admin', '/super-admin/:path*']
+  matcher: [
+    '/painel', '/painel/:path*',
+    '/admin', '/admin/:path*',
+    '/super-admin', '/super-admin/:path*',
+    '/minhas-respostas', '/minhas-respostas/:path*'
+  ]
 }

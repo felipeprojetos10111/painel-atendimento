@@ -40,6 +40,17 @@ app.prepare().then(() => {
     socket.on('operador-online', (operadorId) => {
       onlineOperators.set(operadorId, socket.id)
       console.log(`[presença] operador ${operadorId} online (socket ${socket.id})`)
+
+      // Tenta atribuir conversas pendentes sem operador ao novo operador online
+      const secret = process.env.INTERNAL_SECRET
+      if (secret) {
+        const port = process.env.PORT || 3001
+        fetch(`http://localhost:${port}/api/fila/processar-pendentes`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'x-internal-secret': secret },
+          body:    JSON.stringify({ operadorId })
+        }).catch(err => console.error('[presença] Erro ao processar pendentes:', err.message))
+      }
     })
 
     socket.on('disconnect', () => {

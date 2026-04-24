@@ -78,7 +78,6 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   administracao:   { pt: 'Administração',     en: 'Administration', es: 'Administración' },
   voltarAoPainel:  { pt: 'Voltar ao painel',  en: 'Back to panel',  es: 'Volver al panel' },
   supervisorLabel: { pt: 'supervisor',        en: 'supervisor',     es: 'supervisor' },
-  abaRespostas:    { pt: '⚡ Respostas Rápidas', en: '⚡ Quick Replies', es: '⚡ Respuestas Rápidas' },
   abaOperadores:   { pt: '👥 Operadores',     en: '👥 Operators',   es: '👥 Operadores' },
 
   // ── Admin — respostas rápidas ──────────────────────────────────────────────
@@ -165,6 +164,27 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   iaCaracteres:        { pt: 'caracteres',               en: 'characters',              es: 'caracteres' },
   iaUltimaAtualizacao: { pt: 'Última atualização',       en: 'Last updated',            es: 'Última actualización' },
   iaPor:               { pt: 'por',                      en: 'by',                      es: 'por' },
+
+  // ── Admin — configurações do cliente ──────────────────────────────────────
+  abaConfiguracoes:          { pt: '⚙️ Configurações',              en: '⚙️ Settings',                   es: '⚙️ Configuración' },
+  cfgTituloWhatsApp:         { pt: 'API do WhatsApp',               en: 'WhatsApp API',                  es: 'API de WhatsApp' },
+  cfgDescWhatsApp:           { pt: 'Credenciais para envio e recebimento de mensagens via WhatsApp Business.', en: 'Credentials for sending and receiving messages via WhatsApp Business.', es: 'Credenciales para enviar y recibir mensajes vía WhatsApp Business.' },
+  cfgWhatsappToken:          { pt: 'Token de acesso permanente',    en: 'Permanent access token',        es: 'Token de acceso permanente' },
+  cfgPhoneNumberId:          { pt: 'Phone Number ID',               en: 'Phone Number ID',               es: 'Phone Number ID' },
+  cfgAppSecret:              { pt: 'App Secret',                    en: 'App Secret',                    es: 'App Secret' },
+  cfgVerifyToken:            { pt: 'Verify Token',                  en: 'Verify Token',                  es: 'Verify Token' },
+  cfgWebhookUrl:             { pt: 'URL do Webhook',                en: 'Webhook URL',                   es: 'URL del Webhook' },
+  cfgWebhookUrlDica:         { pt: 'Configure esta URL no painel do Meta Developer.', en: 'Set this URL in the Meta Developer dashboard.', es: 'Configura esta URL en el panel de Meta Developer.' },
+  cfgTituloIA:               { pt: 'Chave de API — IA',             en: 'API Key — AI',                  es: 'Clave de API — IA' },
+  cfgDescIA:                 { pt: 'Chave própria de IA (Anthropic, OpenAI etc.). Se vazio, usa a chave padrão da plataforma.', en: 'Your own AI API key (Anthropic, OpenAI, etc.). If empty, the platform default key is used.', es: 'Tu propia clave de API de IA (Anthropic, OpenAI, etc.). Si está vacío, se usa la clave predeterminada.' },
+  cfgIaApiKey:               { pt: 'Chave de API',                  en: 'API Key',                       es: 'Clave de API' },
+  cfgIaApiKeyPlaceholder:    { pt: 'sk-ant-... ou sk-... (deixe vazio para usar a da plataforma)', en: 'sk-ant-... or sk-... (leave empty to use platform key)', es: 'sk-ant-... o sk-... (dejar vacío para usar la de la plataforma)' },
+  cfgSalvar:                 { pt: 'Salvar configurações',          en: 'Save settings',                 es: 'Guardar configuración' },
+  cfgSalvando:               { pt: 'Salvando...',                   en: 'Saving...',                     es: 'Guardando...' },
+  cfgSucesso:                { pt: 'Configurações salvas!',         en: 'Settings saved!',               es: '¡Configuración guardada!' },
+  cfgCopiar:                 { pt: 'Copiar',                        en: 'Copy',                          es: 'Copiar' },
+  cfgCopiado:                { pt: 'Copiado!',                      en: 'Copied!',                       es: '¡Copiado!' },
+  cfgCampoSensivel:          { pt: 'Preencha apenas para alterar o valor atual.', en: 'Fill in only to change the current value.', es: 'Rellene solo para cambiar el valor actual.' },
 
   // ── Compartilhado ──────────────────────────────────────────────────────────
   erroDesconhecido: { pt: 'Erro desconhecido.', en: 'Unknown error.', es: 'Error desconocido.' },

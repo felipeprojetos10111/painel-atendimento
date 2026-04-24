@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import ModalRespostasRapidas from './ModalRespostasRapidas'
+import AvatarOperador from './AvatarOperador'
 import { useLingua } from '@/contexts/LinguaContext'
 
 interface Mensagem {
@@ -194,6 +195,9 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [tempoGravacao, setTempoGravacao] = useState(0)
   const [status, setStatus] = useState('')
+  const [operadorNome, setOperadorNome] = useState<string | null>(null)
+  const [leadNome, setLeadNome] = useState<string | null>(null)
+  const [leadTelefone, setLeadTelefone] = useState<string | null>(null)
   const [modalAberto, setModalAberto] = useState(false)
   const [me, setMe] = useState<Me | null>(null)
   const [operadores, setOperadores] = useState<Operador[]>([])
@@ -294,8 +298,18 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   async function carregarStatus() {
     const res = await fetch('/api/conversas')
     const lista = await res.json()
-    const conversa = lista.find((c: { id: number; status: string }) => c.id === conversaId)
-    if (conversa) setStatus(conversa.status ?? '')
+    const conversa = lista.find((c: {
+      id: number
+      status: string
+      operadores?: { nome: string } | null
+      leads?: { nome: string | null; telefone: string } | null
+    }) => c.id === conversaId)
+    if (conversa) {
+      setStatus(conversa.status ?? '')
+      setOperadorNome(conversa.operadores?.nome ?? null)
+      setLeadNome(conversa.leads?.nome ?? null)
+      setLeadTelefone(conversa.leads?.telefone ?? null)
+    }
   }
 
   async function zerarNaoLidas() {
@@ -340,7 +354,10 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     })
 
     socket.on('status-alterado', (data: { conversaId: number; status: string }) => {
-      if (data.conversaId === conversaId) setStatus(data.status)
+      if (data.conversaId === conversaId) {
+        setStatus(data.status)
+        carregarStatus() // atualiza operador vinculado também
+      }
     })
 
     socket.on('status-mensagem', (data: { mensagemId: number; status: string }) => {
@@ -548,7 +565,36 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     <div className="flex flex-col flex-1 bg-gray-50">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
-        <h3 className="font-semibold text-gray-800">{tr('conversa')} #{conversaId}</h3>
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Avatar do lead com iniciais ou ícone de telefone */}
+          <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-gray-500 font-semibold text-sm select-none">
+            {leadNome
+              ? leadNome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase()
+              : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+            }
+          </div>
+
+          {/* Nome e telefone do lead */}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
+              {leadNome ?? leadTelefone ?? `${tr('conversa')} #${conversaId}`}
+            </p>
+            {leadNome && leadTelefone && (
+              <p className="text-xs text-gray-400 leading-tight font-mono">{leadTelefone}</p>
+            )}
+          </div>
+
+          {/* Operador responsável */}
+          {operadorNome && (
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full pl-1 pr-2.5 py-0.5 shrink-0">
+              <AvatarOperador nome={operadorNome} tamanho="xs" destaque />
+              <span className="text-xs text-gray-600 font-medium">{operadorNome.split(' ')[0]}</span>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusCor}`}>
