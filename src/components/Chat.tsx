@@ -225,12 +225,16 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const [operadores, setOperadores] = useState<Operador[]>([])
   const [transferindo, setTransferindo] = useState(false)
   const [encerrando, setEncerrando] = useState(false)
+  const [barras, setBarras] = useState<number[]>(Array(28).fill(0))
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const animFrameRef = useRef<number | null>(null)
 
   function ajustarAltura() {
     const el = textareaRef.current
@@ -259,6 +263,27 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
       setGravando(true)
       setTempoGravacao(0)
       timerRef.current = setInterval(() => setTempoGravacao(t => t + 1), 1000)
+
+      // Visualizador de ondas via Web Audio API
+      try {
+        const audioCtx = new AudioContext()
+        const analyser = audioCtx.createAnalyser()
+        analyser.fftSize = 64
+        audioCtx.createMediaStreamSource(stream).connect(analyser)
+        analyserRef.current = analyser
+        audioCtxRef.current = audioCtx
+        const data = new Uint8Array(analyser.frequencyBinCount)
+        const tick = () => {
+          analyser.getByteFrequencyData(data)
+          const n = 28
+          setBarras(Array.from({ length: n }, (_, i) => {
+            const idx = Math.floor(i * data.length / n)
+            return data[idx] / 255
+          }))
+          animFrameRef.current = requestAnimationFrame(tick)
+        }
+        animFrameRef.current = requestAnimationFrame(tick)
+      } catch { /* browser sem suporte — sem visualizador */ }
     } catch {
       alert('Permissão de microfone negada.')
     }
@@ -268,6 +293,11 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     mediaRecorderRef.current?.stop()
     setGravando(false)
     if (timerRef.current) clearInterval(timerRef.current)
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    analyserRef.current = null
+    audioCtxRef.current?.close().catch(() => {})
+    audioCtxRef.current = null
+    setBarras(Array(28).fill(0))
   }
 
   function descartarAudio() {
@@ -807,16 +837,31 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Painel de gravação ativo */}
           {gravando && (
-            <div className="flex items-center gap-3 mb-2 px-1 py-2 bg-red-50 border border-red-200 rounded-xl">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-sm font-semibold text-red-600">{tr('gravando')}</span>
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+              {/* Indicador gravando */}
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+
+              {/* Tempo */}
+              <span className="text-sm font-mono text-red-500 tabular-nums shrink-0">
+                {formatarTempo(tempoGravacao)}
               </span>
-              <span className="text-sm font-mono text-red-500 tabular-nums">{formatarTempo(tempoGravacao)}</span>
+
+              {/* Barras de onda em tempo real */}
+              <div className="flex-1 flex items-center gap-px h-8 overflow-hidden">
+                {barras.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-full bg-red-400 transition-none"
+                    style={{ height: `${Math.max(15, h * 100)}%` }}
+                  />
+                ))}
+              </div>
+
+              {/* Parar */}
               <button
                 type="button"
                 onClick={pararGravacao}
-                className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors"
+                className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                   <rect x="6" y="6" width="12" height="12" rx="1"/>
