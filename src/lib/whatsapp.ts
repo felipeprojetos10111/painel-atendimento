@@ -48,7 +48,7 @@ export async function enviarMidiaWhatsApp(
   telefone: string,
   tipo: string,
   urlMidia: string,
-  nomeArquivo?: string,
+  caption?: string,
   creds?: WhatsAppCreds
 ): Promise<string | null> {
   const { phoneNumberId, token } = resolverCreds(creds)
@@ -59,7 +59,8 @@ export async function enviarMidiaWhatsApp(
   }
   const waType = tipoWA[tipo] ?? 'document'
   const midiaPayload: Record<string, unknown> = { link: urlMidia }
-  if (waType === 'document' && nomeArquivo) midiaPayload.filename = nomeArquivo
+  // caption suportado por image, video e document (não por audio)
+  if (caption?.trim() && waType !== 'audio') midiaPayload.caption = caption.trim()
 
   const res = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
     method: 'POST',
