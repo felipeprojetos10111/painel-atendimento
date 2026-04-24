@@ -86,7 +86,7 @@ export default function MinhasRespostasPage() {
       conteudo:  r.conteudo ?? '',
       atalho:    r.atalho ?? '',
     })
-    setSemTexto(tipoR !== 'texto' && !r.titulo)
+    setSemTexto(tipoR !== 'texto' && !r.conteudo)
     setArquivo(null)
     setErro('')
     setSucesso('')
@@ -121,11 +121,11 @@ export default function MinhasRespostasPage() {
       }
 
       const payload = {
-        titulo:    isMidia && semTexto ? '' : form.titulo,
+        titulo:    form.titulo,
         tipo:      form.tipo,
         categoria: form.categoria || null,
         atalho:    form.atalho    || null,
-        conteudo:  form.tipo === 'texto' ? (form.conteudo || null) : null,
+        conteudo:  semTexto ? null : (form.conteudo || null),
         ...(url_midia && { url_midia })
       }
 
@@ -230,47 +230,10 @@ export default function MinhasRespostasPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Título (texto) ou Mensagem de texto (mídia) */}
-              {!isMidia ? (
-                <Field label="Título" required>
-                  <input type="text" value={form.titulo} onChange={e => setField('titulo', e.target.value)}
-                    required placeholder="Ex: Saudação inicial" className={inputCls} />
-                </Field>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Mensagem de texto anexada à mídia
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={semTexto}
-                        onChange={e => {
-                          setSemTexto(e.target.checked)
-                          if (e.target.checked) setField('titulo', '')
-                        }}
-                        className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                      />
-                      <span className="text-xs text-gray-500">Somente o arquivo, sem texto</span>
-                    </label>
-                  </div>
-                  {!semTexto && (
-                    <input
-                      type="text"
-                      value={form.titulo}
-                      onChange={e => setField('titulo', e.target.value)}
-                      placeholder="Ex: Confira nosso catálogo de produtos!"
-                      className={inputCls}
-                    />
-                  )}
-                  {semTexto && (
-                    <p className="text-xs text-gray-400 italic bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                      Nenhum texto será enviado junto com o arquivo.
-                    </p>
-                  )}
-                </div>
-              )}
+              <Field label="Título" required>
+                <input type="text" value={form.titulo} onChange={e => setField('titulo', e.target.value)}
+                  required placeholder="Ex: Catálogo de produtos" className={inputCls} />
+              </Field>
 
               <Field label="Categoria">
                 <input type="text" value={form.categoria} onChange={e => setField('categoria', e.target.value)}
@@ -313,6 +276,43 @@ export default function MinhasRespostasPage() {
                 </Field>
               )}
 
+              {/* Texto anexado à mídia (opcional) */}
+              {isMidia && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Texto anexado à mídia
+                      <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={semTexto}
+                        onChange={e => {
+                          setSemTexto(e.target.checked)
+                          if (e.target.checked) setField('conteudo', '')
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <span className="text-xs text-gray-500">Sem texto</span>
+                    </label>
+                  </div>
+                  {!semTexto ? (
+                    <textarea
+                      value={form.conteudo}
+                      onChange={e => setField('conteudo', e.target.value)}
+                      rows={3}
+                      placeholder="Ex: Confira nosso catálogo completo! 😊"
+                      className={`${inputCls} resize-none`}
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-400 italic bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                      Nenhum texto será enviado junto com o arquivo.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Upload de mídia */}
               {isMidia && (
                 <Field label={`Arquivo de ${TIPO_CONFIG[form.tipo].label}`}
@@ -340,7 +340,7 @@ export default function MinhasRespostasPage() {
 
               <button
                 type="submit"
-                disabled={salvando || (isMidia && !arquivo && !editandoId) || (!isMidia && !form.titulo) || (isMidia && !semTexto && !form.titulo)}
+                disabled={salvando || (isMidia && !arquivo && !editandoId)}
                 className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors"
               >
                 {salvando
@@ -386,9 +386,7 @@ export default function MinhasRespostasPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-sm font-medium text-gray-800">
-                            {r.titulo || <span className="text-gray-400 italic text-xs">sem texto</span>}
-                          </span>
+                          <span className="text-sm font-medium text-gray-800">{r.titulo}</span>
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${cor}`}>{cfg.label}</span>
                           {r.atalho && (
                             <span className="text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">#{r.atalho}</span>
@@ -399,7 +397,13 @@ export default function MinhasRespostasPage() {
                           {!r.ativo && <span className="text-xs text-gray-400 italic">inativa</span>}
                         </div>
                         {r.conteudo && (
-                          <p className="text-xs text-gray-500 line-clamp-2">{r.conteudo}</p>
+                          <p className="text-xs text-gray-500 line-clamp-2">
+                            {r.tipo !== 'texto' && <span className="text-gray-400 mr-1">💬</span>}
+                            {r.conteudo}
+                          </p>
+                        )}
+                        {r.tipo !== 'texto' && !r.conteudo && (
+                          <p className="text-xs text-gray-400 italic">sem texto anexado</p>
                         )}
                         {r.url_midia && (
                           <a href={r.url_midia} target="_blank" rel="noopener noreferrer"
