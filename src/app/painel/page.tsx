@@ -12,6 +12,7 @@ export default function PainelPage() {
   const { tr } = useLingua()
   const [conversaSelecionada, setConversaSelecionada] = useState<number | null>(null)
   const [nivel, setNivel] = useState<string | null>(null)
+  const [nomeCliente, setNomeCliente] = useState<string | null>(null)
   const [uploadEmAndamento, setUploadEmAndamento] = useState(false)
 
   function selecionarConversa(id: number) {
@@ -24,7 +25,7 @@ export default function PainelPage() {
   useEffect(() => {
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setNivel(data.nivel) })
+      .then(data => { if (data) { setNivel(data.nivel); setNomeCliente(data.nomeCliente ?? null) } })
   }, [])
 
   async function logout() {
@@ -42,6 +43,11 @@ export default function PainelPage() {
             <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.556 4.112 1.528 5.837L.057 23.943l6.254-1.641A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.848 0-3.579-.476-5.088-1.31l-.365-.216-3.71.974.99-3.617-.237-.376A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
           </svg>
           <span className="font-semibold text-lg">{tr('painelTitulo')}</span>
+          {nomeCliente && (
+            <span className="text-green-200 text-sm font-normal border-l border-green-400 pl-3 ml-1">
+              {nomeCliente}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <SeletorLingua variante="topbar" />

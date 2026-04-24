@@ -22,12 +22,23 @@ export async function GET() {
     select: { lingua: true }
   })
 
+  // Busca nome do cliente (null para super_admin)
+  let nomeCliente: string | null = null
+  if (payload.cliente_id) {
+    const cliente = await prisma.clientes.findUnique({
+      where: { id: payload.cliente_id },
+      select: { nome: true }
+    })
+    nomeCliente = cliente?.nome ?? null
+  }
+
   return NextResponse.json({
     id: payload.id,
     nome: payload.nome,
     email: payload.email,
     nivel: payload.nivel,
     lingua: operador?.lingua ?? 'en',
+    nomeCliente,
   })
 }
 
