@@ -276,8 +276,8 @@ export default function MinhasRespostasPage() {
                 </Field>
               )}
 
-              {/* Texto anexado à mídia (opcional) */}
-              {isMidia && (
+              {/* Texto anexado à mídia (opcional) — não disponível para áudio */}
+              {isMidia && form.tipo !== 'audio' && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">
