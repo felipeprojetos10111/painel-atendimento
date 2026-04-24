@@ -38,16 +38,31 @@ const EXT_MIME: Record<string, string> = {
 }
 
 // Converte audio/webm para OGG/Opus — WhatsApp exige OGG/Opus
+// MediaRecorder gera webm sem headers EBML completos; usamos -f webm para forçar o demuxer
 async function converterWebmParaOgg(buffer: Buffer): Promise<Buffer> {
   const tmpIn  = join(tmpdir(), `${randomUUID()}.webm`)
   const tmpOut = join(tmpdir(), `${randomUUID()}.ogg`)
   try {
     await writeFile(tmpIn, buffer)
-    await new Promise<void>((resolve, reject) => {
-      exec(`ffmpeg -y -i "${tmpIn}" -c:a libopus -f ogg "${tmpOut}"`, (err) => {
-        if (err) reject(err); else resolve()
-      })
+
+    // Tenta 1: força demuxer webm explicitamente
+    const ok = await new Promise<boolean>((resolve) => {
+      exec(
+        `ffmpeg -y -f webm -i "${tmpIn}" -c:a libopus -f ogg "${tmpOut}"`,
+        (err) => resolve(!err)
+      )
     })
+
+    if (!ok) {
+      // Fallback: tenta sem forçar formato (deixa ffmpeg detectar)
+      await new Promise<void>((resolve, reject) => {
+        exec(
+          `ffmpeg -y -probesize 50M -analyzeduration 50M -i "${tmpIn}" -c:a libopus -f ogg "${tmpOut}"`,
+          (err) => { if (err) reject(err); else resolve() }
+        )
+      })
+    }
+
     return await readFile(tmpOut)
   } finally {
     await unlink(tmpIn).catch(() => {})
