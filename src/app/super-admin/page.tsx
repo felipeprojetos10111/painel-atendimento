@@ -273,7 +273,7 @@ export default function SuperAdminPage() {
                     <input
                       value={form.nome}
                       onChange={e => setField('nome', e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="Empresa XYZ"
                     />
                   </div>
@@ -282,7 +282,7 @@ export default function SuperAdminPage() {
                     <input
                       value={form.slug}
                       onChange={e => setField('slug', e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="empresa-xyz"
                     />
                   </div>
@@ -298,7 +298,7 @@ export default function SuperAdminPage() {
                     <input
                       value={form.whatsapp_token}
                       onChange={e => setField('whatsapp_token', e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="EAAZAhaTBgt..."
                     />
                   </div>
@@ -308,7 +308,7 @@ export default function SuperAdminPage() {
                       <input
                         value={form.phone_number_id}
                         onChange={e => setField('phone_number_id', e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                         placeholder="1041685662366322"
                       />
                     </div>
@@ -317,7 +317,7 @@ export default function SuperAdminPage() {
                       <input
                         value={form.verify_token}
                         onChange={e => setField('verify_token', e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                         placeholder="minha_empresa_2024"
                       />
                     </div>
@@ -328,7 +328,7 @@ export default function SuperAdminPage() {
                       type="password"
                       value={form.app_secret}
                       onChange={e => setField('app_secret', e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="••••••••"
                     />
                   </div>
@@ -350,7 +350,7 @@ export default function SuperAdminPage() {
                     type="password"
                     value={form.ia_api_key}
                     onChange={e => setField('ia_api_key', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                     placeholder="sk-ant-... / sk-... / AIza..."
                   />
                 </div>
@@ -366,7 +366,7 @@ export default function SuperAdminPage() {
                       <input
                         value={form.admin_nome}
                         onChange={e => setField('admin_nome', e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                         placeholder="João Silva"
                       />
                     </div>
@@ -377,7 +377,7 @@ export default function SuperAdminPage() {
                           type="email"
                           value={form.admin_email}
                           onChange={e => setField('admin_email', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                           placeholder="admin@empresa.com"
                         />
                       </div>
@@ -387,7 +387,7 @@ export default function SuperAdminPage() {
                           type="password"
                           value={form.admin_senha}
                           onChange={e => setField('admin_senha', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                           placeholder="••••••••"
                         />
                       </div>
