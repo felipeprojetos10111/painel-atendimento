@@ -109,7 +109,7 @@ export default function MinhasRespostasPage() {
       let url_midia: string | null = null
 
       if (form.tipo !== 'texto' && arquivo) {
-        setUploadProgresso('Enviando arquivo...')
+        setUploadProgresso(form.tipo === 'video' ? 'Comprimindo e enviando vídeo...' : 'Enviando arquivo...')
         const fd = new FormData()
         fd.append('arquivo', arquivo)
         const uploadRes = await fetch('/api/respostas-rapidas/upload', { method: 'POST', body: fd })
