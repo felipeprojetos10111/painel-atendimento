@@ -11,7 +11,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const mensagem = await prisma.mensagens.findUnique({
     where: { id: Number(id) },
-    include: { conversas: { include: { leads: { select: { telefone: true } } } } }
+    include: {
+      conversas: {
+        include: {
+          leads:    { select: { telefone: true } },
+          clientes: { select: { whatsapp_token: true, phone_number_id: true } }
+        }
+      }
+    }
   })
 
   if (!mensagem) return NextResponse.json({ erro: 'Mensagem não encontrada.' }, { status: 404 })
@@ -19,6 +26,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const telefone = mensagem.conversas?.leads?.telefone
   if (!telefone) return NextResponse.json({ erro: 'Lead sem telefone.' }, { status: 400 })
+
+  // Credenciais WhatsApp do cliente (igual à rota de envio normal)
+  const waCreds = {
+    token:         mensagem.conversas?.clientes?.whatsapp_token,
+    phoneNumberId: mensagem.conversas?.clientes?.phone_number_id,
+  }
 
   // Marca como "enviando" novamente
   await prisma.mensagens.update({ where: { id: mensagem.id }, data: { status: 'enviando' } })
@@ -36,9 +49,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     try {
       let waId: string | null = null
       if (isMidia && mensagem.url_midia) {
-        waId = await enviarMidiaWhatsApp(telefone, mensagem.tipo!, mensagem.url_midia, mensagem.conteudo || undefined)
+        waId = await enviarMidiaWhatsApp(telefone, mensagem.tipo!, mensagem.url_midia, mensagem.conteudo || undefined, waCreds)
       } else {
-        waId = await enviarMensagemWhatsApp(telefone, mensagem.conteudo)
+        waId = await enviarMensagemWhatsApp(telefone, mensagem.conteudo, waCreds)
       }
       const data: Record<string, unknown> = { status: 'enviado' }
       if (waId) data.whatsapp_id = waId
