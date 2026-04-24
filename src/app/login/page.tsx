@@ -27,7 +27,8 @@ export default function LoginPage() {
     setCarregando(false)
 
     if (res.ok) {
-      router.push('/painel')
+      const data = await res.json()
+      router.push(data.nivel === 'super_admin' ? '/super-admin' : '/painel')
     } else {
       const data = await res.json()
       setErro(data.erro ?? tr('erroLogin'))

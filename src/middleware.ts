@@ -11,6 +11,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
+  // super_admin em /painel → redireciona para /super-admin
+  if (path.startsWith('/painel') && payload.nivel === 'super_admin') {
+    return NextResponse.redirect(new URL('/super-admin', req.url))
+  }
+
   // /super-admin: exclusivo para super_admin
   if (path.startsWith('/super-admin') && payload.nivel !== 'super_admin') {
     return NextResponse.redirect(new URL('/painel', req.url))
