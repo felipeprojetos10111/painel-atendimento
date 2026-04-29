@@ -12,9 +12,19 @@ export async function GET(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   if (!payload.cliente_id) return NextResponse.json({ error: 'Sem contexto de cliente' }, { status: 403 })
 
+  // Janela de 24h do WhatsApp: só mostra conversas com mensagem nas últimas 24h
+  const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
   // Sempre filtra pelo cliente do operador logado
   const clienteFilter = { cliente_id: payload.cliente_id }
-  const baseWhere = { ...clienteFilter, status: { not: 'resolvida' } }
+  const baseWhere = {
+    ...clienteFilter,
+    status: { not: 'resolvida' },
+    OR: [
+      { ultima_mensagem_em: { gt: limite24h } },
+      { ultima_mensagem_em: null },  // legadas antes da migração
+    ],
+  }
 
   // Supervisores veem todas as conversas do cliente
   // Operadores veem apenas as suas próprias + aguardando sem operador
