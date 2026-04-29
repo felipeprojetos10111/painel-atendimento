@@ -25,6 +25,26 @@ export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
   const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads'>('operadores')
+  const [impersonando, setImpersonando] = useState(false)
+  const [nomeClienteImp, setNomeClienteImp] = useState('')
+  const [saindo, setSaindo] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.impersonando) {
+          setImpersonando(true)
+          setNomeClienteImp(data.nomeCliente ?? '')
+        }
+      })
+  }, [])
+
+  async function sairImpersonacao() {
+    setSaindo(true)
+    await fetch('/api/super-admin/sair-impersonar', { method: 'POST' })
+    router.push('/super-admin')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,6 +67,34 @@ export default function AdminPage() {
           <span className="text-xs bg-green-700 px-2.5 py-1 rounded-full font-medium">{tr('supervisorLabel')}</span>
         </div>
       </header>
+
+      {/* Banner de impersonação */}
+      {impersonando && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-amber-800 text-sm">
+            <svg className="w-4 h-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span>
+              Você está visualizando o painel como <strong>Admin de {nomeClienteImp || 'cliente'}</strong> — modo impersonação ativo.
+            </span>
+          </div>
+          <button
+            onClick={sairImpersonacao}
+            disabled={saindo}
+            className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-amber-700 border border-amber-300 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {saindo
+              ? <span className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+            }
+            Voltar ao Super Admin
+          </button>
+        </div>
+      )}
 
       {/* Abas */}
       <div className="border-b border-gray-200 bg-white px-6">

@@ -32,6 +32,10 @@ export async function GET() {
     nomeCliente = cliente?.nome ?? null
   }
 
+  // Detecta se está em modo impersonação (super_admin entrando como cliente)
+  const cookieStore2 = await cookies()
+  const impersonando = !!cookieStore2.get('token_super_admin')?.value
+
   return NextResponse.json({
     id: payload.id,
     nome: payload.nome,
@@ -39,6 +43,7 @@ export async function GET() {
     nivel: payload.nivel,
     lingua: operador?.lingua ?? 'en',
     nomeCliente,
+    impersonando,
   })
 }
 

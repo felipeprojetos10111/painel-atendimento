@@ -71,6 +71,7 @@ export default function SuperAdminPage() {
   const [form, setForm]                 = useState<FormCliente>(FORM_VAZIO)
   const [salvando, setSalvando]         = useState(false)
   const [erro, setErro]                 = useState('')
+  const [impersonando, setImpersonando] = useState<number | null>(null)
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -153,6 +154,23 @@ export default function SuperAdminPage() {
       setErro('Erro de conexão.')
     } finally {
       setSalvando(false)
+    }
+  }
+
+  // Entra como admin do cliente
+  async function entrarComoAdmin(c: Cliente) {
+    setImpersonando(c.id)
+    try {
+      const res = await fetch('/api/super-admin/impersonar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId: c.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.erro ?? 'Erro ao entrar como admin.'); return }
+      router.push('/admin')
+    } finally {
+      setImpersonando(null)
     }
   }
 
@@ -243,6 +261,19 @@ export default function SuperAdminPage() {
 
                 {/* Ações */}
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => entrarComoAdmin(c)}
+                    disabled={impersonando === c.id}
+                    className="flex items-center gap-1.5 text-sm text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 font-medium px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    {impersonando === c.id
+                      ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                    }
+                    Entrar como Admin
+                  </button>
                   <button
                     onClick={() => abrirEdicao(c)}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
