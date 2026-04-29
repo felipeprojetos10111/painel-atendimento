@@ -12,12 +12,11 @@ export async function GET() {
 
   const op = await prisma.operadores.findUnique({
     where: { id: payload.id },
-    select: { link_plataforma: true, affiliate_link_id: true }
+    select: { link_plataforma: true }
   })
 
   return NextResponse.json({
-    link_plataforma:   op?.link_plataforma   ?? '',
-    affiliate_link_id: op?.affiliate_link_id ?? '',
+    link_plataforma: op?.link_plataforma ?? '',
   })
 }
 
@@ -28,13 +27,12 @@ export async function PATCH(req: NextRequest) {
   const payload = await verifyToken(token)
   if (!payload) return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
 
-  const { link_plataforma, affiliate_link_id } = await req.json()
+  const { link_plataforma } = await req.json()
 
   await prisma.operadores.update({
     where: { id: payload.id },
     data: {
-      link_plataforma:   link_plataforma   ?? null,
-      affiliate_link_id: affiliate_link_id ?? null,
+      link_plataforma: link_plataforma ?? null,
     }
   })
 

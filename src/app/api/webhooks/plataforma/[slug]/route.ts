@@ -51,10 +51,14 @@ export async function POST(
   const dataEvento: Date | null = body.date ? new Date(body.date) : null
 
   // ── Tenta vincular ao operador pelo affiliateLinkId ───────────────────────
+  // Busca o operador cujo link_plataforma contém o affiliateLinkId enviado pela plataforma
   let operadorId: number | null = null
   if (affiliateLinkId) {
     const op = await prisma.operadores.findFirst({
-      where: { cliente_id: cliente.id, affiliate_link_id: affiliateLinkId },
+      where: {
+        cliente_id: cliente.id,
+        link_plataforma: { contains: affiliateLinkId }
+      },
       select: { id: true }
     })
     operadorId = op?.id ?? null

@@ -60,7 +60,6 @@ export default function MinhasRespostasPage() {
   const [busca, setBusca]                   = useState('')
   const [uploadProgresso, setUploadProgresso] = useState('')
   const [linkPlataforma, setLinkPlataforma] = useState('')
-  const [affiliateLinkId, setAffiliateLinkId] = useState('')
   const [salvandoLink, setSalvandoLink]     = useState(false)
   const [linkSucesso, setLinkSucesso]       = useState('')
   const [linkErro, setLinkErro]             = useState('')
@@ -77,7 +76,6 @@ export default function MinhasRespostasPage() {
       .then(data => {
         if (data) {
           setLinkPlataforma(data.link_plataforma ?? '')
-          setAffiliateLinkId(data.affiliate_link_id ?? '')
         }
       })
   }, [])
@@ -88,7 +86,7 @@ export default function MinhasRespostasPage() {
       const res = await fetch('/api/operadores/meu-link', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link_plataforma: linkPlataforma, affiliate_link_id: affiliateLinkId })
+        body: JSON.stringify({ link_plataforma: linkPlataforma })
       })
       if (!res.ok) throw new Error('Erro ao salvar')
       setLinkSucesso('Link salvo com sucesso!')
@@ -250,30 +248,20 @@ export default function MinhasRespostasPage() {
           <p className="text-xs text-gray-400 mb-5">
             Configure seu link de afiliado. Ao clicar em "Enviar Link" durante uma conversa, este link será enviado automaticamente para o lead.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Link de registro <span className="text-red-500">*</span></label>
-              <input
-                type="url"
-                value={linkPlataforma}
-                onChange={e => setLinkPlataforma(e.target.value)}
-                placeholder="https://plataforma.com/register?ref=..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID do afiliado
-                <span className="text-gray-400 font-normal ml-1">(para rastrear conversões)</span>
-              </label>
-              <input
-                type="text"
-                value={affiliateLinkId}
-                onChange={e => setAffiliateLinkId(e.target.value)}
-                placeholder="Ex: JOAO123 ou o ID gerado pela plataforma"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Link de registro <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-400 mb-2">
+              Cole aqui o seu link de afiliado completo — ele será enviado ao lead quando você clicar em "Enviar Link" no chat.
+            </p>
+            <input
+              type="url"
+              value={linkPlataforma}
+              onChange={e => setLinkPlataforma(e.target.value)}
+              placeholder="https://plataforma.com/register?ref=SEU_CODIGO"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
           </div>
           <div className="flex items-center gap-3 mt-4">
             <button
