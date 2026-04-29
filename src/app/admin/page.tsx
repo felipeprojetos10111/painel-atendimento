@@ -24,7 +24,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes'>('operadores')
+  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads'>('operadores')
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -52,10 +52,11 @@ export default function AdminPage() {
       <div className="border-b border-gray-200 bg-white px-6">
         <nav className="flex gap-1 -mb-px">
           {([
-            { key: 'operadores',    chave: 'abaOperadores' },
-            { key: 'ia',           chave: 'abaIA' },
-            { key: 'configuracoes', chave: 'abaConfiguracoes' },
-          ] as const).map(({ key, chave }) => (
+            { key: 'operadores',    label: 'Operadores' },
+            { key: 'ia',           label: 'IA' },
+            { key: 'configuracoes', label: 'Configurações' },
+            { key: 'leads',        label: '📋 Leads' },
+          ] as const).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setAba(key)}
@@ -65,7 +66,7 @@ export default function AdminPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {tr(chave)}
+              {label}
             </button>
           ))}
         </nav>
@@ -75,6 +76,7 @@ export default function AdminPage() {
         {aba === 'operadores'    && <SecaoOperadores />}
         {aba === 'ia'            && <SecaoIA />}
         {aba === 'configuracoes' && <SecaoConfiguracoes />}
+        {aba === 'leads'         && <SecaoLeads />}
       </div>
     </div>
   )
@@ -724,6 +726,155 @@ function SecaoConfiguracoes() {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+// ─── Seção: Leads ─────────────────────────────────────────────────────────────
+
+interface Lead {
+  id: number
+  telefone: string
+  nome: string | null
+  email: string | null
+  criado_em: string | null
+  _count: { conversas: number }
+}
+
+function SecaoLeads() {
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [busca, setBusca] = useState('')
+  const [exportando, setExportando] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/leads')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Lead[]) => { setLeads(data); setCarregando(false) })
+  }, [])
+
+  const filtrados = leads.filter(l => {
+    const q = busca.toLowerCase()
+    return !q || l.telefone.includes(q) || (l.nome ?? '').toLowerCase().includes(q)
+  })
+
+  async function exportarCSV() {
+    setExportando(true)
+    try {
+      const res = await fetch('/api/leads/exportar')
+      if (!res.ok) throw new Error('Erro ao exportar')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  const comNome = leads.filter(l => l.nome).length
+  const semNome = leads.length - comNome
+
+  return (
+    <div className="space-y-6">
+      {/* Cards de métricas */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Total de Leads</p>
+          <p className="text-3xl font-bold text-gray-800">{leads.length}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Com Nome</p>
+          <p className="text-3xl font-bold text-green-600">{comNome}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Sem Nome</p>
+          <p className="text-3xl font-bold text-gray-400">{semNome}</p>
+        </div>
+      </div>
+
+      {/* Barra de ações */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <input
+          type="text"
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por nome ou telefone..."
+          className="flex-1 min-w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+        <button
+          onClick={exportarCSV}
+          disabled={exportando || leads.length === 0}
+          className="flex items-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shrink-0"
+        >
+          {exportando
+            ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+          }
+          Exportar CSV
+        </button>
+      </div>
+
+      {/* Tabela */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-800 text-base">
+            Lista de Leads{' '}
+            <span className="text-sm font-normal text-gray-400">
+              ({busca ? `${filtrados.length} de ${leads.length}` : leads.length})
+            </span>
+          </h2>
+        </div>
+
+        {carregando ? (
+          <div className="flex items-center justify-center py-16">
+            <span className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : filtrados.length === 0 ? (
+          <EmptyState icone="📋" texto={busca ? 'Nenhum lead encontrado para esta busca' : 'Nenhum lead cadastrado ainda'} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Telefone</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
+                  <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Conversas</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Primeiro contato</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtrados.map(lead => (
+                  <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-3.5 font-mono text-gray-700">{lead.telefone}</td>
+                    <td className="px-6 py-3.5">
+                      {lead.nome
+                        ? <span className="text-gray-800">{lead.nome}</span>
+                        : <span className="text-gray-300 italic text-xs">sem nome</span>
+                      }
+                    </td>
+                    <td className="px-6 py-3.5 text-center">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-50 text-green-700 text-xs font-semibold">
+                        {lead._count.conversas}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 text-gray-400 text-xs">
+                      {lead.criado_em
+                        ? new Date(lead.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
