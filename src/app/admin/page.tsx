@@ -588,6 +588,7 @@ interface ClienteConfig {
   whatsapp_token: string
   app_secret: string
   ia_api_key: string
+  webhook_secret: string
 }
 
 function SecaoConfiguracoes() {
@@ -605,6 +606,10 @@ function SecaoConfiguracoes() {
   const [sucesso, setSucesso]   = useState('')
   const [copiado, setCopiado]   = useState(false)
   const [webhookUrl, setWebhookUrl] = useState('')
+  const [plataformaWebhookUrl, setPlataformaWebhookUrl] = useState('')
+  const [copiadoSecret, setCopiadoSecret] = useState(false)
+  const [copiadoPlataforma, setCopiadoPlataforma] = useState(false)
+  const [mostrarSecret, setMostrarSecret] = useState(false)
 
   useEffect(() => {
     setWebhookUrl(window.location.origin + '/webhook')
@@ -613,6 +618,7 @@ function SecaoConfiguracoes() {
       .then((data: ClienteConfig | null) => {
         if (!data) return
         setConfig(data)
+        setPlataformaWebhookUrl(window.location.origin + '/api/webhooks/plataforma/' + data.slug)
         setForm({
           whatsapp_token:  data.whatsapp_token,
           phone_number_id: data.phone_number_id,
@@ -659,6 +665,20 @@ function SecaoConfiguracoes() {
     await navigator.clipboard.writeText(webhookUrl)
     setCopiado(true)
     setTimeout(() => setCopiado(false), 2000)
+  }
+
+  async function copiarSecret() {
+    if (config?.webhook_secret) {
+      await navigator.clipboard.writeText(config.webhook_secret)
+      setCopiadoSecret(true)
+      setTimeout(() => setCopiadoSecret(false), 2000)
+    }
+  }
+
+  async function copiarPlataformaWebhook() {
+    await navigator.clipboard.writeText(plataformaWebhookUrl)
+    setCopiadoPlataforma(true)
+    setTimeout(() => setCopiadoPlataforma(false), 2000)
   }
 
   const MASCARA = '••••••••'
@@ -767,6 +787,76 @@ function SecaoConfiguracoes() {
             mascarado={isMascarado(form.ia_api_key)}
             dica={tr('cfgCampoSensivel')}
           />
+        </div>
+
+        {/* Seção Integração com Plataforma */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">🔗</span>
+            <h2 className="text-sm font-semibold text-gray-800">Integração com Plataforma</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-5">
+            Configure esses dados no webhook da sua plataforma para rastrear registros e depósitos dos leads.
+          </p>
+
+          <div className="space-y-4">
+            {/* Webhook URL da plataforma */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                URL do Webhook
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                Cole essa URL no campo de webhook da sua plataforma (eventos USER_CREATED, DEPOSIT_CREATED).
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={plataformaWebhookUrl}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 bg-gray-50 font-mono focus:outline-none select-all"
+                />
+                <button
+                  type="button"
+                  onClick={copiarPlataformaWebhook}
+                  className="shrink-0 text-sm font-medium text-white bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
+                >
+                  {copiadoPlataforma ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+
+            {/* Webhook Secret */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Chave de Autorização (Bearer Token)
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                Inclua no header <span className="font-mono bg-gray-100 px-1 rounded">Authorization: Bearer &lt;chave&gt;</span> das requisições da plataforma.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  type={mostrarSecret ? 'text' : 'password'}
+                  value={config?.webhook_secret ?? ''}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 bg-gray-50 font-mono focus:outline-none select-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSecret(v => !v)}
+                  className="shrink-0 text-sm font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors"
+                  title={mostrarSecret ? 'Ocultar' : 'Mostrar'}
+                >
+                  {mostrarSecret ? '🙈' : '👁️'}
+                </button>
+                <button
+                  type="button"
+                  onClick={copiarSecret}
+                  className="shrink-0 text-sm font-medium text-white bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
+                >
+                  {copiadoSecret ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">
