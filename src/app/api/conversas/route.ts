@@ -12,23 +12,24 @@ export async function GET(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   if (!payload.cliente_id) return NextResponse.json({ error: 'Sem contexto de cliente' }, { status: 403 })
 
-  // Janela de 24h do WhatsApp: só mostra conversas com mensagem nas últimas 24h
   const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
-  // Sempre filtra pelo cliente do operador logado
   const clienteFilter = { cliente_id: payload.cliente_id }
-  const baseWhere = {
-    ...clienteFilter,
-    status: { not: 'resolvida' },
-    OR: [
-      { ultima_mensagem_em: { gt: limite24h } },
-      { ultima_mensagem_em: null },  // legadas antes da migração
-    ],
-  }
+  const isSupervisor = payload.nivel === 'supervisor'
 
-  // Supervisores veem todas as conversas do cliente
-  // Operadores veem apenas as suas próprias + aguardando sem operador
-  const where = payload.nivel === 'supervisor'
+  // Supervisores veem todas (ativas + expiradas, exceto resolvidas)
+  // Operadores veem apenas conversas dentro da janela de 24h
+  const baseWhere = isSupervisor
+    ? { ...clienteFilter, status: { not: 'resolvida' } }
+    : {
+        ...clienteFilter,
+        status: { not: 'resolvida' },
+        OR: [
+          { ultima_mensagem_em: { gt: limite24h } },
+          { ultima_mensagem_em: null },
+        ],
+      }
+
+  const where = isSupervisor
     ? baseWhere
     : {
         AND: [
@@ -56,5 +57,13 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  return NextResponse.json(conversas)
+  // Adiciona flag janela_expirada para o frontend diferenciar visualmente
+  const resultado = conversas.map(c => ({
+    ...c,
+    janela_expirada: c.ultima_mensagem_em
+      ? c.ultima_mensagem_em < limite24h
+      : false,
+  }))
+
+  return NextResponse.json(resultado)
 }
