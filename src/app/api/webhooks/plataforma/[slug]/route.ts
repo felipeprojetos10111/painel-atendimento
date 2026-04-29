@@ -43,7 +43,12 @@ export async function POST(
   }
 
   const affiliateLinkId: string | null = body.affiliateLinkId ?? null
-  const telefone: string | null = body.phone ?? body.props?.user?.phone ?? null
+  // Constrói o telefone completo concatenando countryCode + phone quando disponíveis
+  const phoneRaw: string | null = body.phone ?? body.props?.user?.phone ?? null
+  const countryCode: string | null = body.phoneCountryCode ?? body.props?.user?.phoneCountryCode ?? null
+  const telefone: string | null = phoneRaw
+    ? (countryCode ? countryCode.replace(/\D/g, '') + phoneRaw.replace(/\D/g, '') : phoneRaw)
+    : null
   const email: string | null = body.email ?? null
   const nomeUsuario: string | null = body.name ?? null
   const plataformaUserId: string | null = body.userId ?? null
