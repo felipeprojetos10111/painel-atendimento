@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
   if (!payload) return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
   if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
-  const { conversa_id } = await req.json()
+  const body = await req.json()
+  const { conversa_id, mensagem_prefixo } = body
   if (!conversa_id) return NextResponse.json({ erro: 'conversa_id obrigatório' }, { status: 400 })
 
   // Busca dados do operador
@@ -63,7 +64,9 @@ export async function POST(req: NextRequest) {
     phoneNumberId: conversa.clientes?.phone_number_id,
   }
 
-  const mensagemTexto = `Olá! Acesse o link abaixo para se registrar na plataforma:\n\n${linkExclusivo}`
+  // Constrói o texto final: prefixo customizado (se houver) + link
+  const prefixo = typeof mensagem_prefixo === 'string' ? mensagem_prefixo.trim() : ''
+  const mensagemTexto = prefixo ? `${prefixo}\n\n${linkExclusivo}` : linkExclusivo
 
   try {
     await enviarMensagemWhatsApp(conversa.leads.telefone, mensagemTexto, waCreds)

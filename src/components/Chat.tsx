@@ -88,25 +88,51 @@ function tocarSom() {
   }
 }
 
-// Botão para enviar link de registro para o lead
-function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado: boolean }) {
-  const [enviando, setEnviando] = useState(false)
-  const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null)
+// Botão para enviar link de registro para o lead (com modal de edição)
+const MSG_PADRAO = 'Olá! Acesse o link abaixo para se registrar na plataforma:'
 
-  async function enviarLink() {
+function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado: boolean }) {
+  const [modalAberto, setModalAberto] = useState(false)
+  const [mensagem, setMensagem]       = useState(MSG_PADRAO)
+  const [linkInfo, setLinkInfo]       = useState<{ link_completo: string } | null>(null)
+  const [carregando, setCarregando]   = useState(false)
+  const [enviando, setEnviando]       = useState(false)
+  const [feedback, setFeedback]       = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null)
+
+  async function abrirModal() {
+    setModalAberto(true)
+    setFeedback(null)
+    setCarregando(true)
+    try {
+      const res = await fetch('/api/operadores/meu-link')
+      if (res.ok) setLinkInfo(await res.json())
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  function fecharModal() {
+    if (enviando) return
+    setModalAberto(false)
+    setMensagem(MSG_PADRAO)
+    setLinkInfo(null)
+    setFeedback(null)
+  }
+
+  async function confirmarEnvio() {
     setEnviando(true); setFeedback(null)
     try {
       const res = await fetch('/api/chat/enviar-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversa_id: conversaId })
+        body: JSON.stringify({ conversa_id: conversaId, mensagem_prefixo: mensagem.trim() })
       })
       const data = await res.json()
       if (!res.ok) {
         setFeedback({ tipo: 'erro', msg: data.erro ?? 'Erro ao enviar link.' })
       } else {
-        setFeedback({ tipo: 'ok', msg: 'Link enviado!' })
-        setTimeout(() => setFeedback(null), 3000)
+        setFeedback({ tipo: 'ok', msg: 'Link enviado com sucesso!' })
+        setTimeout(() => fecharModal(), 1500)
       }
     } catch {
       setFeedback({ tipo: 'erro', msg: 'Erro de conexão.' })
@@ -115,29 +141,116 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
     }
   }
 
+  // Preview do que será enviado
+  const preview = linkInfo?.link_completo
+    ? (mensagem.trim() ? `${mensagem.trim()}\n\n${linkInfo.link_completo}` : linkInfo.link_completo)
+    : ''
+
   return (
-    <div className="flex items-center gap-2">
+    <>
       <button
         type="button"
-        disabled={ocupado || enviando}
-        onClick={enviarLink}
+        disabled={ocupado}
+        onClick={abrirModal}
         className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors disabled:opacity-50"
         title="Enviar link de registro"
       >
-        {enviando
-          ? <span className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-          : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-        }
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
         Enviar Link
       </button>
-      {feedback && (
-        <span className={`text-xs font-medium ${feedback.tipo === 'ok' ? 'text-green-600' : 'text-red-500'}`}>
-          {feedback.msg}
-        </span>
+
+      {/* Modal */}
+      {modalAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">Enviar Link de Registro</h3>
+              <button onClick={fecharModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {carregando ? (
+              <div className="flex justify-center py-6">
+                <span className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mensagem de acompanhamento
+                    <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+                  </label>
+                  <textarea
+                    value={mensagem}
+                    onChange={e => setMensagem(e.target.value)}
+                    rows={3}
+                    placeholder="Deixe em branco para enviar apenas o link"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                  />
+                  {mensagem.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setMensagem('')}
+                      className="text-xs text-gray-400 hover:text-gray-600 mt-1"
+                    >
+                      Limpar mensagem (enviar só o link)
+                    </button>
+                  )}
+                </div>
+
+                {/* Preview */}
+                {linkInfo?.link_completo && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Prévia da mensagem:</p>
+                    <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap break-all">
+                      {preview}
+                    </div>
+                  </div>
+                )}
+
+                {!linkInfo?.link_completo && (
+                  <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                    ⚠️ URL base não configurada. Peça ao administrador para configurar em Admin → Configurações.
+                  </p>
+                )}
+
+                {feedback && (
+                  <p className={`text-sm font-medium ${feedback.tipo === 'ok' ? 'text-green-600' : 'text-red-500'}`}>
+                    {feedback.msg}
+                  </p>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={fecharModal}
+                    disabled={enviando}
+                    className="flex-1 border border-gray-300 text-gray-700 text-sm font-medium py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarEnvio}
+                    disabled={enviando || !linkInfo?.link_completo}
+                    className="flex-1 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {enviando
+                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : null
+                    }
+                    {enviando ? 'Enviando...' : 'Enviar'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
-    </div>
+    </>
   )
 }
 
