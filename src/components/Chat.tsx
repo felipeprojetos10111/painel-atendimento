@@ -118,7 +118,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
   function fecharModal() {
     if (enviando) return
     setModalAberto(false)
-    setMensagem(MSG_PADRAO)
+    setMensagem('')
     setLinkInfo(null)
     setFeedback(null)
   }
