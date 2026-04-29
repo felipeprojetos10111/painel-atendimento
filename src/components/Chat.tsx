@@ -89,12 +89,11 @@ function tocarSom() {
 }
 
 // Botão para enviar link de registro para o lead (com modal de edição)
-const MSG_PADRAO = 'Olá! Acesse o link abaixo para se registrar na plataforma:'
-
 function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado: boolean }) {
+  const { tr } = useLingua()
   const [modalAberto, setModalAberto] = useState(false)
-  const [mensagem, setMensagem]       = useState(MSG_PADRAO)
-  const [linkInfo, setLinkInfo]       = useState<{ link_completo: string } | null>(null)
+  const [mensagem, setMensagem]       = useState('')
+  const [linkInfo, setLinkInfo]       = useState<{ link_completo: string; mensagem_link: string } | null>(null)
   const [carregando, setCarregando]   = useState(false)
   const [enviando, setEnviando]       = useState(false)
   const [feedback, setFeedback]       = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null)
@@ -105,7 +104,12 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
     setCarregando(true)
     try {
       const res = await fetch('/api/operadores/meu-link')
-      if (res.ok) setLinkInfo(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setLinkInfo(data)
+        // Pré-preenche com a mensagem padrão configurada pelo operador
+        setMensagem(data.mensagem_link ?? '')
+      }
     } finally {
       setCarregando(false)
     }
@@ -135,7 +139,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
         setTimeout(() => fecharModal(), 1500)
       }
     } catch {
-      setFeedback({ tipo: 'erro', msg: 'Erro de conexão.' })
+      setFeedback({ tipo: 'erro', msg: tr('enviarLinkErroConexao') })
     } finally {
       setEnviando(false)
     }
@@ -153,12 +157,12 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
         disabled={ocupado}
         onClick={abrirModal}
         className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors disabled:opacity-50"
-        title="Enviar link de registro"
+        title={tr('enviarLinkTitulo')}
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
-        Enviar Link
+        {tr('enviarLinkTitulo')}
       </button>
 
       {/* Modal */}
@@ -166,7 +170,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">Enviar Link de Registro</h3>
+              <h3 className="font-semibold text-gray-800">{tr('enviarLinkTitulo')}</h3>
               <button onClick={fecharModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -182,14 +186,14 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mensagem de acompanhamento
-                    <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+                    {tr('enviarLinkMsgLabel')}
+                    <span className="text-gray-400 font-normal ml-1">{tr('enviarLinkMsgOpcional')}</span>
                   </label>
                   <textarea
                     value={mensagem}
                     onChange={e => setMensagem(e.target.value)}
                     rows={3}
-                    placeholder="Deixe em branco para enviar apenas o link"
+                    placeholder={tr('enviarLinkMsgPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                   />
                   {mensagem.trim() && (
@@ -198,7 +202,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
                       onClick={() => setMensagem('')}
                       className="text-xs text-gray-400 hover:text-gray-600 mt-1"
                     >
-                      Limpar mensagem (enviar só o link)
+                      {tr('enviarLinkLimpar')}
                     </button>
                   )}
                 </div>
@@ -206,7 +210,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
                 {/* Preview */}
                 {linkInfo?.link_completo && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Prévia da mensagem:</p>
+                    <p className="text-xs font-medium text-gray-500 mb-1">{tr('enviarLinkPrevia')}</p>
                     <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap break-all">
                       {preview}
                     </div>
@@ -215,7 +219,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
 
                 {!linkInfo?.link_completo && (
                   <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                    ⚠️ URL base não configurada. Peça ao administrador para configurar em Admin → Configurações.
+                    {tr('enviarLinkSemUrl')}
                   </p>
                 )}
 
@@ -231,18 +235,15 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
                     disabled={enviando}
                     className="flex-1 border border-gray-300 text-gray-700 text-sm font-medium py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    Cancelar
+                    {tr('cancelar')}
                   </button>
                   <button
                     onClick={confirmarEnvio}
                     disabled={enviando || !linkInfo?.link_completo}
                     className="flex-1 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    {enviando
-                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      : null
-                    }
-                    {enviando ? 'Enviando...' : 'Enviar'}
+                    {enviando && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                    {enviando ? tr('enviarLinkEnviando') : tr('enviar')}
                   </button>
                 </div>
               </>

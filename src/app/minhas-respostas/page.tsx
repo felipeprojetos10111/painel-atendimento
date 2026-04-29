@@ -59,8 +59,12 @@ export default function MinhasRespostasPage() {
   const [sucesso, setSucesso]               = useState('')
   const [busca, setBusca]                   = useState('')
   const [uploadProgresso, setUploadProgresso] = useState('')
-  const [meuLinkInfo, setMeuLinkInfo] = useState<{ affiliate_link_id: string; link_completo: string } | null>(null)
-  const [copiadoLink, setCopiadoLink] = useState(false)
+  const [meuLinkInfo, setMeuLinkInfo] = useState<{ affiliate_link_id: string; link_completo: string; mensagem_link: string } | null>(null)
+  const [mensagemLink, setMensagemLink]   = useState('')
+  const [copiadoLink, setCopiadoLink]     = useState(false)
+  const [salvandoMsg, setSalvandoMsg]     = useState(false)
+  const [msgSucesso, setMsgSucesso]       = useState('')
+  const [msgErro, setMsgErro]             = useState('')
 
   async function carregar() {
     const res = await fetch('/api/respostas-rapidas?todos=true')
@@ -72,7 +76,10 @@ export default function MinhasRespostasPage() {
     fetch('/api/operadores/meu-link')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data) setMeuLinkInfo(data)
+        if (data) {
+          setMeuLinkInfo(data)
+          setMensagemLink(data.mensagem_link ?? '')
+        }
       })
   }, [])
 
@@ -81,6 +88,24 @@ export default function MinhasRespostasPage() {
       await navigator.clipboard.writeText(meuLinkInfo.link_completo)
       setCopiadoLink(true)
       setTimeout(() => setCopiadoLink(false), 2000)
+    }
+  }
+
+  async function salvarMensagemLink() {
+    setSalvandoMsg(true); setMsgErro(''); setMsgSucesso('')
+    try {
+      const res = await fetch('/api/operadores/meu-link', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensagem_link: mensagemLink })
+      })
+      if (!res.ok) throw new Error()
+      setMsgSucesso(tr('meuLinkSalvo'))
+      setTimeout(() => setMsgSucesso(''), 3000)
+    } catch {
+      setMsgErro(tr('meuLinkErro'))
+    } finally {
+      setSalvandoMsg(false)
     }
   }
 
@@ -229,22 +254,19 @@ export default function MinhasRespostasPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">🔗</span>
-            <h2 className="font-semibold text-gray-800">Meu Link de Registro</h2>
+            <h2 className="font-semibold text-gray-800">{tr('meuLinkTitulo')}</h2>
           </div>
-          <p className="text-xs text-gray-400 mb-5">
-            Configure seu link de afiliado. Ao clicar em "Enviar Link" durante uma conversa, este link será enviado automaticamente para o lead.
-          </p>
+          <p className="text-xs text-gray-400 mb-5">{tr('meuLinkDesc')}</p>
+
           {meuLinkInfo ? (
-            <div className="space-y-3">
+            <div className="space-y-5">
+              {/* Link read-only */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seu link exclusivo de afiliado</label>
-                <p className="text-xs text-gray-400 mb-2">
-                  Esse link é gerado automaticamente com o seu código único. Ao clicar em &quot;Enviar Link&quot; no chat, esse link é enviado ao lead — qualquer registro feito através dele será atribuído a você.
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{tr('meuLinkLabel')}</label>
                 <div className="flex items-center gap-2">
                   <input
                     readOnly
-                    value={meuLinkInfo.link_completo || '(URL base não configurada pelo admin)'}
+                    value={meuLinkInfo.link_completo || tr('meuLinkSemUrl')}
                     className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-gray-50 font-mono focus:outline-none select-all"
                   />
                   {meuLinkInfo.link_completo && (
@@ -252,17 +274,41 @@ export default function MinhasRespostasPage() {
                       onClick={copiarLink}
                       className="shrink-0 text-sm font-medium text-white bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
                     >
-                      {copiadoLink ? 'Copiado!' : 'Copiar'}
+                      {copiadoLink ? tr('cfgCopiado') : tr('cfgCopiar')}
                     </button>
                   )}
                 </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {tr('meuLinkCodigo')} <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{meuLinkInfo.affiliate_link_id}</span>
+                </p>
               </div>
-              <p className="text-xs text-gray-400">
-                Seu código de rastreamento: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{meuLinkInfo.affiliate_link_id}</span>
-              </p>
+
+              {/* Mensagem padrão editável */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{tr('meuLinkMsgLabel')}</label>
+                <p className="text-xs text-gray-400 mb-2">{tr('meuLinkMsgDica')}</p>
+                <textarea
+                  rows={3}
+                  value={mensagemLink}
+                  onChange={e => setMensagemLink(e.target.value)}
+                  placeholder={tr('meuLinkMsgPlaceholder')}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={salvarMensagemLink}
+                    disabled={salvandoMsg}
+                    className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+                  >
+                    {salvandoMsg ? tr('meuLinkSalvando') : tr('meuLinkSalvar')}
+                  </button>
+                  {msgSucesso && <span className="text-sm text-green-600 font-medium">{msgSucesso}</span>}
+                  {msgErro    && <span className="text-sm text-red-500">{msgErro}</span>}
+                </div>
+              </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Carregando...</p>
+            <p className="text-sm text-gray-400">...</p>
           )}
         </div>
       </div>

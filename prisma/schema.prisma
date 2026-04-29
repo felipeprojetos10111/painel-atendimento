@@ -100,6 +100,7 @@ model operadores {
   lingua            String?             @default("pt") @db.VarChar(5)
   link_plataforma   String?             @db.Text
   affiliate_link_id String?             @db.VarChar(100)
+  mensagem_link     String?             @db.Text
   criado_em         DateTime?           @default(now()) @db.Timestamp(6)
   clientes           clientes            @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   conversas          conversas[]

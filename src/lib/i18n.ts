@@ -186,6 +186,33 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   cfgCopiado:                { pt: 'Copiado!',                      en: 'Copied!',                       es: '¡Copiado!' },
   cfgCampoSensivel:          { pt: 'Preencha apenas para alterar o valor atual.', en: 'Fill in only to change the current value.', es: 'Rellene solo para cambiar el valor actual.' },
 
+  // ── Modal Enviar Link ──────────────────────────────────────────────────────
+  enviarLinkTitulo:        { pt: 'Enviar Link de Registro',                    en: 'Send Registration Link',                      es: 'Enviar Enlace de Registro' },
+  enviarLinkMsgLabel:      { pt: 'Mensagem de acompanhamento',                 en: 'Accompanying message',                        es: 'Mensaje de acompañamiento' },
+  enviarLinkMsgOpcional:   { pt: '(opcional)',                                 en: '(optional)',                                  es: '(opcional)' },
+  enviarLinkMsgPlaceholder:{ pt: 'Deixe em branco para enviar apenas o link', en: 'Leave blank to send only the link',           es: 'Deja en blanco para enviar solo el enlace' },
+  enviarLinkLimpar:        { pt: 'Limpar mensagem (enviar só o link)',         en: 'Clear message (send link only)',              es: 'Borrar mensaje (enviar solo el enlace)' },
+  enviarLinkPrevia:        { pt: 'Prévia da mensagem:',                        en: 'Message preview:',                            es: 'Vista previa del mensaje:' },
+  enviarLinkSemUrl:        { pt: '⚠️ URL base não configurada. Peça ao administrador para configurar em Admin → Configurações.', en: '⚠️ Base URL not configured. Ask the admin to set it in Admin → Settings.', es: '⚠️ URL base no configurada. Pide al administrador que la configure en Admin → Configuración.' },
+  enviarLinkEnviando:      { pt: 'Enviando...',                                en: 'Sending...',                                  es: 'Enviando...' },
+  enviarLinkSucesso:       { pt: 'Link enviado com sucesso!',                  en: 'Link sent successfully!',                     es: '¡Enlace enviado con éxito!' },
+  enviarLinkErroConexao:   { pt: 'Erro de conexão.',                           en: 'Connection error.',                           es: 'Error de conexión.' },
+  cancelar:                { pt: 'Cancelar',                                   en: 'Cancel',                                      es: 'Cancelar' },
+
+  // ── Minhas Respostas — Meu Link ────────────────────────────────────────────
+  meuLinkTitulo:           { pt: 'Meu Link de Registro',                       en: 'My Registration Link',                        es: 'Mi Enlace de Registro' },
+  meuLinkDesc:             { pt: 'Seu link exclusivo gerado automaticamente. Ao clicar em "Enviar Link" no chat, esse link é enviado ao lead com a mensagem configurada abaixo.', en: 'Your automatically generated unique link. When clicking "Send Link" in chat, this link is sent to the lead with the message configured below.', es: 'Tu enlace exclusivo generado automáticamente. Al hacer clic en "Enviar enlace" en el chat, este enlace se envía al lead con el mensaje configurado abajo.' },
+  meuLinkLabel:            { pt: 'Seu link exclusivo de afiliado',              en: 'Your exclusive affiliate link',               es: 'Tu enlace exclusivo de afiliado' },
+  meuLinkSemUrl:           { pt: '(URL base não configurada pelo admin)',        en: '(Base URL not configured by admin)',           es: '(URL base no configurada por el admin)' },
+  meuLinkCodigo:           { pt: 'Seu código de rastreamento:',                 en: 'Your tracking code:',                         es: 'Tu código de rastreo:' },
+  meuLinkMsgLabel:         { pt: 'Mensagem padrão ao enviar o link',            en: 'Default message when sending the link',       es: 'Mensaje predeterminado al enviar el enlace' },
+  meuLinkMsgPlaceholder:   { pt: 'Ex: Olá! Acesse o link abaixo para se registrar:', en: 'E.g.: Hello! Access the link below to register:', es: 'Ej: ¡Hola! Accede al enlace de abajo para registrarte:' },
+  meuLinkMsgDica:          { pt: 'Essa mensagem será pré-preenchida no modal ao clicar "Enviar Link". Deixe vazio para enviar só o link.', en: 'This message will be pre-filled in the modal when clicking "Send Link". Leave empty to send only the link.', es: 'Este mensaje se rellenará previamente en el modal al hacer clic en "Enviar enlace". Déjalo vacío para enviar solo el enlace.' },
+  meuLinkSalvar:           { pt: 'Salvar',                                      en: 'Save',                                        es: 'Guardar' },
+  meuLinkSalvando:         { pt: 'Salvando...',                                 en: 'Saving...',                                   es: 'Guardando...' },
+  meuLinkSalvo:            { pt: 'Salvo!',                                      en: 'Saved!',                                      es: '¡Guardado!' },
+  meuLinkErro:             { pt: 'Erro ao salvar.',                             en: 'Error saving.',                               es: 'Error al guardar.' },
+
   // ── Compartilhado ──────────────────────────────────────────────────────────
   erroDesconhecido: { pt: 'Erro desconhecido.', en: 'Unknown error.', es: 'Error desconocido.' },
 }
