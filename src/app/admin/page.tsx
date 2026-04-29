@@ -24,7 +24,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads'>('operadores')
+  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads' | 'metricas'>('operadores')
   const [impersonando, setImpersonando] = useState(false)
   const [nomeClienteImp, setNomeClienteImp] = useState('')
   const [saindo, setSaindo] = useState(false)
@@ -104,6 +104,7 @@ export default function AdminPage() {
             { key: 'ia',           label: 'IA' },
             { key: 'configuracoes', label: 'Configurações' },
             { key: 'leads',        label: '📋 Leads' },
+            { key: 'metricas',     label: '📊 Métricas' },
           ] as const).map(({ key, label }) => (
             <button
               key={key}
@@ -125,6 +126,7 @@ export default function AdminPage() {
         {aba === 'ia'            && <SecaoIA />}
         {aba === 'configuracoes' && <SecaoConfiguracoes />}
         {aba === 'leads'         && <SecaoLeads />}
+        {aba === 'metricas'      && <SecaoMetricas />}
       </div>
     </div>
   )
@@ -923,6 +925,175 @@ function SecaoLeads() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── Seção: Métricas ─────────────────────────────────────────────────────────
+
+interface MetricaRegistro {
+  id: number
+  nome_usuario: string | null
+  email: string | null
+  telefone: string | null
+  data_evento: string | null
+  operadores: { id: number; nome: string } | null
+  leads: { id: number; nome: string | null; telefone: string } | null
+}
+
+interface MetricaOperador {
+  operador: { id: number; nome: string }
+  total: number
+  leads: { id: number; nome: string | null; telefone: string }[]
+}
+
+interface MetricasData {
+  periodo: { inicio: string; fim: string }
+  leadsAtendidos: { total: number; porOperador: MetricaOperador[] }
+  registros: { total: number; lista: MetricaRegistro[] }
+}
+
+function SecaoMetricas() {
+  const hoje = new Date().toISOString().slice(0, 10)
+  const [inicio, setInicio] = useState(hoje)
+  const [fim, setFim]       = useState(hoje)
+  const [dados, setDados]   = useState<MetricasData | null>(null)
+  const [carregando, setCarregando] = useState(false)
+  const [painelAberto, setPainelAberto] = useState<'atendidos' | 'registros' | null>(null)
+
+  async function carregar() {
+    setCarregando(true)
+    try {
+      const res = await fetch(`/api/metricas?inicio=${inicio}&fim=${fim}`)
+      if (res.ok) setDados(await res.json())
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  const fmt = (d: string | null) => d
+    ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '—'
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Filtro de período */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 flex flex-wrap items-end gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">De</label>
+          <input type="date" value={inicio} onChange={e => setInicio(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Até</label>
+          <input type="date" value={fim} onChange={e => setFim(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+        </div>
+        <button onClick={carregar} disabled={carregando}
+          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors flex items-center gap-2">
+          {carregando
+            ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>}
+          Consultar
+        </button>
+      </div>
+
+      {dados && (
+        <>
+          {/* Cards clicáveis */}
+          <div className="grid grid-cols-2 gap-4">
+            <button onClick={() => setPainelAberto(p => p === 'atendidos' ? null : 'atendidos')}
+              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'atendidos' ? 'border-green-400 ring-2 ring-green-200' : 'border-gray-100'}`}>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Leads Atendidos</p>
+              <p className="text-4xl font-bold text-gray-800">{dados.leadsAtendidos.total}</p>
+              <p className="text-xs text-gray-400 mt-1">por {dados.leadsAtendidos.porOperador.length} operador(es)</p>
+            </button>
+
+            <button onClick={() => setPainelAberto(p => p === 'registros' ? null : 'registros')}
+              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'registros' ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-100'}`}>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Registros na Plataforma</p>
+              <p className="text-4xl font-bold text-blue-600">{dados.registros.total}</p>
+              <p className="text-xs text-gray-400 mt-1">via link de afiliado</p>
+            </button>
+          </div>
+
+          {/* Painel de drill-down */}
+          {painelAberto === 'atendidos' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-800">Leads atendidos por operador</h3>
+              </div>
+              {dados.leadsAtendidos.porOperador.length === 0
+                ? <EmptyState icone="👥" texto="Nenhum atendimento no período" />
+                : dados.leadsAtendidos.porOperador.map(({ operador, total, leads }) => (
+                  <details key={operador.id} className="border-b border-gray-50 last:border-0">
+                    <summary className="flex items-center justify-between px-6 py-3 cursor-pointer hover:bg-gray-50 list-none">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">
+                          {operador.nome.charAt(0)}
+                        </div>
+                        <span className="text-sm font-medium text-gray-800">{operador.nome}</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-700">{total} lead{total !== 1 ? 's' : ''}</span>
+                    </summary>
+                    <ul className="divide-y divide-gray-50 bg-gray-50/50 px-6 pb-2">
+                      {leads.map(l => (
+                        <li key={l.id} className="py-2 text-sm text-gray-600 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                          {l.nome ?? l.telefone}
+                          {l.nome && <span className="text-xs text-gray-400 font-mono">{l.telefone}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))
+              }
+            </div>
+          )}
+
+          {painelAberto === 'registros' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-800">Registros na plataforma</h3>
+              </div>
+              {dados.registros.lista.length === 0
+                ? <EmptyState icone="✅" texto="Nenhum registro no período" />
+                : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuário</th>
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Telefone</th>
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Operador</th>
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Data</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {dados.registros.lista.map(ev => (
+                          <tr key={ev.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-3">
+                              <p className="font-medium text-gray-800">{ev.nome_usuario ?? '—'}</p>
+                              <p className="text-xs text-gray-400">{ev.email ?? ''}</p>
+                            </td>
+                            <td className="px-6 py-3 font-mono text-gray-600 text-xs">{ev.telefone ?? '—'}</td>
+                            <td className="px-6 py-3 text-gray-600">{ev.operadores?.nome ?? <span className="text-gray-300 italic text-xs">não vinculado</span>}</td>
+                            <td className="px-6 py-3 text-gray-400 text-xs">{fmt(ev.data_evento)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

@@ -16,6 +16,7 @@ model clientes {
   app_secret         String?             @db.Text
   verify_token       String?             @db.VarChar(100)
   ia_api_key         String?             @db.Text
+  webhook_secret     String?             @db.VarChar(100)
   ativo              Boolean             @default(true)
   criado_em          DateTime?           @default(now()) @db.Timestamp(6)
   operadores         operadores[]
@@ -24,6 +25,8 @@ model clientes {
   config_ia          config_ia[]
   respostas_rapidas  respostas_rapidas[]
   filas              filas[]
+  links_enviados     links_enviados[]
+  eventos_plataforma eventos_plataforma[]
 }
 
 model conversas {
@@ -42,6 +45,7 @@ model conversas {
   operadores    operadores? @relation(fields: [operador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   filas         filas[]
   mensagens     mensagens[]
+  links_enviados links_enviados[]
 }
 
 model filas {
@@ -63,8 +67,10 @@ model leads {
   email         String?     @db.VarChar(150)
   criado_em     DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em DateTime?   @default(now()) @db.Timestamp(6)
-  clientes      clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
-  conversas     conversas[]
+  clientes           clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  conversas          conversas[]
+  links_enviados     links_enviados[]
+  eventos_plataforma eventos_plataforma[]
 
   @@unique([cliente_id, telefone])
 }
@@ -91,10 +97,14 @@ model operadores {
   nivel             String?             @default("operador") @db.VarChar(20)
   ativo             Boolean?            @default(true)
   lingua            String?             @default("pt") @db.VarChar(5)
+  link_plataforma   String?             @db.Text
+  affiliate_link_id String?             @db.VarChar(100)
   criado_em         DateTime?           @default(now()) @db.Timestamp(6)
-  clientes          clientes            @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
-  conversas         conversas[]
-  respostas_rapidas respostas_rapidas[]
+  clientes           clientes            @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  conversas          conversas[]
+  respostas_rapidas  respostas_rapidas[]
+  links_enviados     links_enviados[]
+  eventos_plataforma eventos_plataforma[]
 }
 
 model config_ia {
@@ -112,6 +122,46 @@ model config_ia {
   atualizado_em       DateTime? @default(now()) @db.Timestamp(6)
   atualizado_por      String?   @db.VarChar(100)
   clientes            clientes  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+}
+
+model links_enviados {
+  id          Int        @id @default(autoincrement())
+  cliente_id  Int
+  operador_id Int?
+  lead_id     Int?
+  conversa_id Int?
+  enviado_em  DateTime?  @default(now()) @db.Timestamp(6)
+  clientes    clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  operadores  operadores? @relation(fields: [operador_id], references: [id], onDelete: SetNull)
+  leads       leads?      @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  conversas   conversas?  @relation(fields: [conversa_id], references: [id], onDelete: SetNull)
+  eventos_plataforma eventos_plataforma[]
+}
+
+model eventos_plataforma {
+  id                   Int              @id @default(autoincrement())
+  cliente_id           Int
+  lead_id              Int?
+  operador_id          Int?
+  link_enviado_id      Int?
+  tipo                 String           @db.VarChar(20)
+  plataforma_event_id  String?          @db.VarChar(100)
+  plataforma_user_id   String?          @db.VarChar(100)
+  email                String?          @db.VarChar(150)
+  nome_usuario         String?          @db.VarChar(150)
+  telefone             String?          @db.VarChar(50)
+  affiliate_link_id    String?          @db.VarChar(100)
+  valor                Decimal?         @db.Decimal(12, 2)
+  is_primeiro_deposito Boolean?
+  metodo_pagamento     String?          @db.VarChar(50)
+  moeda                String?          @db.VarChar(10)
+  payload              Json?
+  data_evento          DateTime?        @db.Timestamp(6)
+  criado_em            DateTime?        @default(now()) @db.Timestamp(6)
+  clientes             clientes         @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  leads                leads?           @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  operadores           operadores?      @relation(fields: [operador_id], references: [id], onDelete: SetNull)
+  links_enviados       links_enviados?  @relation(fields: [link_enviado_id], references: [id], onDelete: SetNull)
 }
 
 model respostas_rapidas {

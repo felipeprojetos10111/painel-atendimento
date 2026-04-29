@@ -88,6 +88,59 @@ function tocarSom() {
   }
 }
 
+// Botão para enviar link de registro para o lead
+function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado: boolean }) {
+  const [enviando, setEnviando] = useState(false)
+  const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null)
+
+  async function enviarLink() {
+    setEnviando(true); setFeedback(null)
+    try {
+      const res = await fetch('/api/chat/enviar-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversa_id: conversaId })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setFeedback({ tipo: 'erro', msg: data.erro ?? 'Erro ao enviar link.' })
+      } else {
+        setFeedback({ tipo: 'ok', msg: 'Link enviado!' })
+        setTimeout(() => setFeedback(null), 3000)
+      }
+    } catch {
+      setFeedback({ tipo: 'erro', msg: 'Erro de conexão.' })
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        disabled={ocupado || enviando}
+        onClick={enviarLink}
+        className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors disabled:opacity-50"
+        title="Enviar link de registro"
+      >
+        {enviando
+          ? <span className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+          : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+        }
+        Enviar Link
+      </button>
+      {feedback && (
+        <span className={`text-xs font-medium ${feedback.tipo === 'ok' ? 'text-green-600' : 'text-red-500'}`}>
+          {feedback.msg}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // Ícone de status para mensagens do operador
 function StatusMensagem({ status, onReenviar }: { status: string | null; onReenviar?: () => void }) {
   if (!status) return null
@@ -756,6 +809,11 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               }
               {tr('anexarArquivo')}
             </button>
+
+            {/* Botão enviar link de registro */}
+            {!gravando && !audioBlob && (
+              <BotaoEnviarLink conversaId={conversaId} ocupado={ocupado} />
+            )}
 
             {/* Botão gravar voz */}
             {!gravando && !audioBlob && (

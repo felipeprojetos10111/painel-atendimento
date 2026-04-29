@@ -59,13 +59,46 @@ export default function MinhasRespostasPage() {
   const [sucesso, setSucesso]               = useState('')
   const [busca, setBusca]                   = useState('')
   const [uploadProgresso, setUploadProgresso] = useState('')
+  const [linkPlataforma, setLinkPlataforma] = useState('')
+  const [affiliateLinkId, setAffiliateLinkId] = useState('')
+  const [salvandoLink, setSalvandoLink]     = useState(false)
+  const [linkSucesso, setLinkSucesso]       = useState('')
+  const [linkErro, setLinkErro]             = useState('')
 
   async function carregar() {
     const res = await fetch('/api/respostas-rapidas?todos=true')
     setRespostas(await res.json())
   }
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => {
+    carregar()
+    fetch('/api/operadores/meu-link')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setLinkPlataforma(data.link_plataforma ?? '')
+          setAffiliateLinkId(data.affiliate_link_id ?? '')
+        }
+      })
+  }, [])
+
+  async function salvarLink() {
+    setSalvandoLink(true); setLinkErro(''); setLinkSucesso('')
+    try {
+      const res = await fetch('/api/operadores/meu-link', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link_plataforma: linkPlataforma, affiliate_link_id: affiliateLinkId })
+      })
+      if (!res.ok) throw new Error('Erro ao salvar')
+      setLinkSucesso('Link salvo com sucesso!')
+      setTimeout(() => setLinkSucesso(''), 3000)
+    } catch {
+      setLinkErro('Erro ao salvar o link.')
+    } finally {
+      setSalvandoLink(false)
+    }
+  }
 
   function setField(campo: keyof typeof FORM_VAZIO, valor: string) {
     setForm(f => ({ ...f, [campo]: valor }))
@@ -207,7 +240,56 @@ export default function MinhasRespostasPage() {
         </span>
       </header>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
+      {/* ── Meu Link de Registro ─────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto px-6 pt-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">🔗</span>
+            <h2 className="font-semibold text-gray-800">Meu Link de Registro</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-5">
+            Configure seu link de afiliado. Ao clicar em "Enviar Link" durante uma conversa, este link será enviado automaticamente para o lead.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Link de registro <span className="text-red-500">*</span></label>
+              <input
+                type="url"
+                value={linkPlataforma}
+                onChange={e => setLinkPlataforma(e.target.value)}
+                placeholder="https://plataforma.com/register?ref=..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ID do afiliado
+                <span className="text-gray-400 font-normal ml-1">(para rastrear conversões)</span>
+              </label>
+              <input
+                type="text"
+                value={affiliateLinkId}
+                onChange={e => setAffiliateLinkId(e.target.value)}
+                placeholder="Ex: JOAO123 ou o ID gerado pela plataforma"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-4">
+            <button
+              onClick={salvarLink}
+              disabled={salvandoLink || !linkPlataforma.trim()}
+              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
+            >
+              {salvandoLink ? 'Salvando...' : 'Salvar link'}
+            </button>
+            {linkSucesso && <span className="text-sm text-green-600 font-medium">{linkSucesso}</span>}
+            {linkErro    && <span className="text-sm text-red-500">{linkErro}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 pb-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
 
         {/* ── Formulário (criar / editar) ──────────────────────────────── */}
         <section className="lg:col-span-2">
