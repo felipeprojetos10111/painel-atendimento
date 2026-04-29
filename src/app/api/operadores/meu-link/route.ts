@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -8,33 +8,33 @@ export async function GET() {
   const token = cookieStore.get('token')?.value
   if (!token) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
   const payload = await verifyToken(token)
-  if (!payload) return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
+  if (!payload || !payload.cliente_id) return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
 
-  const op = await prisma.operadores.findUnique({
-    where: { id: payload.id },
-    select: { link_plataforma: true }
-  })
+  const [op, cliente] = await Promise.all([
+    prisma.operadores.findUnique({
+      where: { id: payload.id },
+      select: { affiliate_link_id: true }
+    }),
+    prisma.clientes.findUnique({
+      where: { id: payload.cliente_id },
+      select: { plataforma_base_url: true }
+    })
+  ])
+
+  const affiliateId = op?.affiliate_link_id ?? ''
+  const baseUrl     = cliente?.plataforma_base_url ?? ''
+
+  // Constrói o link completo: URL_BASE + CÓDIGO
+  let linkCompleto = ''
+  if (baseUrl && affiliateId) {
+    const sep = baseUrl.endsWith('/') || baseUrl.includes('=') || baseUrl.includes('?')
+      ? ''
+      : '/'
+    linkCompleto = baseUrl + sep + affiliateId
+  }
 
   return NextResponse.json({
-    link_plataforma: op?.link_plataforma ?? '',
+    affiliate_link_id: affiliateId,
+    link_completo:     linkCompleto,
   })
-}
-
-export async function PATCH(req: NextRequest) {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('token')?.value
-  if (!token) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
-  const payload = await verifyToken(token)
-  if (!payload) return NextResponse.json({ erro: 'Token inválido' }, { status: 401 })
-
-  const { link_plataforma } = await req.json()
-
-  await prisma.operadores.update({
-    where: { id: payload.id },
-    data: {
-      link_plataforma: link_plataforma ?? null,
-    }
-  })
-
-  return NextResponse.json({ ok: true })
 }

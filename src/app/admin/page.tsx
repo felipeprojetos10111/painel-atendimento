@@ -589,17 +589,19 @@ interface ClienteConfig {
   app_secret: string
   ia_api_key: string
   webhook_secret: string
+  plataforma_base_url: string
 }
 
 function SecaoConfiguracoes() {
   const { tr } = useLingua()
   const [config, setConfig] = useState<ClienteConfig | null>(null)
   const [form, setForm] = useState({
-    whatsapp_token:  '',
-    phone_number_id: '',
-    app_secret:      '',
-    verify_token:    '',
-    ia_api_key:      '',
+    whatsapp_token:      '',
+    phone_number_id:     '',
+    app_secret:          '',
+    verify_token:        '',
+    ia_api_key:          '',
+    plataforma_base_url: '',
   })
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro]         = useState('')
@@ -620,11 +622,12 @@ function SecaoConfiguracoes() {
         setConfig(data)
         setPlataformaWebhookUrl(window.location.origin + '/api/webhooks/plataforma/' + data.slug)
         setForm({
-          whatsapp_token:  data.whatsapp_token,
-          phone_number_id: data.phone_number_id,
-          app_secret:      data.app_secret,
-          verify_token:    data.verify_token,
-          ia_api_key:      data.ia_api_key,
+          whatsapp_token:      data.whatsapp_token,
+          phone_number_id:     data.phone_number_id,
+          app_secret:          data.app_secret,
+          verify_token:        data.verify_token,
+          ia_api_key:          data.ia_api_key,
+          plataforma_base_url: data.plataforma_base_url,
         })
       })
   }, [])
@@ -647,11 +650,12 @@ function SecaoConfiguracoes() {
       const data: ClienteConfig = await res.json()
       setConfig(data)
       setForm({
-        whatsapp_token:  data.whatsapp_token,
-        phone_number_id: data.phone_number_id,
-        app_secret:      data.app_secret,
-        verify_token:    data.verify_token,
-        ia_api_key:      data.ia_api_key,
+        whatsapp_token:      data.whatsapp_token,
+        phone_number_id:     data.phone_number_id,
+        app_secret:          data.app_secret,
+        verify_token:        data.verify_token,
+        ia_api_key:          data.ia_api_key,
+        plataforma_base_url: data.plataforma_base_url,
       })
       setSucesso(tr('cfgSucesso'))
     } catch (err) {
@@ -800,10 +804,28 @@ function SecaoConfiguracoes() {
           </p>
 
           <div className="space-y-4">
+            {/* URL base da plataforma */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                URL base de registro
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                URL da página de cadastro da plataforma. O código único de cada operador será anexado automaticamente ao final.
+                Ex: <span className="font-mono bg-gray-100 px-1 rounded">https://app.plataforma.com/?ref=</span>
+              </p>
+              <input
+                type="url"
+                value={form.plataforma_base_url}
+                onChange={e => setField('plataforma_base_url', e.target.value)}
+                placeholder="https://app.plataforma.com/?ref="
+                className={inputCls}
+              />
+            </div>
+
             {/* Webhook URL da plataforma */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL do Webhook
+                URL do Webhook (para receber eventos)
               </label>
               <p className="text-xs text-gray-400 mb-2">
                 Cole essa URL no campo de webhook da sua plataforma (eventos USER_CREATED, DEPOSIT_CREATED).

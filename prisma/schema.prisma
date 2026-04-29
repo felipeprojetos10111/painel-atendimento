@@ -17,6 +17,7 @@ model clientes {
   verify_token       String?             @db.VarChar(100)
   ia_api_key         String?             @db.Text
   webhook_secret     String?             @db.VarChar(100)
+  plataforma_base_url String?            @db.Text
   ativo              Boolean             @default(true)
   criado_em          DateTime?           @default(now()) @db.Timestamp(6)
   operadores         operadores[]

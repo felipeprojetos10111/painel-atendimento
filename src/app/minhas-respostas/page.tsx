@@ -59,10 +59,8 @@ export default function MinhasRespostasPage() {
   const [sucesso, setSucesso]               = useState('')
   const [busca, setBusca]                   = useState('')
   const [uploadProgresso, setUploadProgresso] = useState('')
-  const [linkPlataforma, setLinkPlataforma] = useState('')
-  const [salvandoLink, setSalvandoLink]     = useState(false)
-  const [linkSucesso, setLinkSucesso]       = useState('')
-  const [linkErro, setLinkErro]             = useState('')
+  const [meuLinkInfo, setMeuLinkInfo] = useState<{ affiliate_link_id: string; link_completo: string } | null>(null)
+  const [copiadoLink, setCopiadoLink] = useState(false)
 
   async function carregar() {
     const res = await fetch('/api/respostas-rapidas?todos=true')
@@ -74,27 +72,15 @@ export default function MinhasRespostasPage() {
     fetch('/api/operadores/meu-link')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data) {
-          setLinkPlataforma(data.link_plataforma ?? '')
-        }
+        if (data) setMeuLinkInfo(data)
       })
   }, [])
 
-  async function salvarLink() {
-    setSalvandoLink(true); setLinkErro(''); setLinkSucesso('')
-    try {
-      const res = await fetch('/api/operadores/meu-link', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link_plataforma: linkPlataforma })
-      })
-      if (!res.ok) throw new Error('Erro ao salvar')
-      setLinkSucesso('Link salvo com sucesso!')
-      setTimeout(() => setLinkSucesso(''), 3000)
-    } catch {
-      setLinkErro('Erro ao salvar o link.')
-    } finally {
-      setSalvandoLink(false)
+  async function copiarLink() {
+    if (meuLinkInfo?.link_completo) {
+      await navigator.clipboard.writeText(meuLinkInfo.link_completo)
+      setCopiadoLink(true)
+      setTimeout(() => setCopiadoLink(false), 2000)
     }
   }
 
@@ -248,32 +234,36 @@ export default function MinhasRespostasPage() {
           <p className="text-xs text-gray-400 mb-5">
             Configure seu link de afiliado. Ao clicar em "Enviar Link" durante uma conversa, este link será enviado automaticamente para o lead.
           </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Link de registro <span className="text-red-500">*</span>
-            </label>
-            <p className="text-xs text-gray-400 mb-2">
-              Cole aqui o seu link de afiliado completo — ele será enviado ao lead quando você clicar em "Enviar Link" no chat.
-            </p>
-            <input
-              type="url"
-              value={linkPlataforma}
-              onChange={e => setLinkPlataforma(e.target.value)}
-              placeholder="https://plataforma.com/register?ref=SEU_CODIGO"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-          <div className="flex items-center gap-3 mt-4">
-            <button
-              onClick={salvarLink}
-              disabled={salvandoLink || !linkPlataforma.trim()}
-              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
-            >
-              {salvandoLink ? 'Salvando...' : 'Salvar link'}
-            </button>
-            {linkSucesso && <span className="text-sm text-green-600 font-medium">{linkSucesso}</span>}
-            {linkErro    && <span className="text-sm text-red-500">{linkErro}</span>}
-          </div>
+          {meuLinkInfo ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Seu link exclusivo de afiliado</label>
+                <p className="text-xs text-gray-400 mb-2">
+                  Esse link é gerado automaticamente com o seu código único. Ao clicar em &quot;Enviar Link&quot; no chat, esse link é enviado ao lead — qualquer registro feito através dele será atribuído a você.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={meuLinkInfo.link_completo || '(URL base não configurada pelo admin)'}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-gray-50 font-mono focus:outline-none select-all"
+                  />
+                  {meuLinkInfo.link_completo && (
+                    <button
+                      onClick={copiarLink}
+                      className="shrink-0 text-sm font-medium text-white bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
+                    >
+                      {copiadoLink ? 'Copiado!' : 'Copiar'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                Seu código de rastreamento: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{meuLinkInfo.affiliate_link_id}</span>
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Carregando...</p>
+          )}
         </div>
       </div>
 

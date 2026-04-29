@@ -31,22 +31,24 @@ export async function GET() {
       verify_token: true,
       ia_api_key: true,
       webhook_secret: true,
+      plataforma_base_url: true,
     }
   })
 
   if (!cliente) return NextResponse.json({ erro: 'Cliente não encontrado' }, { status: 404 })
 
   return NextResponse.json({
-    id:             cliente.id,
-    nome:           cliente.nome,
-    slug:           cliente.slug,
+    id:              cliente.id,
+    nome:            cliente.nome,
+    slug:            cliente.slug,
     phone_number_id: cliente.phone_number_id ?? '',
-    verify_token:   cliente.verify_token ?? '',
-    webhook_secret: cliente.webhook_secret ?? '',
+    verify_token:    cliente.verify_token ?? '',
+    webhook_secret:  cliente.webhook_secret ?? '',
+    plataforma_base_url: cliente.plataforma_base_url ?? '',
     // campos sensíveis — só indica se estão preenchidos
-    whatsapp_token: cliente.whatsapp_token  ? MASCARA : '',
-    app_secret:     cliente.app_secret      ? MASCARA : '',
-    ia_api_key:     cliente.ia_api_key      ? MASCARA : '',
+    whatsapp_token: cliente.whatsapp_token ? MASCARA : '',
+    app_secret:     cliente.app_secret     ? MASCARA : '',
+    ia_api_key:     cliente.ia_api_key     ? MASCARA : '',
   })
 }
 
@@ -58,8 +60,9 @@ export async function PUT(req: NextRequest) {
   const body = await req.json()
   const data: Record<string, string | null> = {}
 
-  if (body.phone_number_id !== undefined) data.phone_number_id = body.phone_number_id || null
-  if (body.verify_token    !== undefined) data.verify_token    = body.verify_token    || null
+  if (body.phone_number_id    !== undefined) data.phone_number_id    = body.phone_number_id    || null
+  if (body.verify_token       !== undefined) data.verify_token       = body.verify_token       || null
+  if (body.plataforma_base_url !== undefined) data.plataforma_base_url = body.plataforma_base_url || null
 
   // Só atualiza campos sensíveis se enviados e não forem a máscara
   if (body.whatsapp_token && body.whatsapp_token !== MASCARA) data.whatsapp_token = body.whatsapp_token
@@ -87,17 +90,21 @@ export async function PUT(req: NextRequest) {
       whatsapp_token: true,
       app_secret: true,
       ia_api_key: true,
+      webhook_secret: true,
+      plataforma_base_url: true,
     }
   })
 
   return NextResponse.json({
-    id:             cliente.id,
-    nome:           cliente.nome,
-    slug:           cliente.slug,
+    id:              cliente.id,
+    nome:            cliente.nome,
+    slug:            cliente.slug,
     phone_number_id: cliente.phone_number_id ?? '',
-    verify_token:   cliente.verify_token ?? '',
-    whatsapp_token: cliente.whatsapp_token  ? MASCARA : '',
-    app_secret:     cliente.app_secret      ? MASCARA : '',
-    ia_api_key:     cliente.ia_api_key      ? MASCARA : '',
+    verify_token:    cliente.verify_token ?? '',
+    webhook_secret:  cliente.webhook_secret ?? '',
+    plataforma_base_url: cliente.plataforma_base_url ?? '',
+    whatsapp_token: cliente.whatsapp_token ? MASCARA : '',
+    app_secret:     cliente.app_secret     ? MASCARA : '',
+    ia_api_key:     cliente.ia_api_key     ? MASCARA : '',
   })
 }

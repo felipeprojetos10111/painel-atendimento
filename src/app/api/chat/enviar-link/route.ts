@@ -15,27 +15,37 @@ export async function POST(req: NextRequest) {
   const { conversa_id } = await req.json()
   if (!conversa_id) return NextResponse.json({ erro: 'conversa_id obrigatório' }, { status: 400 })
 
-  // Busca dados do operador (link + affiliate_id)
+  // Busca dados do operador
   const operador = await prisma.operadores.findUnique({
     where: { id: payload.id },
-    select: { link_plataforma: true, affiliate_link_id: true, nome: true }
+    select: { affiliate_link_id: true, nome: true }
   })
 
-  if (!operador?.link_plataforma) {
-    return NextResponse.json({ erro: 'Você ainda não cadastrou seu link de registro. Acesse "Minhas Respostas" para configurar.' }, { status: 400 })
+  if (!operador?.affiliate_link_id) {
+    return NextResponse.json({ erro: 'Código de afiliado não encontrado. Contate o administrador.' }, { status: 400 })
   }
 
-  // Busca dados da conversa
+  // Busca dados da conversa + URL base da plataforma
   const conversa = await prisma.conversas.findFirst({
     where: { id: conversa_id, cliente_id: payload.cliente_id },
     include: {
       leads:    { select: { id: true, telefone: true, nome: true } },
-      clientes: { select: { whatsapp_token: true, phone_number_id: true } }
+      clientes: { select: { whatsapp_token: true, phone_number_id: true, plataforma_base_url: true } }
     }
   })
 
   if (!conversa) return NextResponse.json({ erro: 'Conversa não encontrada' }, { status: 404 })
   if (!conversa.leads?.telefone) return NextResponse.json({ erro: 'Lead sem telefone' }, { status: 400 })
+
+  const baseUrl = conversa.clientes?.plataforma_base_url
+  if (!baseUrl) {
+    return NextResponse.json({ erro: 'URL da plataforma não configurada. Acesse Admin > Configurações para definir a URL base.' }, { status: 400 })
+  }
+
+  // Constrói o link exclusivo do operador: URL_BASE + CÓDIGO_AFILIADO
+  const linkExclusivo = baseUrl.endsWith('/') || baseUrl.includes('=') || baseUrl.includes('?')
+    ? baseUrl + operador.affiliate_link_id
+    : baseUrl + '/' + operador.affiliate_link_id
 
   // Registra o envio do link
   const linkEnviado = await prisma.links_enviados.create({
@@ -53,7 +63,7 @@ export async function POST(req: NextRequest) {
     phoneNumberId: conversa.clientes?.phone_number_id,
   }
 
-  const mensagemTexto = `Olá! Acesse o link abaixo para se registrar na plataforma:\n\n${operador.link_plataforma}`
+  const mensagemTexto = `Olá! Acesse o link abaixo para se registrar na plataforma:\n\n${linkExclusivo}`
 
   try {
     await enviarMensagemWhatsApp(conversa.leads.telefone, mensagemTexto, waCreds)
