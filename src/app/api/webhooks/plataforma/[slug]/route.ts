@@ -30,30 +30,43 @@ export async function POST(
 
   const body = await req.json()
 
-  // Determina o tipo do evento pelo campo que a plataforma envia
-  // USER_CREATED → registro | DEPOSIT_CREATED → deposito
-  const tipoEvento = body.type ?? body.event ?? ''
+  // Determina o tipo do evento — suporta campo no nível raiz ou dentro de body.data
+  const tipoEvento: string = body.type ?? body.event ?? body.data?.type ?? body.data?.event ?? ''
   const tipo = tipoEvento === 'USER_CREATED' ? 'registro'
     : tipoEvento === 'DEPOSIT_CREATED' ? 'deposito'
     : null
 
   if (!tipo) {
-    // Evento desconhecido — aceita mas ignora
     return NextResponse.json({ ok: true, ignorado: true })
   }
 
-  const affiliateLinkId: string | null = body.affiliateLinkId ?? null
-  // Constrói o telefone completo concatenando countryCode + phone quando disponíveis
-  const phoneRaw: string | null = body.phone ?? body.props?.user?.phone ?? null
-  const countryCode: string | null = body.phoneCountryCode ?? body.props?.user?.phoneCountryCode ?? null
+  // Dados podem vir no nível raiz ou aninhados em body.data
+  const d = body.data ?? body
+
+  // Extrai affiliateLinkId: tenta o campo direto primeiro,
+  // se null/ausente extrai o último segmento do registerUrl
+  let affiliateLinkId: string | null = d.affiliateLinkId ?? null
+  if (!affiliateLinkId && d.registerUrl) {
+    try {
+      const url = new URL(d.registerUrl)
+      const segmentos = url.pathname.split('/').filter(Boolean)
+      const ultimo = segmentos[segmentos.length - 1] ?? ''
+      if (ultimo && ultimo !== 'register') affiliateLinkId = ultimo
+    } catch { /* URL inválida — ignora */ }
+  }
+
+  // Constrói o telefone completo: countryCode + phone
+  const phoneRaw: string | null = d.phone ?? d.props?.user?.phone ?? null
+  const countryCode: string | null = d.phoneCountryCode ?? d.props?.user?.phoneCountryCode ?? null
   const telefone: string | null = phoneRaw
     ? (countryCode ? countryCode.replace(/\D/g, '') + phoneRaw.replace(/\D/g, '') : phoneRaw)
     : null
-  const email: string | null = body.email ?? null
-  const nomeUsuario: string | null = body.name ?? null
-  const plataformaUserId: string | null = body.userId ?? null
-  const plataformaEventId: string | null = body.id ?? null
-  const dataEvento: Date | null = body.date ? new Date(body.date) : null
+
+  const email: string | null = d.email ?? null
+  const nomeUsuario: string | null = d.name ?? null
+  const plataformaUserId: string | null = d.userId ?? null
+  const plataformaEventId: string | null = d.id ?? null
+  const dataEvento: Date | null = d.date ? new Date(d.date) : null
 
   // ── Tenta vincular ao operador pelo affiliateLinkId ───────────────────────
   // Match direto: o affiliateLinkId da plataforma é o mesmo código que geramos por operador
