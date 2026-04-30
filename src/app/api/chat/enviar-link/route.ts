@@ -39,12 +39,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'URL da plataforma não configurada. Acesse Admin > Configurações para definir a URL base.' }, { status: 400 })
   }
 
-  // Gera código único para ESTE envio específico — vincula lead + operador sem depender de telefone
-  const codigo = gerarCodigo()
+  // Reutiliza o código se já enviamos link para esse lead+operador antes
+  // Isso garante que o mesmo lead sempre recebe o mesmo link, independente de quantas vezes for enviado
+  const envioExistente = await prisma.links_enviados.findFirst({
+    where: {
+      cliente_id:  payload.cliente_id,
+      operador_id: payload.id,
+      lead_id:     conversa.leads.id,
+      codigo:      { not: null },
+    },
+    orderBy: { enviado_em: 'asc' },
+    select: { id: true, codigo: true }
+  })
+
+  const codigo = envioExistente?.codigo ?? gerarCodigo()
   const sep = baseUrl.endsWith('/') || baseUrl.includes('=') || baseUrl.includes('?') ? '' : '/'
   const linkExclusivo = baseUrl + sep + codigo
 
-  // Registra o envio com o código único
+  // Registra novo envio (mesmo código, nova entrada para rastrear quando foi enviado)
   const linkEnviado = await prisma.links_enviados.create({
     data: {
       cliente_id:  payload.cliente_id,
