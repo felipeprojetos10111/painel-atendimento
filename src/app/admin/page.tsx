@@ -1066,11 +1066,23 @@ interface MetricaDeposito extends MetricaRegistro {
   moeda: string | null
 }
 
+interface MetricasDepositos {
+  total:      number
+  totalValor: number
+  lista:      MetricaDeposito[]
+}
+
 interface MetricasData {
   periodo: { inicio: string; fim: string }
   leadsAtendidos: { total: number; porOperador: MetricaOperador[] }
   registros: { total: number; lista: MetricaRegistro[] }
-  depositos: { total: number; totalValor: number; lista: MetricaDeposito[] }
+  depositos: {
+    total:      number
+    totalValor: number
+    lista:      MetricaDeposito[]
+    ftd:        MetricasDepositos
+    redepositos: MetricasDepositos
+  }
 }
 
 function SecaoMetricas() {
@@ -1079,7 +1091,7 @@ function SecaoMetricas() {
   const [fim, setFim]       = useState(hoje)
   const [dados, setDados]   = useState<MetricasData | null>(null)
   const [carregando, setCarregando] = useState(false)
-  const [painelAberto, setPainelAberto] = useState<'atendidos' | 'registros' | 'depositos' | null>(null)
+  const [painelAberto, setPainelAberto] = useState<'atendidos' | 'registros' | 'ftd' | 'redepositos' | null>(null)
 
   async function carregar() {
     setCarregando(true)
@@ -1125,7 +1137,7 @@ function SecaoMetricas() {
       {dados && (
         <>
           {/* Cards clicáveis */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <button onClick={() => setPainelAberto(p => p === 'atendidos' ? null : 'atendidos')}
               className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'atendidos' ? 'border-green-400 ring-2 ring-green-200' : 'border-gray-100'}`}>
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Leads Atendidos</p>
@@ -1140,14 +1152,25 @@ function SecaoMetricas() {
               <p className="text-xs text-gray-400 mt-1">via link de afiliado</p>
             </button>
 
-            <button onClick={() => setPainelAberto(p => p === 'depositos' ? null : 'depositos')}
-              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'depositos' ? 'border-emerald-400 ring-2 ring-emerald-200' : 'border-gray-100'}`}>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Depósitos</p>
-              <p className="text-4xl font-bold text-emerald-600">{dados.depositos.total}</p>
+            <button onClick={() => setPainelAberto(p => p === 'ftd' ? null : 'ftd')}
+              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'ftd' ? 'border-emerald-400 ring-2 ring-emerald-200' : 'border-gray-100'}`}>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Primeiros Depósitos</p>
+              <p className="text-4xl font-bold text-emerald-600">{dados.depositos.ftd.total}</p>
               <p className="text-xs text-gray-400 mt-1">
-                {dados.depositos.totalValor > 0
-                  ? `$ ${dados.depositos.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                  : 'via link de afiliado'}
+                {dados.depositos.ftd.totalValor > 0
+                  ? `$ ${dados.depositos.ftd.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                  : 'FTD'}
+              </p>
+            </button>
+
+            <button onClick={() => setPainelAberto(p => p === 'redepositos' ? null : 'redepositos')}
+              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'redepositos' ? 'border-violet-400 ring-2 ring-violet-200' : 'border-gray-100'}`}>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Redepósitos</p>
+              <p className="text-4xl font-bold text-violet-600">{dados.depositos.redepositos.total}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {dados.depositos.redepositos.totalValor > 0
+                  ? `$ ${dados.depositos.redepositos.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                  : 'depósitos recorrentes'}
               </p>
             </button>
           </div>
@@ -1186,61 +1209,59 @@ function SecaoMetricas() {
             </div>
           )}
 
-          {painelAberto === 'depositos' && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">Depósitos na plataforma</h3>
-                {dados.depositos.totalValor > 0 && (
-                  <span className="text-sm font-bold text-emerald-600">
-                    Total: $ {dados.depositos.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                )}
-              </div>
-              {dados.depositos.lista.length === 0
-                ? <EmptyState icone="💰" texto="Nenhum depósito no período" />
-                : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuário</th>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Valor</th>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Operador</th>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Data</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {dados.depositos.lista.map(ev => (
-                          <tr key={ev.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-3">
-                              <div className="flex items-center gap-2">
-                                <div>
-                                  <p className="font-medium text-gray-800">{ev.nome_usuario ?? ev.leads?.nome ?? '—'}</p>
-                                  <p className="text-xs text-gray-400">{ev.email ?? ''}</p>
-                                </div>
-                                {ev.is_primeiro_deposito && (
-                                  <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full">1º dep.</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-3">
-                              {ev.valor != null
-                                ? <span className="font-bold text-emerald-600">$ {Number(ev.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                : <span className="text-gray-300 italic text-xs">—</span>
-                              }
-                              {ev.metodo_pagamento && <p className="text-xs text-gray-400">{ev.metodo_pagamento}</p>}
-                            </td>
-                            <td className="px-6 py-3 text-gray-600">{ev.operadores?.nome ?? <span className="text-gray-300 italic text-xs">não vinculado</span>}</td>
-                            <td className="px-6 py-3 text-gray-400 text-xs">{fmt(ev.data_evento)}</td>
+          {(painelAberto === 'ftd' || painelAberto === 'redepositos') && (() => {
+            const isFTD   = painelAberto === 'ftd'
+            const grupo   = isFTD ? dados.depositos.ftd : dados.depositos.redepositos
+            const titulo  = isFTD ? 'Primeiros depósitos (FTD)' : 'Redepósitos'
+            const cor     = isFTD ? 'text-emerald-600' : 'text-violet-600'
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-800">{titulo}</h3>
+                  {grupo.totalValor > 0 && (
+                    <span className={`text-sm font-bold ${cor}`}>
+                      Total: $ {grupo.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  )}
+                </div>
+                {grupo.lista.length === 0
+                  ? <EmptyState icone="💰" texto="Nenhum depósito no período" />
+                  : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                          <tr>
+                            <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuário</th>
+                            <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Valor</th>
+                            <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Operador</th>
+                            <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Data</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              }
-            </div>
-          )}
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {grupo.lista.map(ev => (
+                            <tr key={ev.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-3">
+                                <p className="font-medium text-gray-800">{ev.nome_usuario ?? ev.leads?.nome ?? '—'}</p>
+                                <p className="text-xs text-gray-400">{ev.email ?? ''}</p>
+                              </td>
+                              <td className="px-6 py-3">
+                                {ev.valor != null
+                                  ? <span className={`font-bold ${cor}`}>$ {Number(ev.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                  : <span className="text-gray-300 italic text-xs">—</span>
+                                }
+                              </td>
+                              <td className="px-6 py-3 text-gray-600">{ev.operadores?.nome ?? <span className="text-gray-300 italic text-xs">não vinculado</span>}</td>
+                              <td className="px-6 py-3 text-gray-400 text-xs">{fmt(ev.data_evento)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                }
+              </div>
+            )
+          })()}
 
           {painelAberto === 'registros' && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

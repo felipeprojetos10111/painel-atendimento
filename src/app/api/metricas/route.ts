@@ -94,8 +94,13 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  // Total depositado no período
-  const totalValorDepositos = eventosDeposito.reduce((s, e) => s + Number(e.valor ?? 0), 0)
+  // Separa FTD de redepósitos
+  const ftd         = eventosDeposito.filter(e => e.is_primeiro_deposito === true)
+  const redepositos = eventosDeposito.filter(e => e.is_primeiro_deposito !== true)
+
+  const totalValorDepositos   = eventosDeposito.reduce((s, e) => s + Number(e.valor ?? 0), 0)
+  const totalValorFTD         = ftd.reduce((s, e) => s + Number(e.valor ?? 0), 0)
+  const totalValorRedepositos = redepositos.reduce((s, e) => s + Number(e.valor ?? 0), 0)
 
   return NextResponse.json({
     periodo: { inicio: dataInicio, fim: dataFim },
@@ -108,9 +113,19 @@ export async function GET(req: NextRequest) {
       lista: eventosRegistro,
     },
     depositos: {
-      total: eventosDeposito.length,
+      total:      eventosDeposito.length,
       totalValor: totalValorDepositos,
-      lista: eventosDeposito,
+      lista:      eventosDeposito,
+      ftd: {
+        total:      ftd.length,
+        totalValor: totalValorFTD,
+        lista:      ftd,
+      },
+      redepositos: {
+        total:      redepositos.length,
+        totalValor: totalValorRedepositos,
+        lista:      redepositos,
+      },
     },
   })
 }
