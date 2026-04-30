@@ -1400,53 +1400,16 @@ function SecaoMetricas() {
             )
           })()}
 
-          {/* ── Qualidade do atendimento ────────────────────────────────────── */}
-          {(() => {
-            const ms  = dados.qualidade.tempoMedioRespostaMs
-            const fmt = ms === 0 ? '—'
-              : ms < 60_000   ? `${Math.round(ms / 1000)}s`
-              : ms < 3_600_000 ? `${Math.floor(ms / 60_000)}min ${Math.round((ms % 60_000) / 1000)}s`
-              : `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}min`
-
-            const taxa = dados.qualidade.taxaRejeicao
-            const corTaxa = taxa === null ? 'text-gray-400'
-              : taxa <= 30 ? 'text-green-600'
-              : taxa <= 60 ? 'text-yellow-500'
-              : 'text-red-500'
-
-            return (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
-                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">⏱ Tempo médio de resposta</p>
-                  <p className="text-3xl font-bold text-gray-800">{fmt}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {ms > 0 ? 'entre msg do lead e resposta do operador' : 'sem dados no período'}
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
-                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">🚫 Taxa de rejeição</p>
-                  <p className={`text-3xl font-bold ${corTaxa}`}>
-                    {taxa !== null ? `${taxa}%` : '—'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {taxa !== null
-                      ? `${dados.qualidade.conversasRejeitadas} de ${dados.qualidade.totalConversasAtendidas} leads ignoraram`
-                      : 'sem dados no período'}
-                  </p>
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* Gráfico histórico */}
-          <GraficoHistorico operadorId={operadorId} />
-
-          {/* Painel de drill-down */}
+          {/* ── Drill-down — aparece logo abaixo do funil ──────────────────── */}
           {painelAberto === 'atendidos' && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-800">Leads atendidos por operador</h3>
+                <button onClick={() => setPainelAberto(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
               {dados.leadsAtendidos.porOperador.length === 0
                 ? <EmptyState icone="👥" texto="Nenhum atendimento no período" />
@@ -1477,19 +1440,26 @@ function SecaoMetricas() {
           )}
 
           {(painelAberto === 'ftd' || painelAberto === 'redepositos') && (() => {
-            const isFTD   = painelAberto === 'ftd'
-            const grupo   = isFTD ? dados.depositos.ftd : dados.depositos.redepositos
-            const titulo  = isFTD ? 'Primeiros depósitos (FTD)' : 'Redepósitos'
-            const cor     = isFTD ? 'text-emerald-600' : 'text-violet-600'
+            const isFTD  = painelAberto === 'ftd'
+            const grupo  = isFTD ? dados.depositos.ftd : dados.depositos.redepositos
+            const titulo = isFTD ? 'Primeiros depósitos (FTD)' : 'Redepósitos'
+            const cor    = isFTD ? 'text-emerald-600' : 'text-violet-600'
             return (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <h3 className="font-semibold text-gray-800">{titulo}</h3>
-                  {grupo.totalValor > 0 && (
-                    <span className={`text-sm font-bold ${cor}`}>
-                      Total: $ {grupo.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {grupo.totalValor > 0 && (
+                      <span className={`text-sm font-bold ${cor}`}>
+                        Total: $ {grupo.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                    <button onClick={() => setPainelAberto(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 {grupo.lista.length === 0
                   ? <EmptyState icone="💰" texto="Nenhum depósito no período" />
@@ -1532,8 +1502,13 @@ function SecaoMetricas() {
 
           {painelAberto === 'registros' && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-800">Registros na plataforma</h3>
+                <button onClick={() => setPainelAberto(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
               {dados.registros.lista.length === 0
                 ? <EmptyState icone="✅" texto="Nenhum registro no período" />
@@ -1567,6 +1542,49 @@ function SecaoMetricas() {
               }
             </div>
           )}
+
+          {/* ── Qualidade do atendimento ────────────────────────────────────── */}
+          {(() => {
+            const ms  = dados.qualidade.tempoMedioRespostaMs
+            const fmt = ms === 0 ? '—'
+              : ms < 60_000   ? `${Math.round(ms / 1000)}s`
+              : ms < 3_600_000 ? `${Math.floor(ms / 60_000)}min ${Math.round((ms % 60_000) / 1000)}s`
+              : `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}min`
+
+            const taxa = dados.qualidade.taxaRejeicao
+            const corTaxa = taxa === null ? 'text-gray-400'
+              : taxa <= 30 ? 'text-green-600'
+              : taxa <= 60 ? 'text-yellow-500'
+              : 'text-red-500'
+
+            return (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">⏱ Tempo médio de resposta</p>
+                  <p className="text-3xl font-bold text-gray-800">{fmt}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {ms > 0 ? 'entre msg do lead e resposta do operador' : 'sem dados no período'}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">🚫 Taxa de rejeição</p>
+                  <p className={`text-3xl font-bold ${corTaxa}`}>
+                    {taxa !== null ? `${taxa}%` : '—'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {taxa !== null
+                      ? `${dados.qualidade.conversasRejeitadas} de ${dados.qualidade.totalConversasAtendidas} leads ignoraram`
+                      : 'sem dados no período'}
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Gráfico histórico */}
+          <GraficoHistorico operadorId={operadorId} />
+
         </>
       )}
     </div>
