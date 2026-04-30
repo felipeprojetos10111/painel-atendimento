@@ -1066,6 +1066,149 @@ interface MetricaDeposito extends MetricaRegistro {
   moeda: string | null
 }
 
+// ─── Gráfico Histórico ────────────────────────────────────────────────────────
+
+type PeriodoGrafico = '1d' | '7d' | '30d' | 'all'
+
+interface PontoSerie {
+  label:          string
+  leadsAtendidos: number
+  ftd:            number
+  redepositos:    number
+  registros:      number
+}
+
+function GraficoHistorico() {
+  const [periodo, setPeriodo]         = useState<PeriodoGrafico>('7d')
+  const [series, setSeries]           = useState<PontoSerie[]>([])
+  const [carregando, setCarregando]   = useState(false)
+  const [tipo, setTipo]               = useState<'line' | 'bar'>('line')
+  const [visiveis, setVisiveis]       = useState({ leadsAtendidos: true, ftd: true, redepositos: true })
+
+  async function carregar(p: PeriodoGrafico) {
+    setCarregando(true)
+    try {
+      const res = await fetch(`/api/metricas/historico?periodo=${p}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSeries(data.series)
+      }
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  useEffect(() => { carregar(periodo) }, [periodo])
+
+  function toggleSerie(key: keyof typeof visiveis) {
+    setVisiveis(v => ({ ...v, [key]: !v[key] }))
+  }
+
+  const PERIODOS: { key: PeriodoGrafico; label: string }[] = [
+    { key: '1d',  label: '1 dia'  },
+    { key: '7d',  label: '7 dias' },
+    { key: '30d', label: '30 dias' },
+    { key: 'all', label: 'Tudo'   },
+  ]
+
+  const SERIES_CONFIG = [
+    { key: 'leadsAtendidos' as const, label: 'Leads Atendidos', cor: '#22c55e' },
+    { key: 'ftd'            as const, label: 'FTD',             cor: '#10b981' },
+    { key: 'redepositos'    as const, label: 'Redepósitos',     cor: '#8b5cf6' },
+  ]
+
+  // recharts — importado dinamicamente para evitar SSR
+  const {
+    ResponsiveContainer, LineChart, BarChart,
+    Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  } = require('recharts')
+
+  const ChartWrapper = tipo === 'line' ? LineChart : BarChart
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-semibold text-gray-800">Histórico</h3>
+
+        <div className="flex items-center gap-2">
+          {/* Tipo de gráfico */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+            <button onClick={() => setTipo('line')}
+              className={`px-3 py-1.5 transition-colors ${tipo === 'line' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+              Linha
+            </button>
+            <button onClick={() => setTipo('bar')}
+              className={`px-3 py-1.5 transition-colors ${tipo === 'bar' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+              Barra
+            </button>
+          </div>
+
+          {/* Período */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+            {PERIODOS.map(p => (
+              <button key={p.key} onClick={() => setPeriodo(p.key)}
+                className={`px-3 py-1.5 transition-colors ${periodo === p.key ? 'bg-green-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Toggles de série */}
+      <div className="flex flex-wrap gap-2">
+        {SERIES_CONFIG.map(s => (
+          <button key={s.key} onClick={() => toggleSerie(s.key)}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+              visiveis[s.key]
+                ? 'text-white border-transparent'
+                : 'bg-white text-gray-400 border-gray-200'
+            }`}
+            style={visiveis[s.key] ? { backgroundColor: s.cor, borderColor: s.cor } : {}}
+          >
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: visiveis[s.key] ? 'white' : s.cor }} />
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Gráfico */}
+      {carregando ? (
+        <div className="h-64 flex items-center justify-center">
+          <span className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : series.length === 0 ? (
+        <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+          Nenhum dado no período
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={280}>
+          <ChartWrapper data={series} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} width={28} />
+            <Tooltip
+              contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: 12 }}
+              labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
+
+            {SERIES_CONFIG.filter(s => visiveis[s.key]).map(s =>
+              tipo === 'line' ? (
+                <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
+                  stroke={s.cor} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              ) : (
+                <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.cor} radius={[4, 4, 0, 0]} />
+              )
+            )}
+          </ChartWrapper>
+        </ResponsiveContainer>
+      )}
+    </div>
+  )
+}
+
 interface MetricasDepositos {
   total:      number
   totalValor: number
@@ -1174,6 +1317,9 @@ function SecaoMetricas() {
               </p>
             </button>
           </div>
+
+          {/* Gráfico histórico */}
+          <GraficoHistorico />
 
           {/* Painel de drill-down */}
           {painelAberto === 'atendidos' && (
