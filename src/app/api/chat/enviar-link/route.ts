@@ -3,6 +3,12 @@ import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { enviarMensagemWhatsApp } from '@/lib/whatsapp'
+import { randomBytes } from 'crypto'
+
+function gerarCodigo(): string {
+  // 12 chars hex — único por envio, vincula lead+operador sem precisar de telefone
+  return randomBytes(6).toString('hex')
+}
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
@@ -15,16 +21,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { conversa_id, mensagem_prefixo } = body
   if (!conversa_id) return NextResponse.json({ erro: 'conversa_id obrigatório' }, { status: 400 })
-
-  // Busca dados do operador
-  const operador = await prisma.operadores.findUnique({
-    where: { id: payload.id },
-    select: { affiliate_link_id: true, nome: true }
-  })
-
-  if (!operador?.affiliate_link_id) {
-    return NextResponse.json({ erro: 'Código de afiliado não encontrado. Contate o administrador.' }, { status: 400 })
-  }
 
   // Busca dados da conversa + URL base da plataforma
   const conversa = await prisma.conversas.findFirst({
@@ -43,18 +39,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: 'URL da plataforma não configurada. Acesse Admin > Configurações para definir a URL base.' }, { status: 400 })
   }
 
-  // Constrói o link exclusivo do operador: URL_BASE + CÓDIGO_AFILIADO
-  const linkExclusivo = baseUrl.endsWith('/') || baseUrl.includes('=') || baseUrl.includes('?')
-    ? baseUrl + operador.affiliate_link_id
-    : baseUrl + '/' + operador.affiliate_link_id
+  // Gera código único para ESTE envio específico — vincula lead + operador sem depender de telefone
+  const codigo = gerarCodigo()
+  const sep = baseUrl.endsWith('/') || baseUrl.includes('=') || baseUrl.includes('?') ? '' : '/'
+  const linkExclusivo = baseUrl + sep + codigo
 
-  // Registra o envio do link
+  // Registra o envio com o código único
   const linkEnviado = await prisma.links_enviados.create({
     data: {
       cliente_id:  payload.cliente_id,
       operador_id: payload.id,
       lead_id:     conversa.leads.id,
       conversa_id,
+      codigo,
     }
   })
 
@@ -64,20 +61,18 @@ export async function POST(req: NextRequest) {
     phoneNumberId: conversa.clientes?.phone_number_id,
   }
 
-  // Constrói o texto final: prefixo customizado (se houver) + link
   const prefixo = typeof mensagem_prefixo === 'string' ? mensagem_prefixo.trim() : ''
   const mensagemTexto = prefixo ? `${prefixo}\n\n${linkExclusivo}` : linkExclusivo
 
   try {
     await enviarMensagemWhatsApp(conversa.leads.telefone, mensagemTexto, waCreds)
   } catch (err) {
-    // Remove o registro se falhou o envio
     await prisma.links_enviados.delete({ where: { id: linkEnviado.id } })
     console.error('[enviar-link] Falha ao enviar WhatsApp:', err)
     return NextResponse.json({ erro: 'Falha ao enviar mensagem pelo WhatsApp.' }, { status: 500 })
   }
 
-  // Salva como mensagem na conversa para aparecer no chat
+  // Salva como mensagem na conversa
   const mensagem = await prisma.mensagens.create({
     data: {
       conversa_id,
@@ -88,13 +83,11 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  // Atualiza ultima_mensagem_em
   await prisma.conversas.update({
     where: { id: conversa_id },
     data: { atualizado_em: new Date(), ultima_mensagem_em: new Date() }
   })
 
-  // Emite via Socket.io
   const io = (global as unknown as { io: import('socket.io').Server }).io
   if (io) {
     io.to(`conversa-${conversa_id}`).emit('nova-mensagem', { ...mensagem, operador: payload.nome })

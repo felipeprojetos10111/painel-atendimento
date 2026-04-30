@@ -68,22 +68,27 @@ export async function POST(
   const plataformaEventId: string | null = d.id ?? null
   const dataEvento: Date | null = d.date ? new Date(d.date) : null
 
-  // ── Tenta vincular ao operador pelo affiliateLinkId ───────────────────────
-  // Match direto: o affiliateLinkId da plataforma é o mesmo código que geramos por operador
+  // ── Match primário: código único do link enviado ─────────────────────────
+  // O código no registerUrl identifica exatamente qual envio gerou esse cadastro
+  // → operador e lead vinculados sem precisar de telefone
   let operadorId: number | null = null
-  if (affiliateLinkId) {
-    const op = await prisma.operadores.findFirst({
-      where: { cliente_id: cliente.id, affiliate_link_id: affiliateLinkId },
-      select: { id: true }
-    })
-    operadorId = op?.id ?? null
-  }
-
-  // ── Tenta vincular ao lead pelo telefone (sufixo) ou email ────────────────
   let leadId: number | null = null
   let linkEnviadoId: number | null = null
 
-  if (telefone) {
+  if (affiliateLinkId) {
+    const linkEnviado = await prisma.links_enviados.findFirst({
+      where: { cliente_id: cliente.id, codigo: affiliateLinkId },
+      select: { id: true, operador_id: true, lead_id: true }
+    })
+    if (linkEnviado) {
+      linkEnviadoId = linkEnviado.id
+      operadorId    = linkEnviado.operador_id
+      leadId        = linkEnviado.lead_id
+    }
+  }
+
+  // ── Fallback: match por telefone (para cadastros sem link do operador) ────
+  if (!leadId && telefone) {
     const digits = telefone.replace(/\D/g, '')
     const leads = await prisma.leads.findMany({
       where: { cliente_id: cliente.id },
@@ -93,22 +98,10 @@ export async function POST(
       l.telefone.replace(/\D/g, '').endsWith(digits) ||
       digits.endsWith(l.telefone.replace(/\D/g, ''))
     )
-    if (leadMatch) {
-      leadId = leadMatch.id
-
-      // Busca se houve um link enviado para esse lead por esse operador
-      if (operadorId && leadId) {
-        const linkEnviado = await prisma.links_enviados.findFirst({
-          where: { cliente_id: cliente.id, operador_id: operadorId, lead_id: leadId },
-          orderBy: { enviado_em: 'desc' },
-          select: { id: true }
-        })
-        linkEnviadoId = linkEnviado?.id ?? null
-      }
-    }
+    if (leadMatch) leadId = leadMatch.id
   }
 
-  // Fallback: tenta por email se não achou por telefone
+  // ── Fallback: match por email ─────────────────────────────────────────────
   if (!leadId && email) {
     const leadByEmail = await prisma.leads.findFirst({
       where: { cliente_id: cliente.id, email },

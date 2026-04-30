@@ -127,6 +127,7 @@ model config_ia {
 }
 
 model links_enviados {
+  codigo       String?    @unique @db.VarChar(50)
   id          Int        @id @default(autoincrement())
   cliente_id  Int
   operador_id Int?
