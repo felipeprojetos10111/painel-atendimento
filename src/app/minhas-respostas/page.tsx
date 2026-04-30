@@ -61,7 +61,6 @@ export default function MinhasRespostasPage() {
   const [uploadProgresso, setUploadProgresso] = useState('')
   const [meuLinkInfo, setMeuLinkInfo] = useState<{ affiliate_link_id: string; link_completo: string; mensagem_link: string } | null>(null)
   const [mensagemLink, setMensagemLink]   = useState('')
-  const [copiadoLink, setCopiadoLink]     = useState(false)
   const [salvandoMsg, setSalvandoMsg]     = useState(false)
   const [msgSucesso, setMsgSucesso]       = useState('')
   const [msgErro, setMsgErro]             = useState('')
@@ -82,14 +81,6 @@ export default function MinhasRespostasPage() {
         }
       })
   }, [])
-
-  async function copiarLink() {
-    if (meuLinkInfo?.link_completo) {
-      await navigator.clipboard.writeText(meuLinkInfo.link_completo)
-      setCopiadoLink(true)
-      setTimeout(() => setCopiadoLink(false), 2000)
-    }
-  }
 
   async function salvarMensagemLink() {
     setSalvandoMsg(true); setMsgErro(''); setMsgSucesso('')
@@ -260,26 +251,17 @@ export default function MinhasRespostasPage() {
 
           {meuLinkInfo ? (
             <div className="space-y-5">
-              {/* Link read-only */}
+              {/* Link mascarado — sem botão de copiar */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{tr('meuLinkLabel')}</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    readOnly
-                    value={meuLinkInfo.link_completo || tr('meuLinkSemUrl')}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-gray-50 font-mono focus:outline-none select-all"
-                  />
-                  {meuLinkInfo.link_completo && (
-                    <button
-                      onClick={copiarLink}
-                      className="shrink-0 text-sm font-medium text-white bg-gray-500 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors"
-                    >
-                      {copiadoLink ? tr('cfgCopiado') : tr('cfgCopiar')}
-                    </button>
-                  )}
+                <div className="border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 font-mono text-sm text-gray-500 select-none">
+                  {meuLinkInfo.link_completo
+                    ? meuLinkInfo.link_completo.slice(0, 32) + '*'.repeat(10)
+                    : tr('meuLinkSemUrl')
+                  }
                 </div>
                 <p className="text-xs text-gray-400 mt-1.5">
-                  {tr('meuLinkCodigo')} <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{meuLinkInfo.affiliate_link_id}</span>
+                  🔒 Use o botão <strong>Enviar Link</strong> no chat para enviar o link rastreado corretamente.
                 </p>
               </div>
 
