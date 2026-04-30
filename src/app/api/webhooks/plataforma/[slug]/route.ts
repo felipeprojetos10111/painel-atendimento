@@ -72,7 +72,7 @@ export async function POST(
   const valorRaw = d.amount ?? d.value ?? d.valor ?? null
   const valor = valorRaw !== null ? parseFloat(String(valorRaw)) : null
   const isPrimeiroDeposito: boolean | null = d.isFirstDeposit ?? d.is_primeiro_deposito ?? null
-  const metodoPagamento: string | null = d.paymentMethod ?? d.payment_method ?? d.metodo_pagamento ?? null
+  const metodoPagamento: string | null = d.paymentMethod ?? d.payment_method ?? d.method ?? d.metodo_pagamento ?? null
   const moeda: string | null = d.currency ?? d.moeda ?? null
 
   // ── Match primário: código único do link enviado ─────────────────────────
