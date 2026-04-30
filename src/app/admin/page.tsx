@@ -1078,7 +1078,7 @@ interface PontoSerie {
   registros:      number
 }
 
-function GraficoHistorico() {
+function GraficoHistorico({ operadorId }: { operadorId: string }) {
   const [periodo, setPeriodo]         = useState<PeriodoGrafico>('7d')
   const [series, setSeries]           = useState<PontoSerie[]>([])
   const [carregando, setCarregando]   = useState(false)
@@ -1088,7 +1088,8 @@ function GraficoHistorico() {
   async function carregar(p: PeriodoGrafico) {
     setCarregando(true)
     try {
-      const res = await fetch(`/api/metricas/historico?periodo=${p}`)
+      const opParam = operadorId !== 'all' ? `&operador_id=${operadorId}` : ''
+      const res = await fetch(`/api/metricas/historico?periodo=${p}${opParam}`)
       if (res.ok) {
         const data = await res.json()
         setSeries(data.series)
@@ -1098,7 +1099,7 @@ function GraficoHistorico() {
     }
   }
 
-  useEffect(() => { carregar(periodo) }, [periodo])
+  useEffect(() => { carregar(periodo) }, [periodo, operadorId])
 
   function toggleSerie(key: keyof typeof visiveis) {
     setVisiveis(v => ({ ...v, [key]: !v[key] }))
@@ -1236,16 +1237,25 @@ interface MetricasData {
 
 function SecaoMetricas() {
   const hoje = new Date().toISOString().slice(0, 10)
-  const [inicio, setInicio] = useState(hoje)
-  const [fim, setFim]       = useState(hoje)
-  const [dados, setDados]   = useState<MetricasData | null>(null)
+  const [inicio, setInicio]         = useState(hoje)
+  const [fim, setFim]               = useState(hoje)
+  const [operadorId, setOperadorId] = useState<string>('all')
+  const [operadores, setOperadores] = useState<{ id: number; nome: string }[]>([])
+  const [dados, setDados]           = useState<MetricasData | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [painelAberto, setPainelAberto] = useState<'atendidos' | 'registros' | 'ftd' | 'redepositos' | null>(null)
+
+  useEffect(() => {
+    fetch('/api/operadores')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setOperadores(data.map((o: Operador) => ({ id: o.id, nome: o.nome }))))
+  }, [])
 
   async function carregar() {
     setCarregando(true)
     try {
-      const res = await fetch(`/api/metricas?inicio=${inicio}&fim=${fim}`)
+      const opParam = operadorId !== 'all' ? `&operador_id=${operadorId}` : ''
+      const res = await fetch(`/api/metricas?inicio=${inicio}&fim=${fim}${opParam}`)
       if (res.ok) setDados(await res.json())
     } finally {
       setCarregando(false)
@@ -1258,9 +1268,11 @@ function SecaoMetricas() {
     ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—'
 
+  const operadorSelecionado = operadores.find(o => o.id === parseInt(operadorId))
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Filtro de período */}
+      {/* Filtro de período + operador */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 flex flex-wrap items-end gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">De</label>
@@ -1272,6 +1284,16 @@ function SecaoMetricas() {
           <input type="date" value={fim} onChange={e => setFim(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Operador</label>
+          <select value={operadorId} onChange={e => setOperadorId(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+            <option value="all">Todos</option>
+            {operadores.map(op => (
+              <option key={op.id} value={op.id}>{op.nome}</option>
+            ))}
+          </select>
+        </div>
         <button onClick={carregar} disabled={carregando}
           className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors flex items-center gap-2">
           {carregando
@@ -1282,6 +1304,17 @@ function SecaoMetricas() {
           Consultar
         </button>
       </div>
+
+      {/* Badge de filtro ativo */}
+      {operadorSelecionado && (
+        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2 w-fit">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span>Filtrando por <strong>{operadorSelecionado.nome}</strong></span>
+          <button onClick={() => setOperadorId('all')} className="ml-1 text-green-500 hover:text-green-700 font-bold">✕</button>
+        </div>
+      )}
 
       {dados && (
         <>
@@ -1407,7 +1440,7 @@ function SecaoMetricas() {
           })()}
 
           {/* Gráfico histórico */}
-          <GraficoHistorico />
+          <GraficoHistorico operadorId={operadorId} />
 
           {/* Painel de drill-down */}
           {painelAberto === 'atendidos' && (
