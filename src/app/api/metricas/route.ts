@@ -65,25 +65,37 @@ export async function GET(req: NextRequest) {
 
   const totalAtendidos = leadsAtendidos.reduce((s, o) => s + o.total, 0)
 
-  // ── Registros no período ──────────────────────────────────────────────────
-  const eventosRegistro = await prisma.eventos_plataforma.findMany({
-    where: {
-      cliente_id: clienteId,
-      tipo:       'registro',
-      data_evento: { gte: dataInicio, lte: dataFim }
-    },
-    select: {
-      id: true,
-      nome_usuario:    true,
-      email:           true,
-      telefone:        true,
-      data_evento:     true,
-      operador_id:     true,
-      operadores:      { select: { id: true, nome: true } },
-      leads:           { select: { id: true, nome: true, telefone: true } },
-    },
-    orderBy: { data_evento: 'desc' }
-  })
+  const eventosSelect = {
+    id: true,
+    nome_usuario:        true,
+    email:               true,
+    telefone:            true,
+    data_evento:         true,
+    operador_id:         true,
+    valor:               true,
+    is_primeiro_deposito: true,
+    metodo_pagamento:    true,
+    moeda:               true,
+    operadores:          { select: { id: true, nome: true } },
+    leads:               { select: { id: true, nome: true, telefone: true } },
+  }
+
+  // ── Registros e Depósitos no período ─────────────────────────────────────
+  const [eventosRegistro, eventosDeposito] = await Promise.all([
+    prisma.eventos_plataforma.findMany({
+      where: { cliente_id: clienteId, tipo: 'registro', data_evento: { gte: dataInicio, lte: dataFim } },
+      select: eventosSelect,
+      orderBy: { data_evento: 'desc' }
+    }),
+    prisma.eventos_plataforma.findMany({
+      where: { cliente_id: clienteId, tipo: 'deposito', data_evento: { gte: dataInicio, lte: dataFim } },
+      select: eventosSelect,
+      orderBy: { data_evento: 'desc' }
+    }),
+  ])
+
+  // Total depositado no período
+  const totalValorDepositos = eventosDeposito.reduce((s, e) => s + Number(e.valor ?? 0), 0)
 
   return NextResponse.json({
     periodo: { inicio: dataInicio, fim: dataFim },
@@ -94,6 +106,11 @@ export async function GET(req: NextRequest) {
     registros: {
       total: eventosRegistro.length,
       lista: eventosRegistro,
+    },
+    depositos: {
+      total: eventosDeposito.length,
+      totalValor: totalValorDepositos,
+      lista: eventosDeposito,
     },
   })
 }

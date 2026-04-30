@@ -68,6 +68,13 @@ export async function POST(
   const plataformaEventId: string | null = d.id ?? null
   const dataEvento: Date | null = d.date ? new Date(d.date) : null
 
+  // Campos específicos de depósito
+  const valorRaw = d.amount ?? d.value ?? d.valor ?? null
+  const valor = valorRaw !== null ? parseFloat(String(valorRaw)) : null
+  const isPrimeiroDeposito: boolean | null = d.isFirstDeposit ?? d.is_primeiro_deposito ?? null
+  const metodoPagamento: string | null = d.paymentMethod ?? d.payment_method ?? d.metodo_pagamento ?? null
+  const moeda: string | null = d.currency ?? d.moeda ?? null
+
   // ── Match primário: código único do link enviado ─────────────────────────
   // O código no registerUrl identifica exatamente qual envio gerou esse cadastro
   // → operador e lead vinculados sem precisar de telefone
@@ -101,6 +108,19 @@ export async function POST(
     if (leadMatch) leadId = leadMatch.id
   }
 
+  // ── Fallback: match por plataforma_user_id (depósito de usuário já registrado) ──
+  if (!leadId && plataformaUserId) {
+    const registroAnterior = await prisma.eventos_plataforma.findFirst({
+      where: { cliente_id: cliente.id, plataforma_user_id: plataformaUserId, tipo: 'registro' },
+      select: { lead_id: true, operador_id: true, link_enviado_id: true }
+    })
+    if (registroAnterior) {
+      leadId        = registroAnterior.lead_id
+      if (!operadorId) operadorId = registroAnterior.operador_id
+      if (!linkEnviadoId) linkEnviadoId = registroAnterior.link_enviado_id
+    }
+  }
+
   // ── Fallback: match por email ─────────────────────────────────────────────
   if (!leadId && email) {
     const leadByEmail = await prisma.leads.findFirst({
@@ -123,19 +143,23 @@ export async function POST(
   // Salva o evento
   await prisma.eventos_plataforma.create({
     data: {
-      cliente_id:          cliente.id,
-      lead_id:             leadId,
-      operador_id:         operadorId,
-      link_enviado_id:     linkEnviadoId,
+      cliente_id:           cliente.id,
+      lead_id:              leadId,
+      operador_id:          operadorId,
+      link_enviado_id:      linkEnviadoId,
       tipo,
-      plataforma_event_id: plataformaEventId,
-      plataforma_user_id:  plataformaUserId,
+      plataforma_event_id:  plataformaEventId,
+      plataforma_user_id:   plataformaUserId,
       email,
-      nome_usuario:        nomeUsuario,
+      nome_usuario:         nomeUsuario,
       telefone,
-      affiliate_link_id:   affiliateLinkId,
-      payload:             body,
-      data_evento:         dataEvento,
+      affiliate_link_id:    affiliateLinkId,
+      valor:                isNaN(valor as number) ? null : valor,
+      is_primeiro_deposito: isPrimeiroDeposito,
+      metodo_pagamento:     metodoPagamento,
+      moeda,
+      payload:              body,
+      data_evento:          dataEvento,
     }
   })
 
