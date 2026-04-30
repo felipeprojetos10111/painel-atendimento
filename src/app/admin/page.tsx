@@ -1226,6 +1226,12 @@ interface MetricasData {
     ftd:        MetricasDepositos
     redepositos: MetricasDepositos
   }
+  qualidade: {
+    tempoMedioRespostaMs:    number
+    taxaRejeicao:            number | null
+    conversasRejeitadas:     number
+    totalConversasAtendidas: number
+  }
 }
 
 function SecaoMetricas() {
@@ -1279,44 +1285,126 @@ function SecaoMetricas() {
 
       {dados && (
         <>
-          {/* Cards clicáveis */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <button onClick={() => setPainelAberto(p => p === 'atendidos' ? null : 'atendidos')}
-              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'atendidos' ? 'border-green-400 ring-2 ring-green-200' : 'border-gray-100'}`}>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Leads Atendidos</p>
-              <p className="text-4xl font-bold text-gray-800">{dados.leadsAtendidos.total}</p>
-              <p className="text-xs text-gray-400 mt-1">por {dados.leadsAtendidos.porOperador.length} operador(es)</p>
-            </button>
+          {/* ── Funil de conversão ─────────────────────────────────────────── */}
+          {(() => {
+            const convRegistro = dados.leadsAtendidos.total > 0
+              ? Math.round((dados.registros.total / dados.leadsAtendidos.total) * 100) : null
+            const convFTD = dados.registros.total > 0
+              ? Math.round((dados.depositos.ftd.total / dados.registros.total) * 100) : null
 
-            <button onClick={() => setPainelAberto(p => p === 'registros' ? null : 'registros')}
-              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'registros' ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-100'}`}>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Registros</p>
-              <p className="text-4xl font-bold text-blue-600">{dados.registros.total}</p>
-              <p className="text-xs text-gray-400 mt-1">via link de afiliado</p>
-            </button>
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-5">Funil de Conversão</p>
+                <div className="flex flex-wrap items-stretch gap-2">
 
-            <button onClick={() => setPainelAberto(p => p === 'ftd' ? null : 'ftd')}
-              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'ftd' ? 'border-emerald-400 ring-2 ring-emerald-200' : 'border-gray-100'}`}>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Primeiros Depósitos</p>
-              <p className="text-4xl font-bold text-emerald-600">{dados.depositos.ftd.total}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {dados.depositos.ftd.totalValor > 0
-                  ? `$ ${dados.depositos.ftd.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                  : 'FTD'}
-              </p>
-            </button>
+                  {/* Leads Atendidos */}
+                  <button onClick={() => setPainelAberto(p => p === 'atendidos' ? null : 'atendidos')}
+                    className={`flex-1 min-w-[120px] text-left rounded-xl border px-5 py-4 transition-all hover:shadow-sm ${painelAberto === 'atendidos' ? 'border-gray-400 ring-2 ring-gray-200 bg-gray-50' : 'border-gray-200 bg-gray-50/50'}`}>
+                    <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Leads Atendidos</p>
+                    <p className="text-3xl font-bold text-gray-800">{dados.leadsAtendidos.total}</p>
+                    <p className="text-xs text-gray-400 mt-1">{dados.leadsAtendidos.porOperador.length} operador(es)</p>
+                  </button>
 
-            <button onClick={() => setPainelAberto(p => p === 'redepositos' ? null : 'redepositos')}
-              className={`text-left bg-white rounded-2xl border shadow-sm px-6 py-5 transition-all hover:shadow-md ${painelAberto === 'redepositos' ? 'border-violet-400 ring-2 ring-violet-200' : 'border-gray-100'}`}>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Redepósitos</p>
-              <p className="text-4xl font-bold text-violet-600">{dados.depositos.redepositos.total}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {dados.depositos.redepositos.totalValor > 0
-                  ? `$ ${dados.depositos.redepositos.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                  : 'depósitos recorrentes'}
-              </p>
-            </button>
-          </div>
+                  {/* Seta → Registros */}
+                  <div className="flex flex-col items-center justify-center gap-1 px-1">
+                    <span className={`text-xs font-bold ${convRegistro !== null && convRegistro >= 20 ? 'text-green-500' : convRegistro !== null && convRegistro >= 10 ? 'text-yellow-500' : 'text-gray-400'}`}>
+                      {convRegistro !== null ? `${convRegistro}%` : '—'}
+                    </span>
+                    <svg className="w-6 h-4 text-gray-300" viewBox="0 0 24 16" fill="none">
+                      <path d="M0 8h20M14 2l8 6-8 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+
+                  {/* Registros */}
+                  <button onClick={() => setPainelAberto(p => p === 'registros' ? null : 'registros')}
+                    className={`flex-1 min-w-[120px] text-left rounded-xl border px-5 py-4 transition-all hover:shadow-sm ${painelAberto === 'registros' ? 'border-blue-400 ring-2 ring-blue-200 bg-blue-50/50' : 'border-blue-100 bg-blue-50/30'}`}>
+                    <p className="text-xs text-blue-400 font-semibold uppercase tracking-wide mb-1">Registros</p>
+                    <p className="text-3xl font-bold text-blue-600">{dados.registros.total}</p>
+                    <p className="text-xs text-blue-300 mt-1">via link</p>
+                  </button>
+
+                  {/* Seta → FTD */}
+                  <div className="flex flex-col items-center justify-center gap-1 px-1">
+                    <span className={`text-xs font-bold ${convFTD !== null && convFTD >= 30 ? 'text-green-500' : convFTD !== null && convFTD >= 15 ? 'text-yellow-500' : 'text-gray-400'}`}>
+                      {convFTD !== null ? `${convFTD}%` : '—'}
+                    </span>
+                    <svg className="w-6 h-4 text-gray-300" viewBox="0 0 24 16" fill="none">
+                      <path d="M0 8h20M14 2l8 6-8 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+
+                  {/* FTD + Redepósitos */}
+                  <div className="flex-1 min-w-[120px] flex flex-col gap-2">
+                    <button onClick={() => setPainelAberto(p => p === 'ftd' ? null : 'ftd')}
+                      className={`flex-1 text-left rounded-xl border px-5 py-3 transition-all hover:shadow-sm ${painelAberto === 'ftd' ? 'border-emerald-400 ring-2 ring-emerald-200 bg-emerald-50/50' : 'border-emerald-100 bg-emerald-50/30'}`}>
+                      <p className="text-xs text-emerald-500 font-semibold uppercase tracking-wide mb-0.5">Primeiros Depósitos</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-emerald-600">{dados.depositos.ftd.total}</span>
+                        {dados.depositos.ftd.totalValor > 0 && (
+                          <span className="text-xs text-emerald-400 font-medium">
+                            $ {dados.depositos.ftd.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+
+                    <button onClick={() => setPainelAberto(p => p === 'redepositos' ? null : 'redepositos')}
+                      className={`flex-1 text-left rounded-xl border px-5 py-3 transition-all hover:shadow-sm ${painelAberto === 'redepositos' ? 'border-violet-400 ring-2 ring-violet-200 bg-violet-50/50' : 'border-violet-100 bg-violet-50/30'}`}>
+                      <p className="text-xs text-violet-400 font-semibold uppercase tracking-wide mb-0.5">Redepósitos</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-violet-600">{dados.depositos.redepositos.total}</span>
+                        {dados.depositos.redepositos.totalValor > 0 && (
+                          <span className="text-xs text-violet-400 font-medium">
+                            $ {dados.depositos.redepositos.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ── Qualidade do atendimento ────────────────────────────────────── */}
+          {(() => {
+            const ms  = dados.qualidade.tempoMedioRespostaMs
+            const fmt = ms === 0 ? '—'
+              : ms < 60_000   ? `${Math.round(ms / 1000)}s`
+              : ms < 3_600_000 ? `${Math.floor(ms / 60_000)}min ${Math.round((ms % 60_000) / 1000)}s`
+              : `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}min`
+
+            const taxa = dados.qualidade.taxaRejeicao
+            const corTaxa = taxa === null ? 'text-gray-400'
+              : taxa <= 30 ? 'text-green-600'
+              : taxa <= 60 ? 'text-yellow-500'
+              : 'text-red-500'
+
+            return (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">⏱ Tempo médio de resposta</p>
+                  <p className="text-3xl font-bold text-gray-800">{fmt}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {ms > 0 ? 'entre msg do lead e resposta do operador' : 'sem dados no período'}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">🚫 Taxa de rejeição</p>
+                  <p className={`text-3xl font-bold ${corTaxa}`}>
+                    {taxa !== null ? `${taxa}%` : '—'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {taxa !== null
+                      ? `${dados.qualidade.conversasRejeitadas} de ${dados.qualidade.totalConversasAtendidas} leads ignoraram`
+                      : 'sem dados no período'}
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Gráfico histórico */}
           <GraficoHistorico />

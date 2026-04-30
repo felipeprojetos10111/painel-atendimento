@@ -23,23 +23,27 @@ export async function GET(req: NextRequest) {
 
   const clienteId = payload.cliente_id
 
-  // ── Leads atendidos no período ────────────────────────────────────────────
-  // Conversas com pelo menos 1 mensagem de operador no período
+  // ── Leads atendidos + métricas de qualidade ───────────────────────────────
+  // Busca conversas com mensagens para calcular tempo de resposta e rejeição
   const conversasAtendidas = await prisma.conversas.findMany({
     where: {
       cliente_id: clienteId,
       mensagens: {
         some: {
-          origem:    'operador',
+          origem:     'operador',
           enviado_em: { gte: dataInicio, lte: dataFim }
         }
       }
     },
     select: {
-      id: true,
+      id:          true,
       operador_id: true,
-      operadores: { select: { id: true, nome: true } },
+      operadores:  { select: { id: true, nome: true } },
       leads:       { select: { id: true, nome: true, telefone: true } },
+      mensagens: {
+        select:  { origem: true, enviado_em: true },
+        orderBy: { enviado_em: 'asc' }
+      }
     }
   })
 
@@ -65,8 +69,49 @@ export async function GET(req: NextRequest) {
 
   const totalAtendidos = leadsAtendidos.reduce((s, o) => s + o.total, 0)
 
+  // ── Tempo médio de resposta e taxa de rejeição ────────────────────────────
+  const temposResposta: number[] = []
+  let conversasRejeitadas = 0
+
+  for (const c of conversasAtendidas) {
+    const msgs = c.mensagens.filter(m => m.enviado_em)
+
+    // Tempo médio: tempo entre msg do lead e primeira resposta do operador
+    for (let i = 0; i < msgs.length; i++) {
+      if (msgs[i].origem === 'operador') {
+        const leadAntes = msgs.slice(0, i).reverse().find(m => m.origem === 'lead')
+        if (leadAntes?.enviado_em && msgs[i].enviado_em) {
+          const diff = msgs[i].enviado_em!.getTime() - leadAntes.enviado_em.getTime()
+          // Ignora outliers > 24h (lead ficou muito tempo sem responder)
+          if (diff > 0 && diff < 24 * 60 * 60 * 1000) {
+            temposResposta.push(diff)
+          }
+        }
+        break // só primeira resposta do operador por conversa
+      }
+    }
+
+    // Taxa de rejeição: lead não respondeu após última mensagem do operador
+    const ultimaMsgOp = [...msgs].reverse().find(m => m.origem === 'operador')
+    if (ultimaMsgOp?.enviado_em) {
+      const leadRespondeu = msgs.some(
+        m => m.origem === 'lead' && m.enviado_em && m.enviado_em > ultimaMsgOp.enviado_em!
+      )
+      if (!leadRespondeu) conversasRejeitadas++
+    }
+  }
+
+  const tempoMedioMs = temposResposta.length > 0
+    ? Math.round(temposResposta.reduce((a, b) => a + b, 0) / temposResposta.length)
+    : 0
+
+  const taxaRejeicao = conversasAtendidas.length > 0
+    ? Math.round((conversasRejeitadas / conversasAtendidas.length) * 100)
+    : null
+
+  // ── Registros e Depósitos no período ─────────────────────────────────────
   const eventosSelect = {
-    id: true,
+    id:                  true,
     nome_usuario:        true,
     email:               true,
     telefone:            true,
@@ -80,16 +125,15 @@ export async function GET(req: NextRequest) {
     leads:               { select: { id: true, nome: true, telefone: true } },
   }
 
-  // ── Registros e Depósitos no período ─────────────────────────────────────
   const [eventosRegistro, eventosDeposito] = await Promise.all([
     prisma.eventos_plataforma.findMany({
-      where: { cliente_id: clienteId, tipo: 'registro', data_evento: { gte: dataInicio, lte: dataFim } },
-      select: eventosSelect,
+      where:   { cliente_id: clienteId, tipo: 'registro', data_evento: { gte: dataInicio, lte: dataFim } },
+      select:  eventosSelect,
       orderBy: { data_evento: 'desc' }
     }),
     prisma.eventos_plataforma.findMany({
-      where: { cliente_id: clienteId, tipo: 'deposito', data_evento: { gte: dataInicio, lte: dataFim } },
-      select: eventosSelect,
+      where:   { cliente_id: clienteId, tipo: 'deposito', data_evento: { gte: dataInicio, lte: dataFim } },
+      select:  eventosSelect,
       orderBy: { data_evento: 'desc' }
     }),
   ])
@@ -105,7 +149,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     periodo: { inicio: dataInicio, fim: dataFim },
     leadsAtendidos: {
-      total: totalAtendidos,
+      total:       totalAtendidos,
       porOperador: leadsAtendidos,
     },
     registros: {
@@ -126,6 +170,12 @@ export async function GET(req: NextRequest) {
         totalValor: totalValorRedepositos,
         lista:      redepositos,
       },
+    },
+    qualidade: {
+      tempoMedioRespostaMs:    tempoMedioMs,
+      taxaRejeicao,
+      conversasRejeitadas,
+      totalConversasAtendidas: conversasAtendidas.length,
     },
   })
 }
