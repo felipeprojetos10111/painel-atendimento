@@ -69,8 +69,9 @@ export async function POST(
   const dataEvento: Date | null = d.date ? new Date(d.date) : null
 
   // Campos específicos de depósito
-  // Usa || em vez de ?? para que amount=0 caia no fallback (valor real pode estar em props.deposits.amount)
-  const valorRaw = d.amount || d.props?.deposits?.amount || d.value || d.valor || null
+  // props.deposits.amount é acumulativo (soma histórica), não usar como fallback
+  // Quando amount=0 na raiz, salva null — melhor vazio do que valor errado
+  const valorRaw = d.amount || d.value || d.valor || null
   const valor = valorRaw !== null ? parseFloat(String(valorRaw)) : null
   const isPrimeiroDeposito: boolean | null = d.isFirstTime ?? d.isFirstDeposit ?? d.is_primeiro_deposito ?? null
   const metodoPagamento: string | null = d.paymentMethod ?? d.payment_method ?? d.method ?? d.metodo_pagamento ?? null
