@@ -33,7 +33,7 @@ export async function POST(
   // Determina o tipo do evento — suporta campo no nível raiz ou dentro de body.data
   const tipoEvento: string = body.type ?? body.event ?? body.data?.type ?? body.data?.event ?? ''
   const tipo = tipoEvento === 'USER_CREATED' ? 'registro'
-    : tipoEvento === 'DEPOSIT_CREATED' ? 'deposito'
+    : (tipoEvento === 'DEPOSIT_CREATED' || tipoEvento === 'USER_DEPOSIT_APPROVED') ? 'deposito'
     : null
 
   if (!tipo) {
