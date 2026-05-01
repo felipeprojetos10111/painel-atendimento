@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     if (res.ok) {
       const data = await res.json()
-      router.push(data.nivel === 'super_admin' ? '/super-admin' : '/painel')
+      window.location.href = data.nivel === 'super_admin' ? '/super-admin' : '/painel'
     } else {
       const data = await res.json()
       setErro(data.erro ?? tr('erroLogin'))
