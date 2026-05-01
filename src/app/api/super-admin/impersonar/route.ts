@@ -16,21 +16,24 @@ export async function POST(req: NextRequest) {
   const { clienteId } = await req.json()
   if (!clienteId) return NextResponse.json({ erro: 'clienteId obrigatório' }, { status: 400 })
 
-  // Busca o primeiro supervisor ativo do cliente
-  const supervisor = await prisma.operadores.findFirst({
+  // Busca supervisor ativo; se não tiver, usa qualquer operador ativo
+  const operador = await prisma.operadores.findFirst({
     where: { cliente_id: clienteId, nivel: 'supervisor', ativo: true },
+    orderBy: { id: 'asc' },
+  }) ?? await prisma.operadores.findFirst({
+    where: { cliente_id: clienteId, ativo: true },
     orderBy: { id: 'asc' },
   })
 
-  if (!supervisor) {
-    return NextResponse.json({ erro: 'Nenhum supervisor ativo encontrado para este cliente.' }, { status: 404 })
+  if (!operador) {
+    return NextResponse.json({ erro: 'Nenhum operador ativo encontrado para este cliente.' }, { status: 404 })
   }
 
-  // Emite JWT como se fosse o supervisor
+  // Emite JWT como supervisor (promove temporariamente para ter acesso ao /admin)
   const novoToken = await signToken({
-    id:         supervisor.id,
-    nome:       supervisor.nome,
-    email:      supervisor.email,
+    id:         operador.id,
+    nome:       operador.nome,
+    email:      operador.email,
     nivel:      'supervisor',
     cliente_id: clienteId,
   })
