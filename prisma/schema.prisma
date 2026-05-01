@@ -28,6 +28,7 @@ model clientes {
   filas              filas[]
   links_enviados     links_enviados[]
   eventos_plataforma eventos_plataforma[]
+  sessoes_presenca   sessoes_presenca[]
 }
 
 model conversas {
@@ -107,6 +108,7 @@ model operadores {
   respostas_rapidas  respostas_rapidas[]
   links_enviados     links_enviados[]
   eventos_plataforma eventos_plataforma[]
+  sessoes_presenca   sessoes_presenca[]
 }
 
 model config_ia {
@@ -165,6 +167,21 @@ model eventos_plataforma {
   leads                leads?           @relation(fields: [lead_id], references: [id], onDelete: SetNull)
   operadores           operadores?      @relation(fields: [operador_id], references: [id], onDelete: SetNull)
   links_enviados       links_enviados?  @relation(fields: [link_enviado_id], references: [id], onDelete: SetNull)
+}
+
+model sessoes_presenca {
+  id          Int        @id @default(autoincrement())
+  operador_id Int
+  cliente_id  Int
+  status      String     @db.VarChar(20) // 'ativo' | 'standby'
+  inicio      DateTime   @default(now()) @db.Timestamp(6)
+  fim         DateTime?  @db.Timestamp(6)
+  duracao_min Int?
+  operadores  operadores @relation(fields: [operador_id], references: [id], onDelete: Cascade)
+  clientes    clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  @@index([operador_id])
+  @@index([cliente_id])
 }
 
 model respostas_rapidas {

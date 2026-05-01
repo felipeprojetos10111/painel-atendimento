@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import ListaConversas from '@/components/ListaConversas'
 import Chat from '@/components/Chat'
 import SeletorLingua from '@/components/SeletorLingua'
+import PopupStandby from '@/components/PopupStandby'
 import { useLingua } from '@/contexts/LinguaContext'
+import { usePresenca } from '@/hooks/usePresenca'
 
 export default function PainelPage() {
   const router = useRouter()
@@ -14,6 +16,11 @@ export default function PainelPage() {
   const [nivel, setNivel] = useState<string | null>(null)
   const [nomeCliente, setNomeCliente] = useState<string | null>(null)
   const [uploadEmAndamento, setUploadEmAndamento] = useState(false)
+  const [operadorNome, setOperadorNome] = useState<string | null>(null)
+  const [operadorAtivo, setOperadorAtivo] = useState(false)
+
+  // Presença: só ativa para operadores reais (não super_admin)
+  const { emStandby, voltarAtivo } = usePresenca(operadorAtivo)
 
   function selecionarConversa(id: number) {
     if (uploadEmAndamento) {
@@ -25,7 +32,15 @@ export default function PainelPage() {
   useEffect(() => {
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) { setNivel(data.nivel); setNomeCliente(data.nomeCliente ?? null) } })
+      .then(data => {
+        if (data) {
+          setNivel(data.nivel)
+          setNomeCliente(data.nomeCliente ?? null)
+          setOperadorNome(data.nome ?? null)
+          // Ativa rastreio de presença apenas para operadores com conta real
+          if (data.id > 0 && data.cliente_id) setOperadorAtivo(true)
+        }
+      })
   }, [])
 
   async function logout() {
@@ -35,6 +50,10 @@ export default function PainelPage() {
 
   return (
     <div className="flex flex-col h-screen">
+      {/* Popup de stand by — aparece após 30min sem interação */}
+      {emStandby && operadorNome && (
+        <PopupStandby nome={operadorNome} onContinuar={voltarAtivo} />
+      )}
       {/* Topbar */}
       <header className="flex items-center justify-between px-6 py-3 bg-green-600 text-white shadow-md z-10">
         <div className="flex items-center gap-3">
