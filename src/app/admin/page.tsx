@@ -24,7 +24,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads' | 'metricas'>('operadores')
+  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads' | 'metricas'>('metricas')
   const [impersonando, setImpersonando] = useState(false)
   const [nomeClienteImp, setNomeClienteImp] = useState('')
   const [saindo, setSaindo] = useState(false)
@@ -100,11 +100,11 @@ export default function AdminPage() {
       <div className="border-b border-gray-200 bg-white px-6">
         <nav className="flex gap-1 -mb-px">
           {([
-            { key: 'operadores',    label: 'Operadores' },
-            { key: 'ia',           label: 'IA' },
-            { key: 'configuracoes', label: 'Configurações' },
-            { key: 'leads',        label: '📋 Leads' },
             { key: 'metricas',     label: '📊 Métricas' },
+            { key: 'operadores',    label: 'Operadores' },
+            { key: 'configuracoes', label: 'Configurações' },
+            { key: 'ia',           label: 'IA' },
+            { key: 'leads',        label: '📋 Leads' },
           ] as const).map(({ key, label }) => (
             <button
               key={key}
