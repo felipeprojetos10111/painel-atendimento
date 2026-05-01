@@ -1277,17 +1277,17 @@ function SecaoMetricas() {
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">De</label>
           <input type="date" value={inicio} onChange={e => setInicio(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">Até</label>
           <input type="date" value={fim} onChange={e => setFim(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">Operador</label>
           <select value={operadorId} onChange={e => setOperadorId(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
             <option value="all">Todos</option>
             {operadores.map(op => (
               <option key={op.id} value={op.id}>{op.nome}</option>
