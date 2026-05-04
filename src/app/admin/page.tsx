@@ -1242,6 +1242,7 @@ function SecaoMetricas() {
   const [operadorId, setOperadorId] = useState<string>('all')
   const [operadores, setOperadores] = useState<{ id: number; nome: string }[]>([])
   const [dados, setDados]           = useState<MetricasData | null>(null)
+  const [presenca, setPresenca]     = useState<{ ativo_min: number; standby_min: number; aproveitamento: number | null } | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [painelAberto, setPainelAberto] = useState<'atendidos' | 'registros' | 'ftd' | 'redepositos' | null>(null)
 
@@ -1255,8 +1256,12 @@ function SecaoMetricas() {
     setCarregando(true)
     try {
       const opParam = operadorId !== 'all' ? `&operador_id=${operadorId}` : ''
-      const res = await fetch(`/api/metricas?inicio=${inicio}&fim=${fim}${opParam}`)
-      if (res.ok) setDados(await res.json())
+      const [resMetricas, resPresenca] = await Promise.all([
+        fetch(`/api/metricas?inicio=${inicio}&fim=${fim}${opParam}`),
+        fetch(`/api/presenca/resumo?inicio=${inicio}&fim=${fim}${opParam}`),
+      ])
+      if (resMetricas.ok) setDados(await resMetricas.json())
+      if (resPresenca.ok) setPresenca(await resPresenca.json())
     } finally {
       setCarregando(false)
     }
@@ -1546,8 +1551,8 @@ function SecaoMetricas() {
           {/* ── Qualidade do atendimento ────────────────────────────────────── */}
           {(() => {
             const ms  = dados.qualidade.tempoMedioRespostaMs
-            const fmt = ms === 0 ? '—'
-              : ms < 60_000   ? `${Math.round(ms / 1000)}s`
+            const fmtMs = ms === 0 ? '—'
+              : ms < 60_000    ? `${Math.round(ms / 1000)}s`
               : ms < 3_600_000 ? `${Math.floor(ms / 60_000)}min ${Math.round((ms % 60_000) / 1000)}s`
               : `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}min`
 
@@ -1557,11 +1562,23 @@ function SecaoMetricas() {
               : taxa <= 60 ? 'text-yellow-500'
               : 'text-red-500'
 
+            // Presença
+            const apr = presenca?.aproveitamento ?? null
+            const corApr = apr === null ? 'text-gray-400'
+              : apr >= 70 ? 'text-green-600'
+              : apr >= 40 ? 'text-yellow-500'
+              : 'text-red-500'
+
+            function fmtMin(min: number) {
+              if (min < 60) return `${min}min`
+              return `${Math.floor(min / 60)}h ${min % 60 > 0 ? `${min % 60}min` : ''}`.trim()
+            }
+
             return (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
                   <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">⏱ Tempo médio de resposta</p>
-                  <p className="text-3xl font-bold text-gray-800">{fmt}</p>
+                  <p className="text-3xl font-bold text-gray-800">{fmtMs}</p>
                   <p className="text-xs text-gray-400 mt-1">
                     {ms > 0 ? 'entre msg do lead e resposta do operador' : 'sem dados no período'}
                   </p>
@@ -1575,6 +1592,18 @@ function SecaoMetricas() {
                   <p className="text-xs text-gray-400 mt-1">
                     {taxa !== null
                       ? `${dados.qualidade.conversasRejeitadas} de ${dados.qualidade.totalConversasAtendidas} leads ignoraram`
+                      : 'sem dados no período'}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">🟢 Disponibilidade</p>
+                  <p className={`text-3xl font-bold ${corApr}`}>
+                    {apr !== null ? `${apr}%` : '—'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {presenca && presenca.ativo_min > 0
+                      ? `${fmtMin(presenca.ativo_min)} ativo · ${fmtMin(presenca.standby_min || 0)} stand by`
                       : 'sem dados no período'}
                   </p>
                 </div>
