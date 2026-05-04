@@ -127,7 +127,8 @@ export async function GET(req: NextRequest) {
   const eventosFiltro = {
     cliente_id:  clienteId,
     data_evento: { gte: dataInicio, lte: dataFim },
-    ...(operadorId ? { operador_id: operadorId } : {}),
+    // Sempre exige vinculação a um operador — exclui eventos orgânicos do broker
+    operador_id: operadorId ? operadorId : { not: null },
   }
 
   const [eventosRegistro, eventosDeposito] = await Promise.all([

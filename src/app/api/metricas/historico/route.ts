@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
   const eventosFiltro = {
     cliente_id:  clienteId,
     data_evento: { gte: dataInicio, lte: agora },
-    ...(operadorId ? { operador_id: operadorId } : {}),
+    // Sempre exige vinculação a um operador — exclui eventos orgânicos do broker
+    operador_id: operadorId ? operadorId : { not: null },
   }
 
   const [eventos, mensagensOp] = await Promise.all([
