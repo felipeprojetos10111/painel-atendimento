@@ -213,6 +213,30 @@ export const traducoes: Record<string, Record<Lingua, string>> = {
   meuLinkSalvo:            { pt: 'Salvo!',                                      en: 'Saved!',                                      es: '¡Guardado!' },
   meuLinkErro:             { pt: 'Erro ao salvar.',                             en: 'Error saving.',                               es: 'Error al guardar.' },
 
+  // ── Métricas do operador ──────────────────────────────────────────────────
+  metricasBotao:            { pt: 'Métricas',                        en: 'Metrics',                          es: 'Métricas' },
+  voltarAdmin:              { pt: 'Voltar ao Admin',                 en: 'Back to Admin',                    es: 'Volver al Admin' },
+  respostasBotao:           { pt: 'Respostas',                       en: 'Replies',                          es: 'Respuestas' },
+  metricasOla:              { pt: 'Olá',                             en: 'Hello',                            es: 'Hola' },
+  metricasMeuDesempenho:    { pt: 'Meu desempenho',                  en: 'My performance',                   es: 'Mi desempeño' },
+  metricasSubtitulo:        { pt: 'Acompanhe seu desempenho',        en: 'Track your performance',           es: 'Sigue tu desempeño' },
+  metricasHoje:             { pt: 'Hoje',                            en: 'Today',                            es: 'Hoy' },
+  metricasDias:             { pt: 'dias',                            en: 'days',                             es: 'días' },
+  metricasTudo:             { pt: 'Tudo',                            en: 'All',                              es: 'Todo' },
+  metricasLeadsAtendidos:   { pt: 'Leads atendidos',                 en: 'Leads attended',                   es: 'Leads atendidos' },
+  metricasRegistros:        { pt: 'Registros',                       en: 'Registrations',                    es: 'Registros' },
+  metricasPrimeiroDeposito: { pt: 'Primeiros depósitos',             en: 'First deposits',                   es: 'Primeros depósitos' },
+  metricasRedepositos:      { pt: 'Redepósitos',                     en: 'Redeposits',                       es: 'Redepósitos' },
+  metricasHistorico:        { pt: 'Histórico',                       en: 'History',                          es: 'Histórico' },
+  metricasSemDados:         { pt: 'Nenhum dado no período selecionado', en: 'No data in selected period',    es: 'Sin datos en el período seleccionado' },
+
+  // ── Popup Standby ─────────────────────────────────────────────────────────
+  standbyAinda:       { pt: 'ainda está aí?',                        en: 'are you still there?',             es: '¿sigues ahí?' },
+  standbyMinutos:     { pt: 'Você ficou',                            en: 'You were',                         es: 'Estuviste' },
+  standbySemInteragir:{ pt: 'sem interagir com o painel. Seu status foi marcado como', en: 'without interacting with the panel. Your status was set to', es: 'sin interactuar con el panel. Tu estado fue marcado como' },
+  standbyCliqueVoltar:{ pt: 'Clique para voltar como disponível.',   en: 'Click to come back as available.', es: 'Haz clic para volver como disponible.' },
+  standbyContinuar:   { pt: '✓ Continuar atendendo',                 en: '✓ Continue attending',             es: '✓ Continuar atendiendo' },
+
   // ── Compartilhado ──────────────────────────────────────────────────────────
   erroDesconhecido: { pt: 'Erro desconhecido.', en: 'Unknown error.', es: 'Error desconocido.' },
 }

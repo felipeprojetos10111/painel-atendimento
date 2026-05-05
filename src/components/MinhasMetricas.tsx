@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
+import { useLingua } from '@/contexts/LinguaContext'
 
 type Periodo = '1d' | '7d' | '30d' | 'all'
 
@@ -29,19 +30,12 @@ interface Props {
   nomeOperador: string | null
 }
 
-const PERIODOS: { label: string; value: Periodo }[] = [
-  { label: 'Hoje',    value: '1d'  },
-  { label: '7 dias',  value: '7d'  },
-  { label: '30 dias', value: '30d' },
-  { label: 'Tudo',    value: 'all' },
-]
-
-const SERIES = [
-  { key: 'leadsAtendidos', label: 'Leads atendidos', cor: '#6366f1' },
-  { key: 'registros',      label: 'Registros',       cor: '#f59e0b' },
-  { key: 'ftd',            label: 'FTD',             cor: '#10b981' },
-  { key: 'redepositos',    label: 'Redepósitos',     cor: '#3b82f6' },
-]
+const CORES = {
+  leadsAtendidos: '#6366f1',
+  registros:      '#f59e0b',
+  ftd:            '#10b981',
+  redepositos:    '#3b82f6',
+}
 
 function CardMetrica({
   label, valor, sub, cor,
@@ -56,6 +50,7 @@ function CardMetrica({
 }
 
 export default function MinhasMetricas({ nomeOperador }: Props) {
+  const { tr } = useLingua()
   const [periodo, setPeriodo]     = useState<Periodo>('7d')
   const [resumo, setResumo]       = useState<Resumo | null>(null)
   const [historico, setHistorico] = useState<PontoHistorico[]>([])
@@ -63,6 +58,20 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
   const [seriesAtivas, setSeriesAtivas] = useState<Set<string>>(
     new Set(['leadsAtendidos', 'registros', 'ftd', 'redepositos'])
   )
+
+  const PERIODOS: { label: string; value: Periodo }[] = [
+    { label: tr('metricasHoje'),          value: '1d'  },
+    { label: `7 ${tr('metricasDias')}`,   value: '7d'  },
+    { label: `30 ${tr('metricasDias')}`,  value: '30d' },
+    { label: tr('metricasTudo'),          value: 'all' },
+  ]
+
+  const SERIES = [
+    { key: 'leadsAtendidos', label: tr('metricasLeadsAtendidos'), cor: CORES.leadsAtendidos },
+    { key: 'registros',      label: tr('metricasRegistros'),      cor: CORES.registros      },
+    { key: 'ftd',            label: 'FTD',                        cor: CORES.ftd            },
+    { key: 'redepositos',    label: tr('metricasRedepositos'),     cor: CORES.redepositos    },
+  ]
 
   useEffect(() => {
     setCarregando(true)
@@ -83,7 +92,10 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
     })
   }
 
-  const saudacao = nomeOperador ? `Olá, ${nomeOperador.split(' ')[0]}` : 'Meu desempenho'
+  const primeiroNome = nomeOperador?.split(' ')[0]
+  const saudacao = primeiroNome
+    ? `${tr('metricasOla')}, ${primeiroNome}`
+    : tr('metricasMeuDesempenho')
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0f1117] p-6">
@@ -91,7 +103,7 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-[#f0f6fc]">{saudacao} 👋</h2>
-          <p className="text-sm text-[#8b949e] mt-0.5">Acompanhe seu desempenho</p>
+          <p className="text-sm text-[#8b949e] mt-0.5">{tr('metricasSubtitulo')}</p>
         </div>
 
         {/* Seletor de período */}
@@ -121,19 +133,19 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
         </div>
       ) : resumo ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <CardMetrica label="Leads atendidos" valor={resumo.leadsAtendidos} cor="text-indigo-600" />
-          <CardMetrica label="Registros"       valor={resumo.registros}      cor="text-amber-600" />
+          <CardMetrica label={tr('metricasLeadsAtendidos')} valor={resumo.leadsAtendidos} cor="text-indigo-400" />
+          <CardMetrica label={tr('metricasRegistros')}      valor={resumo.registros}      cor="text-amber-400" />
           <CardMetrica
-            label="Primeiros depósitos"
+            label={tr('metricasPrimeiroDeposito')}
             valor={resumo.ftd}
             sub={resumo.totalValorFTD > 0 ? `$ ${resumo.totalValorFTD.toFixed(2)}` : undefined}
-            cor="text-emerald-600"
+            cor="text-emerald-400"
           />
           <CardMetrica
-            label="Redepósitos"
+            label={tr('metricasRedepositos')}
             valor={resumo.redepositos}
             sub={resumo.totalValorRedepositos > 0 ? `$ ${resumo.totalValorRedepositos.toFixed(2)}` : undefined}
-            cor="text-blue-600"
+            cor="text-blue-400"
           />
         </div>
       ) : null}
@@ -141,7 +153,7 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
       {/* Gráfico histórico */}
       <div className="bg-[#161b27] rounded-xl border border-[#2d3748] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-[#8b949e]">Histórico</h3>
+          <h3 className="text-sm font-semibold text-[#8b949e]">{tr('metricasHistorico')}</h3>
           {/* Toggle de séries */}
           <div className="flex gap-2 flex-wrap justify-end">
             {SERIES.map(s => (
@@ -163,7 +175,7 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
 
         {historico.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-[#4a5568] text-sm">
-            Nenhum dado no período selecionado
+            {tr('metricasSemDados')}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
