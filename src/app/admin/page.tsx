@@ -308,6 +308,29 @@ function SecaoOperadores() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* Entrar como operador */}
+                    <button
+                      onClick={async () => {
+                        const res = await fetch('/api/admin/impersonar-operador', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ operadorId: op.id }),
+                        })
+                        if (res.ok) window.location.href = '/painel'
+                        else alert('Não foi possível entrar como operador.')
+                      }}
+                      title={`Entrar como ${op.nome}`}
+                      className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Entrar
+                    </button>
+
                     <button
                       onClick={() => toggleAtivo(op)}
                       disabled={atualizando === op.id}

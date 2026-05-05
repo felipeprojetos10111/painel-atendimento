@@ -36,14 +36,18 @@ export async function GET() {
   const cookieStore2 = await cookies()
   const impersonando = !!cookieStore2.get('token_super_admin')?.value
 
+  const impersonandoOperador = !!cookieStore.get('token_supervisor')?.value
+
   return NextResponse.json({
-    id: payload.id,
-    nome: payload.nome,
-    email: payload.email,
-    nivel: payload.nivel,
-    lingua: operador?.lingua ?? 'en',
+    id:                payload.id,
+    nome:              payload.nome,
+    email:             payload.email,
+    nivel:             payload.nivel,
+    cliente_id:        payload.cliente_id,
+    lingua:            operador?.lingua ?? 'en',
     nomeCliente,
     impersonando,
+    impersonandoOperador,
   })
 }
 

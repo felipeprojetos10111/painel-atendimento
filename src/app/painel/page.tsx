@@ -20,6 +20,7 @@ export default function PainelPage() {
   const [operadorNome, setOperadorNome] = useState<string | null>(null)
   const [operadorAtivo, setOperadorAtivo] = useState(false)
   const [mostrarMetricas, setMostrarMetricas] = useState(false)
+  const [impersonandoOperador, setImpersonandoOperador] = useState(false)
 
   // Presença: só ativa para operadores reais (não super_admin)
   const { emStandby, voltarAtivo } = usePresenca(operadorAtivo)
@@ -40,6 +41,7 @@ export default function PainelPage() {
           setNivel(data.nivel)
           setNomeCliente(data.nomeCliente ?? null)
           setOperadorNome(data.nome ?? null)
+          setImpersonandoOperador(data.impersonandoOperador ?? false)
           if (data.id > 0 && data.cliente_id) setOperadorAtivo(true)
         }
       })
@@ -114,6 +116,22 @@ export default function PainelPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               {tr('administracao')}
+            </button>
+          )}
+
+          {/* Voltar ao Admin — apenas quando supervisor entrou como operador */}
+          {impersonandoOperador && (
+            <button
+              onClick={async () => {
+                await fetch('/api/admin/sair-impersonar-operador', { method: 'POST' })
+                window.location.href = '/admin'
+              }}
+              className="text-sm bg-white text-green-700 font-semibold px-4 py-1.5 rounded-lg transition-colors hover:bg-green-50 flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Voltar ao Admin
             </button>
           )}
 
