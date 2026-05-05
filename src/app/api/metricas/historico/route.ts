@@ -12,10 +12,14 @@ export async function GET(req: NextRequest) {
   if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
-  const periodo     = searchParams.get('periodo') ?? '7d'
-  const opIdParam   = searchParams.get('operador_id')
-  const operadorId  = opIdParam ? parseInt(opIdParam) : null
-  const clienteId   = payload.cliente_id
+  const periodo    = searchParams.get('periodo') ?? '7d'
+  const opIdParam  = searchParams.get('operador_id')
+  const clienteId  = payload.cliente_id
+
+  // Operador comum só vê seus próprios dados — ignora qualquer param passado
+  const operadorId = payload.nivel === 'operador'
+    ? payload.id
+    : (opIdParam ? parseInt(opIdParam) : null)
 
   const agora = new Date()
   let dataInicio: Date
