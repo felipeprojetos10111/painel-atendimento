@@ -132,6 +132,22 @@ export async function POST(
     leadId = leadByEmail?.id ?? null
   }
 
+  // ── Fallback: operador via conversa do lead ───────────────────────────────
+  // Temos o lead mas ainda sem operador (ex: registro veio por telefone sem link)
+  // Busca o operador que atendeu esse lead nas conversas
+  if (leadId && !operadorId) {
+    const conversa = await prisma.conversas.findFirst({
+      where: {
+        cliente_id:  cliente.id,
+        lead_id:     leadId,
+        operador_id: { not: null },
+      },
+      orderBy: { criado_em: 'asc' }, // primeiro contato
+      select: { operador_id: true },
+    })
+    if (conversa?.operador_id) operadorId = conversa.operador_id
+  }
+
   // Evita duplicatas pelo ID do evento da plataforma
   if (plataformaEventId) {
     const existente = await prisma.eventos_plataforma.findFirst({
