@@ -45,8 +45,8 @@ interface Props {
 }
 
 const ORIGEM_ESTILO: Record<string, { alinhamento: string; bolha: string }> = {
-  lead:     { alinhamento: 'items-start', bolha: 'bg-white border border-gray-200 text-gray-800' },
-  ia:       { alinhamento: 'items-start', bolha: 'bg-blue-50 border border-blue-200 text-blue-900' },
+  lead:     { alinhamento: 'items-start', bolha: 'bg-[#1c2333] border border-[#2d3748] text-[#f0f6fc]' },
+  ia:       { alinhamento: 'items-start', bolha: 'bg-[#1a2340] border border-[#2d4080] text-blue-200' },
   operador: { alinhamento: 'items-end',   bolha: 'bg-green-500 text-white' },
 }
 
@@ -57,10 +57,10 @@ const ORIGEM_CHAVE: Record<string, string> = {
 }
 
 const STATUS_COR: Record<string, string> = {
-  aguardando:        'bg-yellow-100 text-yellow-800',
-  em_atendimento:   'bg-blue-100 text-blue-800',
-  aguardando_humano: 'bg-red-100 text-red-800',
-  resolvida:        'bg-green-100 text-green-800',
+  aguardando:        'bg-yellow-900/30 text-yellow-400 border border-yellow-700/30',
+  em_atendimento:   'bg-blue-900/30 text-blue-400 border border-blue-700/30',
+  aguardando_humano: 'bg-red-900/30 text-red-400 border border-red-700/30',
+  resolvida:        'bg-green-900/30 text-green-400 border border-green-700/30',
 }
 
 const STATUS_CHAVE: Record<string, string> = {
@@ -156,7 +156,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
         type="button"
         disabled={ocupado}
         onClick={abrirModal}
-        className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors disabled:opacity-50"
+        className="flex items-center gap-1.5 text-xs font-medium text-[#8b949e] hover:text-green-400 hover:bg-green-900/20 px-3 py-1.5 rounded-lg border border-[#2d3748] hover:border-green-700 transition-colors disabled:opacity-50"
         title={tr('enviarLinkTitulo')}
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,10 +168,10 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
       {/* Modal */}
       {modalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <div className="bg-[#1c2333] rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">{tr('enviarLinkTitulo')}</h3>
-              <button onClick={fecharModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <h3 className="font-semibold text-[#f0f6fc]">{tr('enviarLinkTitulo')}</h3>
+              <button onClick={fecharModal} className="text-[#8b949e] hover:text-[#f0f6fc] transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -185,22 +185,22 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[#8b949e] mb-1">
                     {tr('enviarLinkMsgLabel')}
-                    <span className="text-gray-400 font-normal ml-1">{tr('enviarLinkMsgOpcional')}</span>
+                    <span className="text-[#4a5568] font-normal ml-1">{tr('enviarLinkMsgOpcional')}</span>
                   </label>
                   <textarea
                     value={mensagem}
                     onChange={e => setMensagem(e.target.value)}
                     rows={3}
                     placeholder={tr('enviarLinkMsgPlaceholder')}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                    className="w-full bg-[#0f1117] border border-[#2d3748] rounded-lg px-3 py-2 text-sm text-[#f0f6fc] focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                   />
                   {mensagem.trim() && (
                     <button
                       type="button"
                       onClick={() => setMensagem('')}
-                      className="text-xs text-gray-400 hover:text-gray-600 mt-1"
+                      className="text-xs text-[#4a5568] hover:text-[#8b949e] mt-1"
                     >
                       {tr('enviarLinkLimpar')}
                     </button>
@@ -210,15 +210,15 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
                 {/* Preview */}
                 {linkInfo?.link_completo && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">{tr('enviarLinkPrevia')}</p>
-                    <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap break-all">
+                    <p className="text-xs font-medium text-[#8b949e] mb-1">{tr('enviarLinkPrevia')}</p>
+                    <div className="bg-green-900/20 border border-green-800/30 rounded-xl px-4 py-3 text-sm text-[#f0f6fc] whitespace-pre-wrap break-all">
                       {preview}
                     </div>
                   </div>
                 )}
 
                 {!linkInfo?.link_completo && (
-                  <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  <p className="text-sm text-amber-400 bg-amber-900/20 rounded-lg px-3 py-2">
                     {tr('enviarLinkSemUrl')}
                   </p>
                 )}
@@ -233,7 +233,7 @@ function BotaoEnviarLink({ conversaId, ocupado }: { conversaId: number; ocupado:
                   <button
                     onClick={fecharModal}
                     disabled={enviando}
-                    className="flex-1 border border-gray-300 text-gray-700 text-sm font-medium py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="flex-1 border border-[#2d3748] text-[#8b949e] text-sm font-medium py-2 rounded-lg hover:bg-[#0f1117] transition-colors disabled:opacity-50"
                   >
                     {tr('cancelar')}
                   </button>
@@ -781,12 +781,12 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const ocupado = enviando || enviandoArquivo
 
   return (
-    <div className="flex flex-col flex-1 bg-gray-50">
+    <div className="flex flex-col flex-1 bg-[#0f1117]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex items-center justify-between px-6 py-3 bg-[#161b27] border-b border-[#2d3748]">
         <div className="flex items-center gap-3 min-w-0">
           {/* Avatar do lead com iniciais ou ícone de telefone */}
-          <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-gray-500 font-semibold text-sm select-none">
+          <div className="w-9 h-9 rounded-full bg-[#1c2333] flex items-center justify-center shrink-0 text-[#8b949e] font-semibold text-sm select-none">
             {leadNome
               ? leadNome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase()
               : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -798,19 +798,19 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Nome e telefone do lead */}
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
+            <p className="text-sm font-semibold text-[#f0f6fc] leading-tight truncate">
               {leadNome ?? leadTelefone ?? `${tr('conversa')} #${conversaId}`}
             </p>
             {leadNome && leadTelefone && (
-              <p className="text-xs text-gray-400 leading-tight font-mono">{leadTelefone}</p>
+              <p className="text-xs text-[#8b949e] leading-tight font-mono">{leadTelefone}</p>
             )}
           </div>
 
           {/* Operador responsável */}
           {operadorNome && (
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full pl-1 pr-2.5 py-0.5 shrink-0">
+            <div className="flex items-center gap-1.5 bg-[#1c2333] border border-[#2d3748] rounded-full pl-1 pr-2.5 py-0.5 shrink-0">
               <AvatarOperador nome={operadorNome} tamanho="xs" destaque />
-              <span className="text-xs text-gray-600 font-medium">{operadorNome.split(' ')[0]}</span>
+              <span className="text-xs text-[#8b949e] font-medium">{operadorNome.split(' ')[0]}</span>
             </div>
           )}
         </div>
@@ -827,19 +827,19 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                   autoFocus
                   defaultValue=""
                   onChange={e => e.target.value && transferir(Number(e.target.value))}
-                  className="text-xs text-gray-900 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="text-xs text-[#f0f6fc] bg-[#1c2333] border border-[#2d3748] rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="" disabled>{tr('selecionarOperador')}</option>
                   {operadores.map(op => (
                     <option key={op.id} value={op.id}>{op.nome}</option>
                   ))}
                 </select>
-                <button onClick={() => setTransferindo(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded">✕</button>
+                <button onClick={() => setTransferindo(false)} className="text-[#8b949e] hover:text-[#f0f6fc] p-1 rounded">✕</button>
               </div>
             ) : (
               <button
                 onClick={() => setTransferindo(true)}
-                className="text-xs text-blue-600 border border-blue-200 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors"
+                className="text-xs text-blue-400 border border-blue-800/40 hover:bg-blue-900/20 px-2.5 py-1 rounded-lg transition-colors"
               >
                 {tr('transferirConversa')}
               </button>
@@ -850,7 +850,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
             <button
               onClick={encerrar}
               disabled={encerrando}
-              className="text-xs text-red-600 border border-red-200 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+              className="text-xs text-red-400 border border-red-800/40 hover:bg-red-900/20 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
             >
               {tr('encerrarConversa')}
             </button>
@@ -876,7 +876,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                   </div>
                 )}
               </div>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-[#4a5568]">
                 {label} · {m.enviado_em
                   ? new Date(m.enviado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                   : ''}
@@ -889,18 +889,18 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
       {/* Input ou banner de encerrada */}
       {resolvida ? (
-        <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-center gap-2 text-sm text-gray-400">
+        <div className="bg-[#161b27] border-t border-[#2d3748] px-6 py-4 flex items-center justify-center gap-2 text-sm text-[#4a5568]">
           <span>✓</span>
           <span>{tr('conversaEncerrada')}</span>
         </div>
       ) : (
-        <div className="bg-white border-t border-gray-200 px-4 py-3">
+        <div className="bg-[#161b27] border-t border-[#2d3748] px-4 py-3">
           {/* Barra de ferramentas */}
           <div className="flex items-center gap-2 mb-2">
             <button
               type="button"
               onClick={() => setModalAberto(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium text-[#8b949e] hover:text-green-400 hover:bg-green-900/20 px-3 py-1.5 rounded-lg border border-[#2d3748] hover:border-green-700 transition-colors"
             >
               <span>⚡</span>
               {tr('respostasRapidas')}
@@ -911,7 +911,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               type="button"
               disabled={ocupado}
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs font-medium text-[#8b949e] hover:text-blue-400 hover:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-[#2d3748] hover:border-blue-700 transition-colors disabled:opacity-50"
               title={tr('anexarArquivo')}
             >
               {enviandoArquivo
@@ -935,7 +935,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                 type="button"
                 disabled={ocupado}
                 onClick={iniciarGravacao}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-red-300 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs font-medium text-[#8b949e] hover:text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg border border-[#2d3748] hover:border-red-700 transition-colors disabled:opacity-50"
               >
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 17.93V21H9v2h6v-2h-2v-2.07A8.001 8.001 0 0 0 20 11h-2a6 6 0 0 1-12 0H4a8.001 8.001 0 0 0 7 6.93z"/>
@@ -956,7 +956,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Erro de upload */}
           {erroUpload && (
-            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-red-900/20 border border-red-800/40 rounded-xl text-sm text-red-400">
               <span>⚠</span>
               <span className="flex-1">{erroUpload}</span>
               <button onClick={() => setErroUpload('')} className="text-red-400 hover:text-red-600">✕</button>
@@ -965,7 +965,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Preview de arquivo antes de enviar */}
           {arquivoPreview && (
-            <div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+            <div className="mb-2 p-3 bg-[#1c2333] border border-[#2d3748] rounded-xl space-y-2">
               {arquivoPreview.previewUrl ? (
                 <img
                   src={arquivoPreview.previewUrl}
@@ -973,10 +973,10 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                   className="max-h-40 rounded-lg object-contain mx-auto block"
                 />
               ) : (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
+                <div className="flex items-center gap-2 text-sm text-[#f0f6fc]">
                   <span className="text-xl">📄</span>
                   <span className="truncate">{arquivoPreview.file.name}</span>
-                  <span className="text-xs text-gray-400 shrink-0">
+                  <span className="text-xs text-[#4a5568] shrink-0">
                     {(arquivoPreview.file.size / 1024).toFixed(0)} KB
                   </span>
                 </div>
@@ -985,7 +985,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                 <button
                   type="button"
                   onClick={cancelarArquivo}
-                  className="text-xs text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-xs text-[#8b949e] hover:text-red-400 border border-[#2d3748] hover:border-red-700 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {tr('descartarAudio')}
                 </button>
@@ -1009,12 +1009,12 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Painel de gravação ativo */}
           {gravando && (
-            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+            <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-red-900/20 border border-red-800/40 rounded-xl">
               {/* Indicador gravando */}
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
 
               {/* Tempo */}
-              <span className="text-sm font-mono text-red-500 tabular-nums shrink-0">
+              <span className="text-sm font-mono text-red-400 tabular-nums shrink-0">
                 {formatarTempo(tempoGravacao)}
               </span>
 
@@ -1023,7 +1023,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                 {barras.map((h, i) => (
                   <div
                     key={i}
-                    className="flex-1 rounded-full bg-red-400 transition-none"
+                    className="flex-1 rounded-full bg-red-500 transition-none"
                     style={{ height: `${Math.max(15, h * 100)}%` }}
                   />
                 ))}
@@ -1045,17 +1045,17 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Preview do áudio gravado */}
           {audioBlob && audioUrl && !gravando && (
-            <div className="flex items-center gap-3 mb-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
-              <svg className="w-4 h-4 text-gray-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-3 mb-2 px-3 py-2 bg-[#1c2333] border border-[#2d3748] rounded-xl">
+              <svg className="w-4 h-4 text-[#8b949e] shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
                 <path d="M19 11a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V22H9v2h6v-2h-2v-2.06A9 9 0 0 0 21 11h-2z"/>
               </svg>
               <audio controls src={audioUrl} className="flex-1 h-8" style={{ minWidth: 0 }} />
-              <span className="text-xs text-gray-400 shrink-0">{formatarTempo(tempoGravacao)}</span>
+              <span className="text-xs text-[#4a5568] shrink-0">{formatarTempo(tempoGravacao)}</span>
               <button
                 type="button"
                 onClick={descartarAudio}
-                className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                className="text-[#8b949e] hover:text-red-400 transition-colors shrink-0"
                 title={tr('descartarAudio')}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1088,7 +1088,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               onKeyDown={handleKeyDown}
               placeholder={tr('digiteMensagem')}
               rows={1}
-              className="flex-1 border border-gray-300 rounded-2xl px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none leading-relaxed"
+              className="flex-1 border border-[#2d3748] rounded-2xl px-4 py-2.5 text-sm text-[#f0f6fc] bg-[#1c2333] focus:outline-none focus:ring-2 focus:ring-green-500 resize-none leading-relaxed"
               style={{ minHeight: '42px', maxHeight: '120px' }}
             />
             <button
@@ -1102,7 +1102,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               }
             </button>
           </form>
-          <p className="text-xs text-gray-400 mt-1.5 ml-1">{tr('dicaEnvio')}</p>
+          <p className="text-xs text-[#4a5568] mt-1.5 ml-1">{tr('dicaEnvio')}</p>
         </div>
       )}
 
