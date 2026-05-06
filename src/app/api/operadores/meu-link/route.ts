@@ -24,13 +24,20 @@ export async function GET() {
   const affiliateId = op?.affiliate_link_id ?? ''
   const baseUrl     = cliente?.plataforma_base_url ?? ''
 
-  // Constrói o link completo: URL_BASE + CÓDIGO
+  // Monta o link completo com três estratégias, sem quebrar clientes existentes:
+  // 1. affiliate_link_id já é uma URL completa → usa diretamente
+  // 2. affiliate_link_id é um código curto → concatena com a base
+  // 3. Sem código mas há base URL → usa a base diretamente
   let linkCompleto = ''
-  if (baseUrl && affiliateId) {
+  if (affiliateId.startsWith('http')) {
+    linkCompleto = affiliateId
+  } else if (baseUrl && affiliateId) {
     const sep = baseUrl.endsWith('/') || baseUrl.includes('=') || baseUrl.includes('?')
       ? ''
       : '/'
     linkCompleto = baseUrl + sep + affiliateId
+  } else if (baseUrl) {
+    linkCompleto = baseUrl
   }
 
   return NextResponse.json({
