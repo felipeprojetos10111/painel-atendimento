@@ -54,11 +54,10 @@ export async function POST(req: NextRequest) {
 
   const codigo = envioExistente?.codigo ?? gerarCodigo()
 
-  // Link curto no nosso domínio — oculta a URL do broker (sem "affiliate", sem parâmetros expostos)
-  // Ex: https://mypainel.site/r/327cbd0f0df3
-  // O redirect em /r/[codigo] reconstrói a URL do broker transparentemente
-  const origin = req.headers.get('origin') ?? req.nextUrl.origin
-  const linkExclusivo = `${origin}/r/${codigo}`
+  // Constrói a URL completa do broker com o código de rastreamento
+  // TODO: quando domínio próprio por cliente for configurado, trocar por /r/${codigo}
+  const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'
+  const linkExclusivo = baseUrl + sep + codigo
 
   // Registra novo envio (mesmo código, nova entrada para rastrear quando foi enviado)
   const linkEnviado = await prisma.links_enviados.create({
