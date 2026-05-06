@@ -78,12 +78,12 @@ function ItemConversa({
   return (
     <li
       onClick={() => onSelecionar(c.id)}
-      className={`flex flex-col gap-1 px-4 py-3 cursor-pointer hover:bg-[#1c2333] transition-colors ${
-        selecionada ? 'bg-[#1c2333] border-l-4 border-l-green-500' : ''
+      className={`flex flex-col gap-1 px-4 py-3 cursor-pointer hover:bg-[#202c33] transition-colors ${
+        selecionada ? 'bg-[#202c33] border-l-4 border-l-[#00a884]' : ''
       } ${expirada ? 'opacity-60' : ''}`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[#f0f6fc] truncate max-w-[140px]">{nome}</span>
+        <span className="text-sm font-medium text-[#e9edef] truncate max-w-[140px]">{nome}</span>
         <div className="flex items-center gap-1.5">
           {naoLidas > 0 && !selecionada && (
             <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
@@ -91,25 +91,25 @@ function ItemConversa({
             </span>
           )}
           {expirada
-            ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[#1c2333] text-[#8b949e]">⏱ Expirada</span>
+            ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[#202c33] text-[#8696a0]">⏱ Expirada</span>
             : <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCor}`}>{statusLabel}</span>
           }
         </div>
       </div>
       {ultimaMensagem && (
-        <p className={`text-xs truncate ${naoLidas > 0 && !selecionada ? 'text-[#f0f6fc] font-medium' : 'text-[#8b949e]'}`}>
+        <p className={`text-xs truncate ${naoLidas > 0 && !selecionada ? 'text-[#e9edef] font-medium' : 'text-[#8696a0]'}`}>
           <span>{ultimaMensagem.origem === 'lead' ? '👤' : ultimaMensagem.origem === 'ia' ? '🤖' : '🧑‍💼'}</span>{' '}
           {ultimaMensagem.conteudo}
         </p>
       )}
       <div className="flex items-center justify-between gap-1">
-        <span className="text-xs text-[#4a5568]">
+        <span className="text-xs text-[#3b4a54]">
           {c.atualizado_em ? formatarHorario(c.atualizado_em) : ''}
         </span>
         {c.operadores?.nome ? (
           <div className="flex items-center gap-1.5 shrink-0 min-w-0" title={`${tr('atendidoPor')} ${c.operadores.nome}`}>
             <AvatarOperador nome={c.operadores.nome} tamanho="xs" />
-            <span className="text-xs text-[#8b949e] font-medium truncate max-w-[90px]">
+            <span className="text-xs text-[#8696a0] font-medium truncate max-w-[90px]">
               {c.operadores.nome.split(' ')[0]}
             </span>
           </div>
@@ -204,7 +204,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   const expiradas  = todasFiltradas.filter(c =>  c.janela_expirada)
 
   return (
-    <aside className="w-80 flex flex-col border-r border-[#2d3748] bg-[#0f1117] relative">
+    <aside className="w-80 flex flex-col border-r border-[#2a3942] bg-[#111b21] relative">
       {/* Toasts de escalação */}
       <div className="absolute top-2 left-2 right-2 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => (
@@ -227,40 +227,40 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
         ))}
       </div>
 
-      <div className="p-4 border-b border-[#2d3748]">
-        <h2 className="text-base font-semibold text-[#f0f6fc] mb-3">
+      <div className="p-4 border-b border-[#2a3942]">
+        <h2 className="text-base font-semibold text-[#e9edef] mb-3">
           {tr('conversas')}
-          <span className="ml-2 text-xs font-normal text-[#8b949e]">({filtradas.length})</span>
+          <span className="ml-2 text-xs font-normal text-[#8696a0]">({filtradas.length})</span>
         </h2>
         <input
           type="text"
           value={busca}
           onChange={e => setBusca(e.target.value)}
           placeholder={tr('buscarConversa')}
-          className="w-full text-sm text-[#f0f6fc] bg-[#1c2333] border border-[#2d3748] rounded-lg px-3 py-2 placeholder-[#4a5568] focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full text-sm text-[#e9edef] bg-[#202c33] border border-[#2a3942] rounded-lg px-3 py-2 placeholder-[#3b4a54] focus:outline-none focus:ring-2 focus:ring-[#00a884]"
         />
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* Conversas ativas */}
-        <ul className="divide-y divide-[#2d3748]">
+        <ul className="divide-y divide-[#2a3942]">
           {filtradas.length === 0 && expiradas.length === 0 && (
-            <li className="p-4 text-sm text-[#4a5568] text-center">{tr('nenhumaConversa')}</li>
+            <li className="p-4 text-sm text-[#3b4a54] text-center">{tr('nenhumaConversa')}</li>
           )}
           {filtradas.map(c => <ItemConversa key={c.id} c={c} selecionada={conversaSelecionada === c.id} onSelecionar={onSelecionar} tr={tr} />)}
         </ul>
 
         {/* Seção de janelas expiradas — só aparece se houver expiradas */}
         {expiradas.length > 0 && (
-          <div className="border-t border-[#2d3748]">
+          <div className="border-t border-[#2a3942]">
             <button
               onClick={() => setExpiradaAberta(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-[#8b949e] hover:bg-[#1c2333] transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-[#8696a0] hover:bg-[#202c33] transition-colors"
             >
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#4a5568]" />
+                <span className="w-2 h-2 rounded-full bg-[#3b4a54]" />
                 Janela expirada
-                <span className="bg-[#1c2333] text-[#8b949e] rounded-full px-1.5 py-0.5 font-medium">
+                <span className="bg-[#202c33] text-[#8696a0] rounded-full px-1.5 py-0.5 font-medium">
                   {expiradas.length}
                 </span>
               </div>
@@ -273,7 +273,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
             </button>
 
             {expiradaAberta && (
-              <ul className="divide-y divide-[#2d3748] bg-[#0d1017]">
+              <ul className="divide-y divide-[#2a3942] bg-[#111b21]">
                 {expiradas.map(c => <ItemConversa key={c.id} c={c} selecionada={conversaSelecionada === c.id} onSelecionar={onSelecionar} tr={tr} expirada />)}
               </ul>
             )}

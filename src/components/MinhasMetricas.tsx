@@ -41,10 +41,10 @@ function CardMetrica({
   label, valor, sub, cor,
 }: { label: string; valor: number; sub?: string; cor: string }) {
   return (
-    <div className="bg-[#161b27] rounded-xl border border-[#2d3748] p-4 flex flex-col gap-1">
-      <span className="text-xs font-medium text-[#8b949e] uppercase tracking-wide">{label}</span>
+    <div className="bg-[#1f2c33] rounded-xl border border-[#2a3942] p-4 flex flex-col gap-1">
+      <span className="text-xs font-medium text-[#8696a0] uppercase tracking-wide">{label}</span>
       <span className={`text-3xl font-bold ${cor}`}>{valor}</span>
-      {sub && <span className="text-xs text-[#4a5568]">{sub}</span>}
+      {sub && <span className="text-xs text-[#3b4a54]">{sub}</span>}
     </div>
   )
 }
@@ -98,24 +98,24 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
     : tr('metricasMeuDesempenho')
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0f1117] p-6">
+    <div className="flex-1 overflow-y-auto bg-[#111b21] p-6">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[#f0f6fc]">{saudacao} 👋</h2>
-          <p className="text-sm text-[#8b949e] mt-0.5">{tr('metricasSubtitulo')}</p>
+          <h2 className="text-xl font-bold text-[#e9edef]">{saudacao} 👋</h2>
+          <p className="text-sm text-[#8696a0] mt-0.5">{tr('metricasSubtitulo')}</p>
         </div>
 
         {/* Seletor de período */}
-        <div className="flex gap-1 bg-[#161b27] border border-[#2d3748] rounded-lg p-1 shadow-sm">
+        <div className="flex gap-1 bg-[#1f2c33] border border-[#2a3942] rounded-lg p-1 shadow-sm">
           {PERIODOS.map(p => (
             <button
               key={p.value}
               onClick={() => setPeriodo(p.value)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 periodo === p.value
-                  ? 'bg-green-500 text-white shadow-sm'
-                  : 'text-[#8b949e] hover:bg-[#1c2333]'
+                  ? 'bg-[#00a884] text-white shadow-sm'
+                  : 'text-[#8696a0] hover:bg-[#202c33]'
               }`}
             >
               {p.label}
@@ -128,7 +128,7 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
       {carregando ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-[#161b27] rounded-xl border border-[#2d3748] h-24 animate-pulse" />
+            <div key={i} className="bg-[#1f2c33] rounded-xl border border-[#2a3942] h-24 animate-pulse" />
           ))}
         </div>
       ) : resumo ? (
@@ -151,9 +151,9 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
       ) : null}
 
       {/* Gráfico histórico */}
-      <div className="bg-[#161b27] rounded-xl border border-[#2d3748] p-5">
+      <div className="bg-[#1f2c33] rounded-xl border border-[#2a3942] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-[#8b949e]">{tr('metricasHistorico')}</h3>
+          <h3 className="text-sm font-semibold text-[#8696a0]">{tr('metricasHistorico')}</h3>
           {/* Toggle de séries */}
           <div className="flex gap-2 flex-wrap justify-end">
             {SERIES.map(s => (
@@ -163,7 +163,7 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
                   seriesAtivas.has(s.key)
                     ? 'border-transparent text-white'
-                    : 'bg-[#1c2333] text-[#4a5568] border-[#2d3748]'
+                    : 'bg-[#202c33] text-[#3b4a54] border-[#2a3942]'
                 }`}
                 style={seriesAtivas.has(s.key) ? { backgroundColor: s.cor } : {}}
               >
@@ -174,17 +174,17 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
         </div>
 
         {historico.length === 0 ? (
-          <div className="h-48 flex items-center justify-center text-[#4a5568] text-sm">
+          <div className="h-48 flex items-center justify-center text-[#3b4a54] text-sm">
             {tr('metricasSemDados')}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={historico} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#2d3748" />
-              <YAxis tick={{ fontSize: 11 }} stroke="#2d3748" allowDecimals={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a3942" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#2a3942" />
+              <YAxis tick={{ fontSize: 11 }} stroke="#2a3942" allowDecimals={false} />
               <Tooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8, backgroundColor: '#1c2333', border: '1px solid #2d3748', color: '#f0f6fc' }}
+                contentStyle={{ fontSize: 12, borderRadius: 8, backgroundColor: '#202c33', border: '1px solid #2a3942', color: '#e9edef' }}
               />
               {SERIES.filter(s => seriesAtivas.has(s.key)).map(s => (
                 <Line
