@@ -56,7 +56,7 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
   const [historico, setHistorico] = useState<PontoHistorico[]>([])
   const [carregando, setCarregando] = useState(true)
   const [seriesAtivas, setSeriesAtivas] = useState<Set<string>>(
-    new Set(['leadsAtendidos', 'registros', 'ftd', 'redepositos'])
+    new Set(['leadsAtendidos', 'registros', 'ftd'])
   )
 
   const PERIODOS: { label: string; value: Periodo }[] = [
@@ -70,7 +70,6 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
     { key: 'leadsAtendidos', label: tr('metricasLeadsAtendidos'), cor: CORES.leadsAtendidos },
     { key: 'registros',      label: tr('metricasRegistros'),      cor: CORES.registros      },
     { key: 'ftd',            label: 'FTD',                        cor: CORES.ftd            },
-    { key: 'redepositos',    label: tr('metricasRedepositos'),     cor: CORES.redepositos    },
   ]
 
   useEffect(() => {
@@ -126,13 +125,13 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
 
       {/* Cards de resumo */}
       {carregando ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          {[...Array(3)].map((_, i) => (
             <div key={i} className="bg-[#1f2c33] rounded-xl border border-[#2a3942] h-24 animate-pulse" />
           ))}
         </div>
       ) : resumo ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <CardMetrica label={tr('metricasLeadsAtendidos')} valor={resumo.leadsAtendidos} cor="text-indigo-400" />
           <CardMetrica label={tr('metricasRegistros')}      valor={resumo.registros}      cor="text-amber-400" />
           <CardMetrica
@@ -140,12 +139,6 @@ export default function MinhasMetricas({ nomeOperador }: Props) {
             valor={resumo.ftd}
             sub={resumo.totalValorFTD > 0 ? `$ ${resumo.totalValorFTD.toFixed(2)}` : undefined}
             cor="text-emerald-400"
-          />
-          <CardMetrica
-            label={tr('metricasRedepositos')}
-            valor={resumo.redepositos}
-            sub={resumo.totalValorRedepositos > 0 ? `$ ${resumo.totalValorRedepositos.toFixed(2)}` : undefined}
-            cor="text-blue-400"
           />
         </div>
       ) : null}
