@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, KeyboardEvent } from 'react'
+import React, { useEffect, useState, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLingua } from '@/contexts/LinguaContext'
 import SeletorLingua from '@/components/SeletorLingua'
@@ -613,6 +613,7 @@ interface ClienteConfig {
   ia_api_key: string
   webhook_secret: string
   plataforma_base_url: string
+  logo_url: string
 }
 
 function SecaoConfiguracoes() {
@@ -636,6 +637,12 @@ function SecaoConfiguracoes() {
   const [copiadoPlataforma, setCopiadoPlataforma] = useState(false)
   const [mostrarSecret, setMostrarSecret] = useState(false)
 
+  // Logo
+  const [logoUrl, setLogoUrl]             = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoErro, setLogoErro]           = useState('')
+  const inputLogoRef = React.useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     setWebhookUrl(window.location.origin + '/webhook')
     fetch('/api/cliente/config')
@@ -643,6 +650,7 @@ function SecaoConfiguracoes() {
       .then((data: ClienteConfig | null) => {
         if (!data) return
         setConfig(data)
+        setLogoUrl(data.logo_url || null)
         setPlataformaWebhookUrl(window.location.origin + '/api/webhooks/plataforma/' + data.slug)
         setForm({
           whatsapp_token:      data.whatsapp_token,
@@ -654,6 +662,37 @@ function SecaoConfiguracoes() {
         })
       })
   }, [])
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0]
+    if (!arquivo) return
+    setLogoErro('')
+    setLogoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('arquivo', arquivo)
+      const res = await fetch('/api/cliente/logo', { method: 'POST', body: fd })
+      if (!res.ok) throw new Error((await res.json()).erro ?? 'Erro ao fazer upload')
+      const data = await res.json()
+      setLogoUrl(data.logo_url)
+    } catch (err) {
+      setLogoErro(err instanceof Error ? err.message : 'Erro ao fazer upload')
+    } finally {
+      setLogoUploading(false)
+      if (inputLogoRef.current) inputLogoRef.current.value = ''
+    }
+  }
+
+  async function handleLogoRemover() {
+    if (!confirm('Remover a logo do cliente?')) return
+    setLogoUploading(true)
+    try {
+      await fetch('/api/cliente/logo', { method: 'DELETE' })
+      setLogoUrl(null)
+    } finally {
+      setLogoUploading(false)
+    }
+  }
 
   function setField(campo: keyof typeof form, valor: string) {
     setForm(f => ({ ...f, [campo]: valor }))
@@ -715,8 +754,11 @@ function SecaoConfiguracoes() {
     <div className="max-w-2xl mx-auto space-y-6">
       {config && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-lg">
-            {config.nome.charAt(0).toUpperCase()}
+          <div className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-lg overflow-hidden">
+            {logoUrl
+              ? <img src={logoUrl} alt={config.nome} className="w-full h-full object-cover" />
+              : config.nome.charAt(0).toUpperCase()
+            }
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-800">{config.nome}</p>
@@ -724,6 +766,64 @@ function SecaoConfiguracoes() {
           </div>
         </div>
       )}
+
+      {/* Seção Logo */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-lg">🖼️</span>
+          <h2 className="text-sm font-semibold text-gray-800">Logo do Cliente</h2>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">
+          Aparece no topo do painel dos operadores. JPG, PNG ou WebP · máx 2 MB.
+        </p>
+
+        <div className="flex items-center gap-5">
+          {/* Preview */}
+          <div className="shrink-0 w-16 h-16 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center bg-green-50 text-green-700 font-bold text-2xl">
+            {logoUrl
+              ? <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+              : <span>{config?.nome?.charAt(0).toUpperCase() ?? '?'}</span>
+            }
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <input
+              ref={inputLogoRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
+            <button
+              type="button"
+              disabled={logoUploading}
+              onClick={() => inputLogoRef.current?.click()}
+              className="text-sm font-medium text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
+              {logoUploading
+                ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+              }
+              {logoUrl ? 'Trocar logo' : 'Enviar logo'}
+            </button>
+
+            {logoUrl && (
+              <button
+                type="button"
+                disabled={logoUploading}
+                onClick={handleLogoRemover}
+                className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors text-left"
+              >
+                Remover logo
+              </button>
+            )}
+
+            {logoErro && <p className="text-xs text-red-500">{logoErro}</p>}
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={salvar} className="space-y-6">
 

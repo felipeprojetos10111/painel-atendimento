@@ -22,14 +22,16 @@ export async function GET() {
     select: { lingua: true }
   })
 
-  // Busca nome do cliente (null para super_admin)
+  // Busca nome e logo do cliente (null para super_admin)
   let nomeCliente: string | null = null
+  let logoCliente: string | null = null
   if (payload.cliente_id) {
     const cliente = await prisma.clientes.findUnique({
       where: { id: payload.cliente_id },
-      select: { nome: true }
+      select: { nome: true, logo_url: true }
     })
     nomeCliente = cliente?.nome ?? null
+    logoCliente = cliente?.logo_url ?? null
   }
 
   // Detecta se está em modo impersonação (super_admin entrando como cliente)
@@ -46,6 +48,7 @@ export async function GET() {
     cliente_id:        payload.cliente_id,
     lingua:            operador?.lingua ?? 'en',
     nomeCliente,
+    logoCliente,
     impersonando,
     impersonandoOperador,
   })

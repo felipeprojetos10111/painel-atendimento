@@ -32,6 +32,7 @@ export async function GET() {
       ia_api_key: true,
       webhook_secret: true,
       plataforma_base_url: true,
+      logo_url: true,
     }
   })
 
@@ -45,6 +46,7 @@ export async function GET() {
     verify_token:    cliente.verify_token ?? '',
     webhook_secret:  cliente.webhook_secret ?? '',
     plataforma_base_url: cliente.plataforma_base_url ?? '',
+    logo_url:        cliente.logo_url ?? '',
     // campos sensíveis — só indica se estão preenchidos
     whatsapp_token: cliente.whatsapp_token ? MASCARA : '',
     app_secret:     cliente.app_secret     ? MASCARA : '',
