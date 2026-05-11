@@ -724,7 +724,9 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
         throw new Error(err.erro ?? `Erro ${uploadRes.status} ao fazer upload`)
       }
       const { urlPublica } = await uploadRes.json()
-      await enviarConteudo(file.name, tipo, urlPublica)
+      // Não passa o nome do arquivo como caption — documentos usam o nome, mídia fica sem legenda
+      const caption = tipo === 'documento' ? file.name : ''
+      await enviarConteudo(caption, tipo, urlPublica)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro no upload'
       setErroUpload(msg)
