@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   const usarLinkCurto = linkCurtoAtivo && redirectDomain
   const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'
   const linkExclusivo = usarLinkCurto
-    ? `https://${redirectDomain!.replace(/^https?:\/\//, '')}/${codigo}`
+    ? `https://${redirectDomain!.replace(/^https?:\/\//, '')}/r/${codigo}`
     : baseUrl + sep + codigo
 
   // Registra novo envio (mesmo código, nova entrada para rastrear quando foi enviado)
