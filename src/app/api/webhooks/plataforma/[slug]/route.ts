@@ -112,7 +112,21 @@ export async function POST(
       l.telefone.replace(/\D/g, '').endsWith(digits) ||
       digits.endsWith(l.telefone.replace(/\D/g, ''))
     )
-    if (leadMatch) leadId = leadMatch.id
+    if (leadMatch) {
+      leadId = leadMatch.id
+      // Busca o operador que enviou o link mais recente para esse lead
+      if (!operadorId) {
+        const linkMaisRecente = await prisma.links_enviados.findFirst({
+          where: { cliente_id: cliente.id, lead_id: leadMatch.id, operador_id: { not: null } },
+          orderBy: { enviado_em: 'desc' },
+          select: { id: true, operador_id: true }
+        })
+        if (linkMaisRecente) {
+          operadorId    = linkMaisRecente.operador_id
+          linkEnviadoId = linkMaisRecente.id
+        }
+      }
+    }
   }
 
   // ── Fallback: match por plataforma_user_id (depósito de usuário já registrado) ──
