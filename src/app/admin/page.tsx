@@ -25,7 +25,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'operadores' | 'ia' | 'configuracoes' | 'leads' | 'metricas' | 'fluxos'>('metricas')
+  const [aba, setAba] = useState<'operadores' | 'configuracoes' | 'leads' | 'metricas' | 'fluxos'>('metricas')
   const [impersonando, setImpersonando] = useState(false)
   const [nomeClienteImp, setNomeClienteImp] = useState('')
   const [saindo, setSaindo] = useState(false)
@@ -104,7 +104,6 @@ export default function AdminPage() {
             { key: 'metricas',     label: '📊 Métricas' },
             { key: 'operadores',    label: 'Operadores' },
             { key: 'configuracoes', label: 'Configurações' },
-            { key: 'ia',           label: 'IA' },
             { key: 'fluxos',       label: '🤖 Fluxos' },
             { key: 'leads',        label: '📋 Leads' },
           ] as const).map(({ key, label }) => (
@@ -125,7 +124,6 @@ export default function AdminPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         {aba === 'operadores'    && <SecaoOperadores />}
-        {aba === 'ia'            && <SecaoIA />}
         {aba === 'configuracoes' && <SecaoConfiguracoes />}
         {aba === 'fluxos'        && <SecaoFluxos />}
         {aba === 'leads'         && <SecaoLeads />}
