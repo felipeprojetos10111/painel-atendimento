@@ -24,11 +24,11 @@ export async function GET(
     return NextResponse.redirect(new URL('/', req.url), { status: 302 })
   }
 
-  // Usa a URL real da plataforma e passa o código como sub1 para rastreio
-  // Se a baseUrl ainda terminar com '=' (formato legado), usa o código direto
+  // Passa o código em vários parâmetros para descobrir quais a Worbit devolve no webhook
+  // Se a baseUrl terminar com '=' (formato legado), usa o código direto
   const destino = baseUrl.endsWith('=') || baseUrl.endsWith('/')
     ? baseUrl + codigo
-    : baseUrl + '&sub1=' + codigo
+    : baseUrl + `&sub1=${codigo}&ref=${codigo}&utm_content=${codigo}&clickid=${codigo}&aff_sub=${codigo}`
 
   return NextResponse.redirect(destino, { status: 302 })
 }
