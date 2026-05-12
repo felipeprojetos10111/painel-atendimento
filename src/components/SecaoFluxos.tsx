@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react'
+import FluxoBuilder from './FluxoBuilder'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +102,11 @@ export default function SecaoFluxos() {
   const [carregando, setCarregando] = useState(true)
   const [subaba, setSubaba] = useState<'fluxos' | 'execucoes'>('fluxos')
 
-  // Modal criar/editar
+  // Builder visual
+  const [builderFluxo, setBuilderFluxo] = useState<Fluxo | null>(null)
+  const [builderDefinicao, setBuilderDefinicao] = useState<Record<string, unknown> | null>(null)
+
+  // Modal criar
   const [modalAberto, setModalAberto] = useState(false)
   const [formNome, setFormNome] = useState('')
   const [formDescricao, setFormDescricao] = useState('')
@@ -127,6 +132,14 @@ export default function SecaoFluxos() {
   }, [filtroStatus])
 
   useEffect(() => { carregar() }, [carregar])
+
+  // ── Abrir builder visual ────────────────────────────────────────────────────
+  async function abrirBuilder(fluxo: Fluxo) {
+    const r = await fetch(`/api/fluxos/${fluxo.id}`)
+    const data = await r.json()
+    setBuilderDefinicao(data.definicao ?? null)
+    setBuilderFluxo(fluxo)
+  }
 
   // ── Criar fluxo ──────────────────────────────────────────────────────────────
   async function criarFluxo() {
@@ -194,6 +207,19 @@ export default function SecaoFluxos() {
       body: JSON.stringify({ acao })
     })
     carregar()
+  }
+
+  // Builder aberto em tela cheia
+  if (builderFluxo) {
+    return (
+      <FluxoBuilder
+        fluxoId={builderFluxo.id}
+        nomeInicial={builderFluxo.nome}
+        definicaoInicial={builderDefinicao}
+        onClose={() => setBuilderFluxo(null)}
+        onSaved={() => { setBuilderFluxo(null); carregar() }}
+      />
+    )
   }
 
   return (
@@ -284,6 +310,14 @@ export default function SecaoFluxos() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* Builder visual */}
+                      <button
+                        onClick={() => abrirBuilder(fluxo)}
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors"
+                      >
+                        🛠 Construir
+                      </button>
+
                       {/* Toggle ativo */}
                       <button
                         onClick={() => toggleAtivo(fluxo)}

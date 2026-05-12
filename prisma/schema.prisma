@@ -73,6 +73,7 @@ model leads {
   telefone      String      @db.VarChar(20)
   nome          String?     @db.VarChar(100)
   email         String?     @db.VarChar(150)
+  opt_out_fluxo Boolean     @default(false)
   criado_em     DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em DateTime?   @default(now()) @db.Timestamp(6)
   clientes           clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
