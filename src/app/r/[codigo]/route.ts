@@ -24,9 +24,11 @@ export async function GET(
     return NextResponse.redirect(new URL('/', req.url), { status: 302 })
   }
 
-  // Reconstrói a URL completa do broker com o código de rastreamento
-  const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'
-  const destino = baseUrl + sep + codigo
+  // Usa a URL real da plataforma e passa o código como sub1 para rastreio
+  // Se a baseUrl ainda terminar com '=' (formato legado), usa o código direto
+  const destino = baseUrl.endsWith('=') || baseUrl.endsWith('/')
+    ? baseUrl + codigo
+    : baseUrl + '&sub1=' + codigo
 
   return NextResponse.redirect(destino, { status: 302 })
 }

@@ -55,6 +55,11 @@ export async function POST(
     } catch { /* URL inválida — ignora */ }
   }
 
+  // Extrai sub1 — código de rastreio do nosso encurtador (worbit.lat/r/codigo)
+  // Tem prioridade sobre affiliateLinkId para match em links_enviados
+  const sub1: string | null = d.sub1 ?? d.subId ?? d.sub_1 ?? null
+  if (sub1) affiliateLinkId = sub1
+
   // Constrói o telefone completo: countryCode + phone
   const phoneRaw: string | null = d.phone ?? d.props?.user?.phone ?? null
   const countryCode: string | null = d.phoneCountryCode ?? d.props?.user?.phoneCountryCode ?? null
