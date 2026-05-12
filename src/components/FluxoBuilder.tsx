@@ -234,7 +234,6 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
 
 const LABEL_IDIOMAS: Record<string, string> = {
   pt: '🇧🇷 Português', en: '🇺🇸 English', es: '🇪🇸 Español',
-  it: '🇮🇹 Italiano', fr: '🇫🇷 Français', de: '🇩🇪 Deutsch',
 }
 
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {

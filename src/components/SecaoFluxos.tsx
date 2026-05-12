@@ -464,14 +464,11 @@ export default function SecaoFluxos() {
                 <p className="text-xs text-blue-600 mb-3">
                   Todas as respostas da IA serão neste idioma, independente do idioma do prompt de orientações.
                 </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { valor: 'pt', label: '🇧🇷 Português' },
                     { valor: 'en', label: '🇺🇸 English' },
                     { valor: 'es', label: '🇪🇸 Español' },
-                    { valor: 'it', label: '🇮🇹 Italiano' },
-                    { valor: 'fr', label: '🇫🇷 Français' },
-                    { valor: 'de', label: '🇩🇪 Deutsch' },
                   ].map(op => (
                     <button
                       key={op.valor}
