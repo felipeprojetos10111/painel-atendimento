@@ -41,16 +41,19 @@ export async function POST(req: NextRequest) {
 
   // Reutiliza o código se já enviamos link para esse lead+operador antes
   // Isso garante que o mesmo lead sempre recebe o mesmo link, independente de quantas vezes for enviado
-  const envioExistente = await prisma.links_enviados.findFirst({
-    where: {
-      cliente_id:  payload.cliente_id,
-      operador_id: payload.id,
-      lead_id:     conversa.leads.id,
-      codigo:      { not: null },
-    },
-    orderBy: { enviado_em: 'asc' },
-    select: { id: true, codigo: true }
-  })
+  // Reutiliza código anterior apenas para operadores (supervisores sempre geram novo código anônimo)
+  const envioExistente = payload.nivel === 'operador'
+    ? await prisma.links_enviados.findFirst({
+        where: {
+          cliente_id:  payload.cliente_id,
+          operador_id: payload.id,
+          lead_id:     conversa.leads.id,
+          codigo:      { not: null },
+        },
+        orderBy: { enviado_em: 'asc' },
+        select: { id: true, codigo: true }
+      })
+    : null
 
   const codigo = envioExistente?.codigo ?? gerarCodigo()
 
@@ -64,10 +67,11 @@ export async function POST(req: NextRequest) {
     : baseUrl + sep + codigo
 
   // Registra novo envio (mesmo código, nova entrada para rastrear quando foi enviado)
+  // Supervisores não devem ter atribuições de leads — operador_id fica null para não contaminar métricas
   const linkEnviado = await prisma.links_enviados.create({
     data: {
       cliente_id:  payload.cliente_id,
-      operador_id: payload.id,
+      operador_id: payload.nivel === 'operador' ? payload.id : null,
       lead_id:     conversa.leads.id,
       conversa_id,
       codigo,
