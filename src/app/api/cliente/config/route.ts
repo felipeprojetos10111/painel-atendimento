@@ -33,6 +33,7 @@ export async function GET() {
       webhook_secret: true,
       plataforma_base_url: true,
       redirect_domain: true,
+      link_curto_ativo: true,
       logo_url: true,
     }
   })
@@ -48,6 +49,7 @@ export async function GET() {
     webhook_secret:  cliente.webhook_secret ?? '',
     plataforma_base_url: cliente.plataforma_base_url ?? '',
     redirect_domain: cliente.redirect_domain ?? '',
+    link_curto_ativo: cliente.link_curto_ativo ?? false,
     logo_url:        cliente.logo_url ?? '',
     // campos sensíveis — só indica se estão preenchidos
     whatsapp_token: cliente.whatsapp_token ? MASCARA : '',
@@ -62,12 +64,13 @@ export async function PUT(req: NextRequest) {
   if (!payload) return NextResponse.json({ erro: 'Acesso negado' }, { status: 403 })
 
   const body = await req.json()
-  const data: Record<string, string | null> = {}
+  const data: Record<string, string | boolean | null> = {}
 
-  if (body.phone_number_id    !== undefined) data.phone_number_id    = body.phone_number_id    || null
-  if (body.verify_token       !== undefined) data.verify_token       = body.verify_token       || null
+  if (body.phone_number_id     !== undefined) data.phone_number_id     = body.phone_number_id     || null
+  if (body.verify_token        !== undefined) data.verify_token        = body.verify_token        || null
   if (body.plataforma_base_url !== undefined) data.plataforma_base_url = body.plataforma_base_url || null
-  if (body.redirect_domain    !== undefined) data.redirect_domain    = body.redirect_domain    || null
+  if (body.redirect_domain     !== undefined) data.redirect_domain     = body.redirect_domain     || null
+  if (body.link_curto_ativo    !== undefined) data.link_curto_ativo    = Boolean(body.link_curto_ativo)
 
   // Só atualiza campos sensíveis se enviados e não forem a máscara
   if (body.whatsapp_token && body.whatsapp_token !== MASCARA) data.whatsapp_token = body.whatsapp_token
@@ -98,6 +101,7 @@ export async function PUT(req: NextRequest) {
       webhook_secret: true,
       plataforma_base_url: true,
       redirect_domain: true,
+      link_curto_ativo: true,
     }
   })
 
@@ -110,6 +114,7 @@ export async function PUT(req: NextRequest) {
     webhook_secret:  cliente.webhook_secret ?? '',
     plataforma_base_url: cliente.plataforma_base_url ?? '',
     redirect_domain: cliente.redirect_domain ?? '',
+    link_curto_ativo: cliente.link_curto_ativo ?? false,
     logo_url:        '',
     whatsapp_token: cliente.whatsapp_token ? MASCARA : '',
     app_secret:     cliente.app_secret     ? MASCARA : '',

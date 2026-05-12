@@ -20,6 +20,7 @@ model clientes {
   plataforma_base_url String?            @db.Text
   logo_url           String?             @db.Text
   redirect_domain    String?             @db.Text
+  link_curto_ativo   Boolean             @default(false)
   ativo              Boolean             @default(true)
   criado_em          DateTime?           @default(now()) @db.Timestamp(6)
   operadores         operadores[]

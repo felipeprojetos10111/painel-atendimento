@@ -614,6 +614,7 @@ interface ClienteConfig {
   webhook_secret: string
   plataforma_base_url: string
   redirect_domain: string
+  link_curto_ativo: boolean
   logo_url: string
 }
 
@@ -629,6 +630,7 @@ function SecaoConfiguracoes() {
     plataforma_base_url: '',
     redirect_domain:     '',
   })
+  const [linkCurtoAtivo, setLinkCurtoAtivo] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro]         = useState('')
   const [sucesso, setSucesso]   = useState('')
@@ -653,6 +655,7 @@ function SecaoConfiguracoes() {
         if (!data) return
         setConfig(data)
         setLogoUrl(data.logo_url || null)
+        setLinkCurtoAtivo(data.link_curto_ativo ?? false)
         setPlataformaWebhookUrl(window.location.origin + '/api/webhooks/plataforma/' + data.slug)
         setForm({
           whatsapp_token:      data.whatsapp_token,
@@ -709,7 +712,7 @@ function SecaoConfiguracoes() {
       const res = await fetch('/api/cliente/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, link_curto_ativo: linkCurtoAtivo })
       })
       if (!res.ok) throw new Error((await res.json()).erro ?? tr('erroDesconhecido'))
       const data: ClienteConfig = await res.json()
@@ -965,6 +968,30 @@ function SecaoConfiguracoes() {
                 placeholder="worbit.lat"
                 className={inputCls}
               />
+
+              {/* Toggle ativar/desativar links curtos */}
+              <div className="flex items-center justify-between mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Ativar links curtos</p>
+                  <p className="text-xs text-gray-400">
+                    {linkCurtoAtivo
+                      ? `Links enviados usarão: https://${form.redirect_domain || 'seu-dominio'}/codigo`
+                      : 'Links enviados usarão a URL completa do broker'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLinkCurtoAtivo(v => !v)}
+                  disabled={!form.redirect_domain}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${
+                    linkCurtoAtivo ? 'bg-green-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    linkCurtoAtivo ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
             </div>
 
             {/* Webhook URL da plataforma */}

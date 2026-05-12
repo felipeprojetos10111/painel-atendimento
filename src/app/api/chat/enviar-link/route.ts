@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     where: { id: conversa_id, cliente_id: payload.cliente_id },
     include: {
       leads:    { select: { id: true, telefone: true, nome: true } },
-      clientes: { select: { whatsapp_token: true, phone_number_id: true, plataforma_base_url: true, redirect_domain: true } }
+      clientes: { select: { whatsapp_token: true, phone_number_id: true, plataforma_base_url: true, redirect_domain: true, link_curto_ativo: true } }
     }
   })
 
@@ -54,11 +54,14 @@ export async function POST(req: NextRequest) {
 
   const codigo = envioExistente?.codigo ?? gerarCodigo()
 
-  // Se o cliente tem domínio de redirect configurado, usa link curto — senão usa URL completa do broker
+  // Usa link curto se o cliente tiver o domínio configurado E o toggle ativo
   const redirectDomain = conversa.clientes?.redirect_domain
-  const linkExclusivo = redirectDomain
-    ? `https://${redirectDomain.replace(/^https?:\/\//, '')}/${codigo}`
-    : (() => { const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'; return baseUrl + sep + codigo })()
+  const linkCurtoAtivo = conversa.clientes?.link_curto_ativo
+  const usarLinkCurto = linkCurtoAtivo && redirectDomain
+  const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'
+  const linkExclusivo = usarLinkCurto
+    ? `https://${redirectDomain!.replace(/^https?:\/\//, '')}/${codigo}`
+    : baseUrl + sep + codigo
 
   // Registra novo envio (mesmo código, nova entrada para rastrear quando foi enviado)
   const linkEnviado = await prisma.links_enviados.create({
