@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     where: { id: conversa_id, cliente_id: payload.cliente_id },
     include: {
       leads:    { select: { id: true, telefone: true, nome: true } },
-      clientes: { select: { whatsapp_token: true, phone_number_id: true, plataforma_base_url: true } }
+      clientes: { select: { whatsapp_token: true, phone_number_id: true, plataforma_base_url: true, redirect_domain: true } }
     }
   })
 
@@ -54,10 +54,11 @@ export async function POST(req: NextRequest) {
 
   const codigo = envioExistente?.codigo ?? gerarCodigo()
 
-  // Constrói a URL completa do broker com o código de rastreamento
-  // TODO: quando domínio próprio por cliente for configurado, trocar por /r/${codigo}
-  const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'
-  const linkExclusivo = baseUrl + sep + codigo
+  // Se o cliente tem domínio de redirect configurado, usa link curto — senão usa URL completa do broker
+  const redirectDomain = conversa.clientes?.redirect_domain
+  const linkExclusivo = redirectDomain
+    ? `https://${redirectDomain.replace(/^https?:\/\//, '')}/${codigo}`
+    : (() => { const sep = baseUrl.endsWith('=') || baseUrl.endsWith('/') ? '' : '/'; return baseUrl + sep + codigo })()
 
   // Registra novo envio (mesmo código, nova entrada para rastrear quando foi enviado)
   const linkEnviado = await prisma.links_enviados.create({

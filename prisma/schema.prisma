@@ -19,6 +19,7 @@ model clientes {
   webhook_secret     String?             @db.VarChar(100)
   plataforma_base_url String?            @db.Text
   logo_url           String?             @db.Text
+  redirect_domain    String?             @db.Text
   ativo              Boolean             @default(true)
   criado_em          DateTime?           @default(now()) @db.Timestamp(6)
   operadores         operadores[]

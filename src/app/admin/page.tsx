@@ -613,6 +613,7 @@ interface ClienteConfig {
   ia_api_key: string
   webhook_secret: string
   plataforma_base_url: string
+  redirect_domain: string
   logo_url: string
 }
 
@@ -626,6 +627,7 @@ function SecaoConfiguracoes() {
     verify_token:        '',
     ia_api_key:          '',
     plataforma_base_url: '',
+    redirect_domain:     '',
   })
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro]         = useState('')
@@ -659,6 +661,7 @@ function SecaoConfiguracoes() {
           verify_token:        data.verify_token,
           ia_api_key:          data.ia_api_key,
           plataforma_base_url: data.plataforma_base_url,
+          redirect_domain:     data.redirect_domain,
         })
       })
   }, [])
@@ -718,6 +721,7 @@ function SecaoConfiguracoes() {
         verify_token:        data.verify_token,
         ia_api_key:          data.ia_api_key,
         plataforma_base_url: data.plataforma_base_url,
+        redirect_domain:     data.redirect_domain,
       })
       setSucesso(tr('cfgSucesso'))
     } catch (err) {
@@ -941,6 +945,24 @@ function SecaoConfiguracoes() {
                 value={form.plataforma_base_url}
                 onChange={e => setField('plataforma_base_url', e.target.value)}
                 placeholder="https://app.plataforma.com/?ref="
+                className={inputCls}
+              />
+            </div>
+
+            {/* Domínio de redirect (encurtador de links) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Domínio de links curtos
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                Se configurado, os links enviados aos leads usarão este domínio no lugar do link completo.
+                Ex: <span className="font-mono bg-gray-100 px-1 rounded">worbit.lat</span> → envia <span className="font-mono bg-gray-100 px-1 rounded">https://worbit.lat/abc123</span>
+              </p>
+              <input
+                type="text"
+                value={form.redirect_domain}
+                onChange={e => setField('redirect_domain', e.target.value)}
+                placeholder="worbit.lat"
                 className={inputCls}
               />
             </div>
