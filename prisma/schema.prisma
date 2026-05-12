@@ -32,6 +32,8 @@ model clientes {
   links_enviados     links_enviados[]
   eventos_plataforma eventos_plataforma[]
   sessoes_presenca   sessoes_presenca[]
+  fluxos             fluxos[]
+  execucoes_fluxo    execucoes_fluxo[]
 }
 
 model conversas {
@@ -48,9 +50,10 @@ model conversas {
   clientes      clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   leads         leads?      @relation(fields: [lead_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   operadores    operadores? @relation(fields: [operador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  filas         filas[]
-  mensagens     mensagens[]
-  links_enviados links_enviados[]
+  filas              filas[]
+  mensagens          mensagens[]
+  links_enviados     links_enviados[]
+  execucoes_fluxo    execucoes_fluxo[]
 }
 
 model filas {
@@ -87,10 +90,11 @@ model mensagens {
   conteudo    String
   tipo        String?    @default("texto") @db.VarChar(20)
   url_midia   String?
-  whatsapp_id String?    @db.VarChar(100)
-  status      String?    @db.VarChar(20)
-  enviado_em  DateTime?  @default(now()) @db.Timestamp(6)
-  conversas   conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  whatsapp_id  String?    @db.VarChar(100)
+  status       String?    @db.VarChar(20)
+  origem_fluxo String?    @db.VarChar(30) // estagio_mensagem | estagio_ia | reengajamento | null
+  enviado_em   DateTime?  @default(now()) @db.Timestamp(6)
+  conversas    conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model operadores {
@@ -203,4 +207,69 @@ model respostas_rapidas {
   operadores  operadores @relation(fields: [operador_id], references: [id], onDelete: Cascade)
 
   @@unique([operador_id, atalho])
+}
+
+// ─── Módulo de Fluxos Automatizados ───────────────────────────────────────────
+
+model fluxos {
+  id                           Int               @id @default(autoincrement())
+  cliente_id                   Int?              // NULL = fluxo template global
+  nome                         String            @db.VarChar(255)
+  descricao                    String?           @db.Text
+  versao                       Int               @default(1)
+  ativo                        Boolean           @default(false)
+  is_padrao                    Boolean           @default(false)
+  definicao                    Json
+  reengajamento_horas          Int               @default(24)
+  reengajamento_max_tentativas Int               @default(2)
+  criado_em                    DateTime          @default(now()) @db.Timestamp(6)
+  atualizado_em                DateTime          @default(now()) @db.Timestamp(6)
+  clientes                     clientes?         @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  execucoes                    execucoes_fluxo[]
+
+  @@index([cliente_id])
+  // Partial unique index (is_padrao=true AND ativo=true) definido na migração SQL
+}
+
+model execucoes_fluxo {
+  id                      Int            @id @default(autoincrement())
+  cliente_id              Int
+  conversa_id             Int
+  fluxo_id                Int
+  fluxo_versao            Int
+  estagio_atual           String         @db.VarChar(100)
+  dados_capturados        Json           @default("{}")
+  status                  String         @default("ativa") @db.VarChar(30)
+  // ativa | pausada_humano | aguardando_lead | reengajando
+  // finalizada_sucesso | finalizada_perdida | escalada | erro
+  reengajamento_tentativas Int           @default(0)
+  proxima_acao_em         DateTime?      @db.Timestamp(6)
+  iniciada_em             DateTime       @default(now()) @db.Timestamp(6)
+  finalizada_em           DateTime?      @db.Timestamp(6)
+  atualizada_em           DateTime       @default(now()) @db.Timestamp(6)
+  clientes                clientes       @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  conversas               conversas      @relation(fields: [conversa_id], references: [id], onDelete: Cascade)
+  fluxos                  fluxos         @relation(fields: [fluxo_id], references: [id])
+  eventos                 eventos_fluxo[]
+
+  @@index([conversa_id])
+  @@index([cliente_id, status])
+  @@index([proxima_acao_em])
+}
+
+model eventos_fluxo {
+  id          BigInt          @id @default(autoincrement())
+  execucao_id Int
+  cliente_id  Int
+  tipo        String          @db.VarChar(50)
+  // iniciado | estagio_entrou | estagio_saiu | mensagem_enviada
+  // dado_capturado | acao_executada | erro | pausado | retomado
+  // escalado | finalizado | reengajamento_enviado
+  estagio     String?         @db.VarChar(100)
+  payload     Json?
+  criado_em   DateTime        @default(now()) @db.Timestamp(6)
+  execucoes   execucoes_fluxo @relation(fields: [execucao_id], references: [id], onDelete: Cascade)
+
+  @@index([execucao_id])
+  @@index([cliente_id, criado_em(sort: Desc)])
 }
