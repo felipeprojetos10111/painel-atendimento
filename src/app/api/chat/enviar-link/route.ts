@@ -102,9 +102,18 @@ export async function POST(req: NextRequest) {
     }
   })
 
+  // Auto-claim: vincula o operador à conversa se ainda não estiver vinculado
+  const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date(), ultima_mensagem_em: new Date() }
+  if (payload.nivel === 'operador' && !conversa.operador_id) {
+    atualizacaoConversa.operador_id = payload.id
+    if (['aguardando', 'aguardando_humano'].includes(conversa.status ?? '')) {
+      atualizacaoConversa.status = 'em_atendimento'
+    }
+  }
+
   await prisma.conversas.update({
     where: { id: conversa_id },
-    data: { atualizado_em: new Date(), ultima_mensagem_em: new Date() }
+    data: atualizacaoConversa
   })
 
   const io = (global as unknown as { io: import('socket.io').Server }).io
