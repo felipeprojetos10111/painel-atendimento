@@ -77,6 +77,7 @@ export default function SecaoFluxos() {
   const [modalAberto, setModalAberto] = useState(false)
   const [formNome, setFormNome] = useState('')
   const [formDescricao, setFormDescricao] = useState('')
+  const [formIdioma, setFormIdioma] = useState('pt')
   const [formErro, setFormErro] = useState('')
   const [salvando, setSalvando] = useState(false)
 
@@ -111,10 +112,11 @@ export default function SecaoFluxos() {
   async function criarFluxo() {
     setFormErro('')
     if (!formNome.trim()) { setFormErro('Nome é obrigatório.'); return }
+    if (!formIdioma) { setFormErro('Selecione o idioma do fluxo.'); return }
     setSalvando(true)
     try {
       // Cria com definição vazia — o builder vai preencher
-      const definicaoVazia = { estagio_inicial: null, estagios: {}, agente: {} }
+      const definicaoVazia = { estagio_inicial: null, estagios: {}, agente: {}, idioma: formIdioma }
       const r = await fetch('/api/fluxos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,6 +131,7 @@ export default function SecaoFluxos() {
       setModalAberto(false)
       setFormNome('')
       setFormDescricao('')
+      setFormIdioma('pt')
       await carregar()
       // Abre o builder imediatamente após criar
       setBuilderDefinicao(novoFluxo.definicao ?? definicaoVazia)
@@ -452,6 +455,40 @@ export default function SecaoFluxos() {
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+
+              {/* Idioma — campo primordial */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <label className="block text-sm font-semibold text-blue-800 mb-1">
+                  🌐 Idioma do fluxo *
+                </label>
+                <p className="text-xs text-blue-600 mb-3">
+                  Todas as respostas da IA serão neste idioma, independente do idioma do prompt de orientações.
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {[
+                    { valor: 'pt', label: '🇧🇷 Português' },
+                    { valor: 'en', label: '🇺🇸 English' },
+                    { valor: 'es', label: '🇪🇸 Español' },
+                    { valor: 'it', label: '🇮🇹 Italiano' },
+                    { valor: 'fr', label: '🇫🇷 Français' },
+                    { valor: 'de', label: '🇩🇪 Deutsch' },
+                  ].map(op => (
+                    <button
+                      key={op.valor}
+                      type="button"
+                      onClick={() => setFormIdioma(op.valor)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all ${
+                        formIdioma === op.valor
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      {op.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
                 <input

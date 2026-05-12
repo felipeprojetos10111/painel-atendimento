@@ -232,10 +232,17 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
+const LABEL_IDIOMAS: Record<string, string> = {
+  pt: '🇧🇷 Português', en: '🇺🇸 English', es: '🇪🇸 Español',
+  it: '🇮🇹 Italiano', fr: '🇫🇷 Français', de: '🇩🇪 Deutsch',
+}
+
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {
   const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
+  const idiomaSalvo = (definicaoInicial?.idioma as string) ?? 'pt'
 
   const [nome, setNome] = useState(nomeInicial)
+  const [idioma] = useState(idiomaSalvo)
   const [etapas, setEtapas] = useState<Etapa[]>(init.etapas.length > 0 ? init.etapas : [novaEtapa(0)])
   const [agente, setAgente] = useState<AgenteConfig>(init.agente)
   const [salvando, setSalvando] = useState(false)
@@ -275,7 +282,7 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
   async function salvar() {
     setSalvando(true)
     try {
-      const definicao = builderParaDefinicao(etapas, agente)
+      const definicao = { ...builderParaDefinicao(etapas, agente), idioma }
       await fetch(`/api/fluxos/${fluxoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -310,6 +317,9 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
           className="flex-1 text-lg font-semibold text-gray-900 bg-transparent border-none outline-none focus:bg-gray-100 rounded px-2 py-0.5"
           placeholder="Nome do fluxo"
         />
+        <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shrink-0" title="Idioma configurado no fluxo">
+          🌐 {LABEL_IDIOMAS[idioma] ?? idioma}
+        </span>
         <button
           onClick={() => setAgenteAberto(v => !v)}
           className="flex items-center gap-1.5 text-sm text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors"
