@@ -57,7 +57,16 @@ export async function POST(
 
   // Extrai sub1 — código de rastreio do nosso encurtador (worbit.lat/r/codigo)
   // Tem prioridade sobre affiliateLinkId para match em links_enviados
-  const sub1: string | null = d.sub1 ?? d.subId ?? d.sub_1 ?? null
+  // Worbit não envia sub1 como campo direto — extrai da query string do registerUrl
+  const sub1Direct: string | null = d.sub1 ?? d.subId ?? d.sub_1 ?? null
+  let sub1FromUrl: string | null = null
+  if (!sub1Direct && d.registerUrl) {
+    try {
+      const regUrl = new URL(d.registerUrl)
+      sub1FromUrl = regUrl.searchParams.get('sub1') ?? null
+    } catch { /* URL inválida — ignora */ }
+  }
+  const sub1: string | null = sub1Direct ?? sub1FromUrl
   if (sub1) affiliateLinkId = sub1
 
   // Constrói o telefone completo: countryCode + phone
