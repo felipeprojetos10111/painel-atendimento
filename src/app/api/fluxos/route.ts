@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
   const { nome, descricao, definicao, reengajamento_horas, reengajamento_max_tentativas } = body
 
   if (!nome) return NextResponse.json({ erro: 'nome obrigatório' }, { status: 400 })
-  if (!definicao?.estagio_inicial || !definicao?.estagios)
-    return NextResponse.json({ erro: 'definicao deve ter estagio_inicial e estagios' }, { status: 400 })
+  if (!definicao || typeof definicao !== 'object')
+    return NextResponse.json({ erro: 'definicao é obrigatória' }, { status: 400 })
 
   const fluxo = await prisma.fluxos.create({
     data: {

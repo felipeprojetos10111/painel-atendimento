@@ -60,39 +60,6 @@ const STATUS_COR: Record<string, string> = {
   erro: 'bg-red-200 text-red-900',
 }
 
-const DEFINICAO_EXEMPLO = {
-  estagio_inicial: 'boas_vindas',
-  variaveis_globais: {},
-  estagios: {
-    boas_vindas: {
-      tipo: 'mensagem',
-      texto: 'Olá {{lead.nome}}! 👋 Bem-vindo! Posso te ajudar com algumas perguntas rápidas?',
-      proximo: 'qualificacao',
-      aguardar_resposta: false,
-    },
-    qualificacao: {
-      tipo: 'ia_livre',
-      prompt: 'Você é um assistente de qualificação. Converse naturalmente e colete informações sobre o interesse do lead.',
-      max_turnos: 5,
-      saidas_permitidas: ['enviar_link', 'escalar'],
-    },
-    enviar_link: {
-      tipo: 'acao',
-      acao: 'enviar_link_afiliado',
-      mensagem_pre: 'Perfeito! Aqui está o link especial para você:',
-      proximo: 'finalizado',
-    },
-    escalar: {
-      tipo: 'acao',
-      acao: 'escalar',
-      motivo: 'Lead qualificado — pronto para atendimento humano',
-    },
-    finalizado: {
-      tipo: 'acao',
-      acao: 'finalizar_sucesso',
-    },
-  },
-}
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -110,7 +77,6 @@ export default function SecaoFluxos() {
   const [modalAberto, setModalAberto] = useState(false)
   const [formNome, setFormNome] = useState('')
   const [formDescricao, setFormDescricao] = useState('')
-  const [formDefinicao, setFormDefinicao] = useState(JSON.stringify(DEFINICAO_EXEMPLO, null, 2))
   const [formErro, setFormErro] = useState('')
   const [salvando, setSalvando] = useState(false)
 
@@ -141,34 +107,32 @@ export default function SecaoFluxos() {
     setBuilderFluxo(fluxo)
   }
 
-  // ── Criar fluxo ──────────────────────────────────────────────────────────────
+  // ── Criar fluxo e abrir builder ──────────────────────────────────────────────
   async function criarFluxo() {
     setFormErro('')
-    let definicaoParsed
-    try {
-      definicaoParsed = JSON.parse(formDefinicao)
-    } catch {
-      setFormErro('JSON inválido na definição do fluxo.')
-      return
-    }
     if (!formNome.trim()) { setFormErro('Nome é obrigatório.'); return }
     setSalvando(true)
     try {
+      // Cria com definição vazia — o builder vai preencher
+      const definicaoVazia = { estagio_inicial: null, estagios: {}, agente: {} }
       const r = await fetch('/api/fluxos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: formNome, descricao: formDescricao || null, definicao: definicaoParsed })
+        body: JSON.stringify({ nome: formNome, descricao: formDescricao || null, definicao: definicaoVazia })
       })
       if (!r.ok) {
         const e = await r.json()
         setFormErro(e.erro ?? 'Erro ao criar fluxo.')
         return
       }
+      const novoFluxo = await r.json()
       setModalAberto(false)
       setFormNome('')
       setFormDescricao('')
-      setFormDefinicao(JSON.stringify(DEFINICAO_EXEMPLO, null, 2))
-      carregar()
+      await carregar()
+      // Abre o builder imediatamente após criar
+      setBuilderDefinicao(novoFluxo.definicao ?? definicaoVazia)
+      setBuilderFluxo(novoFluxo)
     } finally {
       setSalvando(false)
     }
@@ -507,19 +471,6 @@ export default function SecaoFluxos() {
                   onChange={e => setFormDescricao(e.target.value)}
                   placeholder="Descrição opcional do fluxo"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Definição JSON *
-                  <span className="ml-2 text-xs font-normal text-gray-400">(estagio_inicial + estagios obrigatórios)</span>
-                </label>
-                <textarea
-                  value={formDefinicao}
-                  onChange={e => setFormDefinicao(e.target.value)}
-                  rows={16}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-900 font-mono focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none resize-none"
                 />
               </div>
 
