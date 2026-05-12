@@ -495,7 +495,7 @@ export default function SecaoFluxos() {
                   value={formNome}
                   onChange={e => setFormNome(e.target.value)}
                   placeholder="Ex: Qualificação de Leads"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none"
                 />
               </div>
 
@@ -506,7 +506,7 @@ export default function SecaoFluxos() {
                   value={formDescricao}
                   onChange={e => setFormDescricao(e.target.value)}
                   placeholder="Descrição opcional do fluxo"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none"
                 />
               </div>
 
@@ -519,7 +519,7 @@ export default function SecaoFluxos() {
                   value={formDefinicao}
                   onChange={e => setFormDefinicao(e.target.value)}
                   rows={16}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none resize-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-900 font-mono focus:ring-2 focus:ring-green-300 focus:border-green-400 focus:outline-none resize-none"
                 />
               </div>
 
