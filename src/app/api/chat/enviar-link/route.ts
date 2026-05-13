@@ -107,8 +107,7 @@ export async function POST(req: NextRequest) {
   })
 
   // Auto-claim: vincula o operador à conversa se ainda não estiver vinculado
-  // ultima_mensagem_em é reservado para mensagens do LEAD (janela WhatsApp 24h)
-  const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date() }
+  const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date(), ultima_mensagem_em: new Date() }
   if (payload.nivel === 'operador' && !conversa.operador_id) {
     atualizacaoConversa.operador_id = payload.id
     if (['aguardando', 'aguardando_humano'].includes(conversa.status ?? '')) {
