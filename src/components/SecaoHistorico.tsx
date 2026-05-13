@@ -61,9 +61,13 @@ function previewMensagem(m: UltimaMensagem) {
 
 // ─── Painel de mensagens ──────────────────────────────────────────────────────
 
-function PainelMensagens({ conversa, onFechar }: { conversa: Conversa; onFechar: () => void }) {
+function PainelMensagens({ conversa, onFechar, onReatribuido }: { conversa: Conversa; onFechar: () => void; onReatribuido: () => void }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [operadores, setOperadores] = useState<Operador[]>([])
+  const [reatribuindo, setReatribuindo] = useState(false)
+  const [operadorSelecionado, setOperadorSelecionado] = useState<string>('')
+  const [salvandoReatrib, setSalvandoReatrib] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -72,7 +76,29 @@ function PainelMensagens({ conversa, onFechar }: { conversa: Conversa; onFechar:
       .then(r => r.json())
       .then(data => { setMensagens(data); setCarregando(false) })
       .catch(() => setCarregando(false))
+    fetch('/api/operadores')
+      .then(r => r.json())
+      .then(setOperadores)
+      .catch(() => {})
   }, [conversa.id])
+
+  async function reatribuir() {
+    setSalvandoReatrib(true)
+    try {
+      await fetch(`/api/conversas/${conversa.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operador_id: operadorSelecionado === 'fila' ? null : Number(operadorSelecionado),
+          status: operadorSelecionado === 'fila' ? 'aguardando_humano' : 'em_atendimento',
+        }),
+      })
+      setReatribuindo(false)
+      onReatribuido()
+    } finally {
+      setSalvandoReatrib(false)
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -102,12 +128,42 @@ function PainelMensagens({ conversa, onFechar }: { conversa: Conversa; onFechar:
               )}
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{conversa.leads?.telefone}</p>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-              <span>
-                👤 {conversa.operadores?.nome ?? <em className="text-gray-400">Sem operador</em>}
-              </span>
+            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+              <span>👤 {conversa.operadores?.nome ?? <em className="text-gray-400">Sem operador</em>}</span>
               <span>📅 {formatarData(conversa.criado_em)}</span>
+              <button
+                onClick={() => { setReatribuindo(v => !v); setOperadorSelecionado('') }}
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Reatribuir
+              </button>
             </div>
+
+            {reatribuindo && (
+              <div className="flex items-center gap-2 mt-2">
+                <select
+                  value={operadorSelecionado}
+                  onChange={e => setOperadorSelecionado(e.target.value)}
+                  className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 text-gray-900 bg-white focus:ring-2 focus:ring-blue-300 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="fila">↩ Devolver à fila</option>
+                  {operadores.map(op => (
+                    <option key={op.id} value={String(op.id)}>{op.nome}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={reatribuir}
+                  disabled={!operadorSelecionado || salvandoReatrib}
+                  className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {salvandoReatrib ? 'Salvando…' : 'Confirmar'}
+                </button>
+                <button onClick={() => setReatribuindo(false)} className="text-xs text-gray-400 hover:text-gray-600">
+                  Cancelar
+                </button>
+              </div>
+            )}
           </div>
           <button onClick={onFechar} className="text-gray-400 hover:text-gray-600 mt-0.5">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -415,6 +471,7 @@ export default function SecaoHistorico() {
         <PainelMensagens
           conversa={conversaSelecionada}
           onFechar={() => setConversaSelecionada(null)}
+          onReatribuido={() => { setConversaSelecionada(null); carregar() }}
         />
       )}
     </div>
