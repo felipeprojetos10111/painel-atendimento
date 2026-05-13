@@ -321,7 +321,10 @@ function SecaoOperadores() {
                           body: JSON.stringify({ operadorId: op.id }),
                         })
                         if (res.ok) window.location.href = '/painel'
-                        else alert('Não foi possível entrar como operador.')
+                        else {
+                          const data = await res.json().catch(() => ({}))
+                          alert(`Erro (${res.status}): ${data.erro ?? 'Não foi possível entrar como operador.'}`)
+                        }
                       }}
                       title={`Entrar como ${op.nome}`}
                       className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"

@@ -16,11 +16,14 @@ export async function POST(req: NextRequest) {
   const { operadorId } = await req.json()
   if (!operadorId) return NextResponse.json({ erro: 'operadorId obrigatório' }, { status: 400 })
 
+  const operadorIdNum = Number(operadorId)
+  const clienteIdNum  = payload.cliente_id ? Number(payload.cliente_id) : null
+
   // Busca o operador — garante que pertence ao mesmo cliente
   const operador = await prisma.operadores.findFirst({
     where: {
-      id: operadorId,
-      ...(payload.cliente_id ? { cliente_id: payload.cliente_id } : {}),
+      id: operadorIdNum,
+      ...(clienteIdNum ? { cliente_id: clienteIdNum } : {}),
     },
     select: { id: true, nome: true, email: true, nivel: true, cliente_id: true, ativo: true },
   })
