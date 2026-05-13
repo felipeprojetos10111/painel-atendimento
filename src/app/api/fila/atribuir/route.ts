@@ -85,5 +85,18 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Inicia fluxo se o operador pertence a algum fluxo ativo
+  try {
+    const gatewayUrl = process.env.GATEWAY_URL ?? 'http://localhost:3000'
+    const secret = process.env.INTERNAL_SECRET
+    await fetch(`${gatewayUrl}/fluxo/iniciar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': secret ?? '' },
+      body: JSON.stringify({ conversa_id: conversaId, operador_id: operadorEscolhido }),
+    })
+  } catch (e: any) {
+    console.error('[fila] Erro ao iniciar fluxo:', e.message)
+  }
+
   return NextResponse.json({ ok: true, atribuido: true, operadorId: operadorEscolhido })
 }
