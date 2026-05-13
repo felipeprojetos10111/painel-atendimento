@@ -460,7 +460,7 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
                           }))}
                           className="rounded accent-purple-500"
                         />
-                        <span>{op.nome}</span>
+                        <span className="text-gray-800">{op.nome}</span>
                       </label>
                     ))}
                   </div>
