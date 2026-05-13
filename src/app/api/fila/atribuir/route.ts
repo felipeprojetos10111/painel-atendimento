@@ -41,29 +41,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, atribuido: false, motivo: 'apenas supervisores online' })
   }
 
-  // Exclui operadores dedicados a fluxos (operador_escalacao_id / operador_link_id)
-  const fluxosAtivos = await prisma.fluxos.findMany({
-    where: { cliente_id: conversa.cliente_id, ativo: true },
-    select: { definicao: true }
-  })
-  const idsFluxo = new Set<number>()
-  for (const f of fluxosAtivos) {
-    const def = f.definicao as any
-    if (def?.agente?.operador_escalacao_id) idsFluxo.add(def.agente.operador_escalacao_id)
-    if (def?.agente?.operador_link_id)      idsFluxo.add(def.agente.operador_link_id)
-  }
-  const operadoresFiltrados = operadoresOnline.filter(o => !idsFluxo.has(o.id))
-
-  if (operadoresFiltrados.length === 0) {
-    console.log(`[fila] Todos os operadores online são dedicados a fluxos. Conversa ${conversaId} aguardando.`)
-    return NextResponse.json({ ok: true, atribuido: false, motivo: 'operadores dedicados a fluxos' })
-  }
-
   // Conta conversas ativas por operador (em_atendimento ou aguardando_humano)
   const contagens = await prisma.conversas.groupBy({
     by: ['operador_id'],
     where: {
-      operador_id: { in: operadoresFiltrados.map(o => o.id) },
+      operador_id: { in: operadoresOnline.map(o => o.id) },
       status: { in: ['em_atendimento', 'aguardando_humano'] }
     },
     _count: { id: true }
@@ -75,10 +57,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Encontra o operador com menor carga
-  let operadorEscolhido = operadoresFiltrados[0].id
+  let operadorEscolhido = operadoresOnline[0].id
   let menorCarga = mapaContagem.get(operadorEscolhido) ?? 0
 
-  for (const op of operadoresFiltrados) {
+  for (const op of operadoresOnline) {
     const carga = mapaContagem.get(op.id) ?? 0
     if (carga < menorCarga) {
       menorCarga = carga
