@@ -46,7 +46,7 @@ interface Etapa {
 
 interface AgenteConfig {
   prompt_base: string
-  operador_escalacao_id: number | null
+  operadores_ids: number[]
   operador_link_id: number | null
   recuperacao: {
     ativo: boolean
@@ -253,7 +253,9 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
     etapas,
     agente: {
       prompt_base: (ag?.prompt_base as string) ?? '',
-      operador_escalacao_id: (ag?.operador_escalacao_id as number | null) ?? null,
+      // Lê operadores_ids novo formato; compat com operador_escalacao_id legado
+      operadores_ids: (ag?.operadores_ids as number[] | undefined)
+        ?? (ag?.operador_escalacao_id ? [ag.operador_escalacao_id as number] : []),
       operador_link_id: (ag?.operador_link_id as number | null) ?? null,
       recuperacao: {
         ativo: (rec?.ativo as boolean) ?? true,
@@ -271,7 +273,7 @@ const LABEL_IDIOMAS: Record<string, string> = {
 }
 
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {
-  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operador_escalacao_id: null, operador_link_id: null, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
+  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operadores_ids: [], operador_link_id: null, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
   const idiomaSalvo = (definicaoInicial?.idioma as string) ?? 'pt'
 
   const [nome, setNome] = useState(nomeInicial)
@@ -438,21 +440,33 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
               </div>
 
               <div className="border-t border-gray-100 pt-4">
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  👤 Operador de escalação (teste)
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  👥 Operadores do fluxo
                 </label>
-                <select
-                  value={agente.operador_escalacao_id ?? ''}
-                  onChange={e => setAgente(a => ({ ...a, operador_escalacao_id: e.target.value ? Number(e.target.value) : null }))}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-300 focus:outline-none"
-                >
-                  <option value="">— Fila geral (padrão) —</option>
-                  {operadores.map(op => (
-                    <option key={op.id} value={op.id}>{op.nome}</option>
-                  ))}
-                </select>
+                {operadores.length === 0 ? (
+                  <p className="text-xs text-gray-400">Nenhum operador cadastrado.</p>
+                ) : (
+                  <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {operadores.map(op => (
+                      <label key={op.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={agente.operadores_ids.includes(op.id)}
+                          onChange={e => setAgente(a => ({
+                            ...a,
+                            operadores_ids: e.target.checked
+                              ? [...a.operadores_ids, op.id]
+                              : a.operadores_ids.filter(id => id !== op.id)
+                          }))}
+                          className="rounded accent-purple-500"
+                        />
+                        <span>{op.nome}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-1">
-                  Quando definido, escalações deste fluxo vão direto para este operador em vez da fila.
+                  Escalações deste fluxo serão distribuídas entre os operadores selecionados (menor carga). Se nenhum selecionado, vai para a fila geral.
                 </p>
               </div>
 
