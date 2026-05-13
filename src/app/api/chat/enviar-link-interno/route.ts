@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.conversas.update({
     where: { id: conversa_id },
-    data: { atualizado_em: new Date(), ultima_mensagem_em: new Date() }
+    data: { atualizado_em: new Date() } // ultima_mensagem_em só é atualizado por mensagens do lead
   })
 
   return NextResponse.json({ ok: true, link: linkExclusivo })
