@@ -871,7 +871,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
           const estilo = ORIGEM_ESTILO[m.origem] ?? ORIGEM_ESTILO.lead
           const label = ORIGEM_CHAVE[m.origem] ? tr(ORIGEM_CHAVE[m.origem]) : m.origem
           return (
-            <div key={m.id} className={`flex flex-col gap-1 ${estilo.alinhamento}`}>
+            <div key={m.id} className={`flex flex-col gap-1 w-full ${estilo.alinhamento}`}>
               <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${estilo.bolha}`}>
                 <ConteudoMensagem msg={m} />
                 {m.origem === 'operador' && (
