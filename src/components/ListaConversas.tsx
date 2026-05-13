@@ -16,6 +16,7 @@ interface Conversa {
   id: number
   status: string | null
   nao_lidas: number | null
+  msgs_sem_resposta?: number | null
   atualizado_em: string | null
   janela_expirada: boolean
   leads: { nome: string | null; telefone: string } | null
@@ -74,6 +75,7 @@ function ItemConversa({
   const ultimaMensagem = c.mensagens[0]
   const nome = c.leads?.nome ?? c.leads?.telefone ?? 'Desconhecido'
   const naoLidas = c.nao_lidas ?? 0
+  const semResposta = c.msgs_sem_resposta ?? 0
 
   return (
     <li
@@ -85,6 +87,11 @@ function ItemConversa({
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-[#e9edef] truncate max-w-[140px]">{nome}</span>
         <div className="flex items-center gap-1.5">
+          {semResposta > 0 && (
+            <span className="bg-red-600 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" title="Mensagens sem resposta do lead">
+              {semResposta > 99 ? '99+' : semResposta}↗
+            </span>
+          )}
           {naoLidas > 0 && !selecionada && (
             <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
               {naoLidas > 99 ? '99+' : naoLidas}

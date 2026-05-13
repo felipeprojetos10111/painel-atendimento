@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
 
   const conversas = await prisma.conversas.findMany({
     where,
-    orderBy: { atualizado_em: 'desc' },
+    orderBy: [
+      { msgs_sem_resposta: 'desc' },
+      { atualizado_em: 'desc' },
+    ],
     include: {
       leads: { select: { nome: true, telefone: true } },
       operadores: { select: { nome: true } },

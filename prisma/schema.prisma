@@ -44,6 +44,7 @@ model conversas {
   status        String?     @default("aguardando") @db.VarChar(20)
   canal         String?     @default("whatsapp") @db.VarChar(20)
   nao_lidas            Int?        @default(0)
+  msgs_sem_resposta    Int?        @default(0)
   criado_em            DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em        DateTime?   @default(now()) @db.Timestamp(6)
   ultima_mensagem_em   DateTime?   @db.Timestamp(6)
