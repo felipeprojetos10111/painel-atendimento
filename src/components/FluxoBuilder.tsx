@@ -534,9 +534,20 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fluxoId, nome: file.name, contentType: file.type, ext }),
       })
-      const { uploadUrl, publicUrl } = await r.json()
-      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+      const data = await r.json()
+      if (!r.ok) {
+        alert(`Erro ao gerar URL de upload: ${data.erro ?? r.status}`)
+        return
+      }
+      const { uploadUrl, publicUrl } = data
+      const putRes = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+      if (!putRes.ok) {
+        alert(`Erro ao enviar arquivo para o storage: ${putRes.status} ${putRes.statusText}`)
+        return
+      }
       upEnvio({ url: publicUrl })
+    } catch (e: unknown) {
+      alert(`Erro inesperado no upload: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setUploadando(false)
     }
