@@ -48,6 +48,7 @@ interface AgenteConfig {
   prompt_base: string
   operadores_ids: number[]
   operador_link_id: number | null
+  max_tentativas_agente: number
   recuperacao: {
     ativo: boolean
     horas_espera: number
@@ -125,6 +126,7 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
             agente_prompt: e.se_no_match.agente_prompt,
             apos_recuperar: resolveDestino(e.se_no_match.apos_recuperar, i),
             apos_falhar: resolveDestino(e.se_no_match.apos_falhar, i),
+            ...(e.se_no_match.tipo === 'agente' ? { max_tentativas: agente.max_tentativas_agente } : {}),
           }
         : null
 
@@ -257,6 +259,7 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
       operadores_ids: (ag?.operadores_ids as number[] | undefined)
         ?? (ag?.operador_escalacao_id ? [ag.operador_escalacao_id as number] : []),
       operador_link_id: (ag?.operador_link_id as number | null) ?? null,
+      max_tentativas_agente: (ag?.max_tentativas_agente as number) ?? 5,
       recuperacao: {
         ativo: (rec?.ativo as boolean) ?? true,
         horas_espera: (rec?.horas_espera as number) ?? 3,
@@ -273,7 +276,7 @@ const LABEL_IDIOMAS: Record<string, string> = {
 }
 
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {
-  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operadores_ids: [], operador_link_id: null, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
+  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operadores_ids: [], operador_link_id: null, max_tentativas_agente: 5, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
   const idiomaSalvo = (definicaoInicial?.idioma as string) ?? 'pt'
 
   const [nome, setNome] = useState(nomeInicial)
@@ -525,6 +528,22 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  🔄 Tentativas do agente
+                </label>
+                <input
+                  type="number"
+                  min={1} max={10}
+                  value={agente.max_tentativas_agente}
+                  onChange={e => setAgente(a => ({ ...a, max_tentativas_agente: Number(e.target.value) }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-purple-300 focus:outline-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Quantas vezes o agente tenta reencaminhar o lead (quando ele responde mas foge do tema) antes de desistir da etapa.
+                </p>
               </div>
 
               <div className="border-t border-gray-100 pt-4">
