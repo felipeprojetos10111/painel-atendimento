@@ -10,7 +10,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type TipoEnvio = 'texto' | 'imagem' | 'video' | 'audio' | 'link_afiliado' | 'escalar' | 'encerrar'
-type TipoEspera = 'keywords' | 'qualquer' | 'numero'
+type TipoEspera = 'keywords' | 'qualquer' | 'numero' | 'imagem'
 type TipoNoMatch = 'agente' | 'aguardar' | 'encerrar' | 'escalar'
 
 interface EnvioConfig {
@@ -838,8 +838,15 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
                       <option value="keywords">Palavras-chave</option>
                       <option value="qualquer">Qualquer resposta</option>
                       <option value="numero">Número</option>
+                      <option value="imagem">🖼 Imagem / mídia</option>
                     </select>
                   </div>
+
+                  {etapa.esperar.tipo === 'imagem' && (
+                    <p className="text-xs text-gray-500 italic bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                      O fluxo avança quando o lead enviar qualquer imagem, vídeo, áudio ou documento.
+                    </p>
+                  )}
 
                   {etapa.esperar.tipo === 'keywords' && (
                     <div className="space-y-2">
@@ -866,15 +873,17 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Contexto para a IA avaliar (quando keywords não batem)</label>
-                    <input
-                      value={etapa.esperar.descricao}
-                      onChange={e => upEsperar({ descricao: e.target.value })}
-                      placeholder="Ex: Lead confirmou interesse em investir"
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-300 focus:outline-none"
-                    />
-                  </div>
+                  {etapa.esperar.tipo !== 'imagem' && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Contexto para a IA avaliar (quando keywords não batem)</label>
+                      <input
+                        value={etapa.esperar.descricao}
+                        onChange={e => upEsperar({ descricao: e.target.value })}
+                        placeholder="Ex: Lead confirmou interesse em investir"
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-300 focus:outline-none"
+                      />
+                    </div>
+                  )}
 
                   {etapa.esperar.tipo === 'qualquer' && (
                     <div>
