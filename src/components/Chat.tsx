@@ -800,9 +800,14 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
           {/* Nome e telefone do lead */}
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-[#e9edef] leading-tight truncate">
-              {leadNome ?? leadTelefone ?? `${tr('conversa')} #${conversaId}`}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-[#e9edef] leading-tight truncate">
+                {leadNome ?? leadTelefone ?? `${tr('conversa')} #${conversaId}`}
+              </p>
+              <span className="text-[10px] font-mono text-[#3b4a54] bg-[#202c33] px-1.5 py-0.5 rounded shrink-0">
+                #{conversaId}
+              </span>
+            </div>
             {leadNome && leadTelefone && (
               <p className="text-xs text-[#8696a0] leading-tight font-mono">{leadTelefone}</p>
             )}

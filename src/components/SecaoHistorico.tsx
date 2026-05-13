@@ -120,6 +120,9 @@ function PainelMensagens({ conversa, onFechar, onReatribuido }: { conversa: Conv
               <span className="font-semibold text-gray-900">
                 {conversa.leads?.nome ?? conversa.leads?.telefone ?? 'Lead desconhecido'}
               </span>
+              <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                #{conversa.id}
+              </span>
               {badgeStatus(conversa.status)}
               {conversa.janela_expirada && (
                 <span className="text-xs font-medium bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
@@ -390,9 +393,14 @@ export default function SecaoHistorico() {
                 >
                   {/* Lead */}
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">
-                      {c.leads?.nome ?? <span className="text-gray-400 italic">Sem nome</span>}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-gray-900">
+                        {c.leads?.nome ?? <span className="text-gray-400 italic">Sem nome</span>}
+                      </p>
+                      <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1 py-0.5 rounded shrink-0">
+                        #{c.id}
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-400">{c.leads?.telefone}</p>
                   </td>
 
