@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Busca operadores ativos do nível 'operador' (não supervisor) que estão online
+  // e pertencem ao mesmo cliente da conversa (isolamento multi-tenant)
   const operadoresOnline = await prisma.operadores.findMany({
-    where: { id: { in: idsOnline }, nivel: 'operador', ativo: true },
+    where: { id: { in: idsOnline }, nivel: 'operador', ativo: true, cliente_id: conversa.cliente_id },
     select: { id: true }
   })
 
