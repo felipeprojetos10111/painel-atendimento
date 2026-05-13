@@ -876,13 +876,9 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
 
                   {etapa.se_no_match?.tipo === 'agente' && (
                     <div className="ml-20 space-y-2">
-                      <textarea
-                        value={etapa.se_no_match.agente_prompt}
-                        onChange={e => upNoMatch({ agente_prompt: e.target.value })}
-                        rows={2}
-                        placeholder="Instrução específica para o agente nessa etapa. Ex: 'O lead desviou. Entenda a objeção e redirecione para a pergunta anterior.'"
-                        className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 resize-none focus:ring-2 focus:ring-purple-300 focus:outline-none"
-                      />
+                      <p className="text-xs text-gray-400 italic">
+                        O agente usa o prompt configurado em <strong className="text-gray-500">🤖 Agente IA</strong>.
+                      </p>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 shrink-0">Se recuperar →</span>
                         <select
