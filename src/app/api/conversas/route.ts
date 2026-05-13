@@ -16,27 +16,27 @@ export async function GET(req: NextRequest) {
   const clienteFilter = { cliente_id: payload.cliente_id }
   const isSupervisor = payload.nivel === 'supervisor'
 
-  // Supervisores veem todas (ativas + expiradas, exceto resolvidas) — apenas no Histórico
-  // Operadores NUNCA veem conversas expiradas (Meta não permite envio após 24h sem template)
-  // A janela de 24h é calculada sobre ultima_mensagem_em que só é atualizado por mensagens do lead
+  // Supervisores: todas exceto resolvidas
+  // Operadores: dentro da janela de 24h + (atribuídas a eles OU aguardando sem operador)
   const where = isSupervisor
     ? { ...clienteFilter, status: { not: 'resolvida' } }
     : {
-        ...clienteFilter,
-        status: { not: 'resolvida' },
-        // Janela WhatsApp: lead deve ter enviado mensagem nas últimas 24h
-        OR: [
-          { ultima_mensagem_em: { gt: limite24h } },
-          { ultima_mensagem_em: null },
-        ],
         AND: [
+          { cliente_id: payload.cliente_id },
+          { status: { not: 'resolvida' } },
+          {
+            OR: [
+              { ultima_mensagem_em: { gt: limite24h } },
+              { ultima_mensagem_em: null },
+            ]
+          },
           {
             OR: [
               { operador_id: payload.id },
               { operador_id: null, status: 'aguardando_humano' },
               { operador_id: null, status: 'aguardando' },
             ]
-          }
+          },
         ]
       }
 
