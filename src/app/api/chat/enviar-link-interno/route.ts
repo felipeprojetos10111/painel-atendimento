@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { conversa_id, mensagem_prefixo } = body
+  const { conversa_id, mensagem_prefixo, operador_id } = body
   if (!conversa_id) return NextResponse.json({ erro: 'conversa_id obrigatório' }, { status: 400 })
 
   const conversa = await prisma.conversas.findFirst({
@@ -50,11 +50,11 @@ export async function POST(req: NextRequest) {
     ? `https://${redirectDomain!.replace(/^https?:\/\//, '')}/r/${codigo}`
     : baseUrl + sep + codigo
 
-  // Registra em links_enviados sem operador (enviado pelo fluxo)
+  // Registra em links_enviados — com operador se o fluxo tiver um vinculado
   const linkEnviado = await prisma.links_enviados.create({
     data: {
       cliente_id:  conversa.clientes!.id,
-      operador_id: null,
+      operador_id: operador_id ? Number(operador_id) : null,
       lead_id:     conversa.leads.id,
       conversa_id,
       codigo,

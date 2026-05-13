@@ -47,6 +47,7 @@ interface Etapa {
 interface AgenteConfig {
   prompt_base: string
   operador_escalacao_id: number | null
+  operador_link_id: number | null
   recuperacao: {
     ativo: boolean
     horas_espera: number
@@ -246,6 +247,7 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
     agente: {
       prompt_base: (ag?.prompt_base as string) ?? '',
       operador_escalacao_id: (ag?.operador_escalacao_id as number | null) ?? null,
+      operador_link_id: (ag?.operador_link_id as number | null) ?? null,
       recuperacao: {
         ativo: (rec?.ativo as boolean) ?? true,
         horas_espera: (rec?.horas_espera as number) ?? 3,
@@ -262,7 +264,7 @@ const LABEL_IDIOMAS: Record<string, string> = {
 }
 
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {
-  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operador_escalacao_id: null, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
+  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operador_escalacao_id: null, operador_link_id: null, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
   const idiomaSalvo = (definicaoInicial?.idioma as string) ?? 'pt'
 
   const [nome, setNome] = useState(nomeInicial)
@@ -405,6 +407,25 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
                 </select>
                 <p className="text-xs text-gray-400 mt-1">
                   Quando definido, escalações deste fluxo vão direto para este operador em vez da fila.
+                </p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  🔗 Operador do link rastreado
+                </label>
+                <select
+                  value={agente.operador_link_id ?? ''}
+                  onChange={e => setAgente(a => ({ ...a, operador_link_id: e.target.value ? Number(e.target.value) : null }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-300 focus:outline-none"
+                >
+                  <option value="">— Sem atribuição —</option>
+                  {operadores.map(op => (
+                    <option key={op.id} value={op.id}>{op.nome}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  Links enviados por este fluxo serão atribuídos a este operador nas métricas.
                 </p>
               </div>
 
