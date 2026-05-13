@@ -272,8 +272,11 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
   const [etapas, setEtapas] = useState<Etapa[]>(init.etapas.length > 0 ? init.etapas : [novaEtapa(0)])
   const [agente, setAgente] = useState<AgenteConfig>(init.agente)
   const [salvando, setSalvando] = useState(false)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pendente' | 'salvando' | 'salvo' | 'erro'>('idle')
   const [agenteAberto, setAgenteAberto] = useState(false)
   const [operadores, setOperadores] = useState<OperadorItem[]>([])
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isFirstRender = useRef(true)
 
   useEffect(() => {
     fetch('/api/operadores')
@@ -281,6 +284,33 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
       .then((lista: OperadorItem[]) => setOperadores(Array.isArray(lista) ? lista : []))
       .catch(() => {})
   }, [])
+
+  // Auto-save com debounce de 2s após qualquer mudança em etapas ou agente
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    setAutoSaveStatus('pendente')
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(async () => {
+      setAutoSaveStatus('salvando')
+      try {
+        const definicao = { ...builderParaDefinicao(etapas, agente), idioma }
+        const res = await fetch(`/api/fluxos/${fluxoId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, definicao }),
+        })
+        if (res.ok) {
+          setAutoSaveStatus('salvo')
+          setTimeout(() => setAutoSaveStatus('idle'), 3000)
+        } else {
+          setAutoSaveStatus('erro')
+        }
+      } catch {
+        setAutoSaveStatus('erro')
+      }
+    }, 2000)
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
+  }, [etapas, agente])
 
   // ── CRUD de etapas ──────────────────────────────────────────────────────────
 
@@ -354,6 +384,15 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
         <span className="flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shrink-0" title="Idioma configurado no fluxo">
           🌐 {LABEL_IDIOMAS[idioma] ?? idioma}
         </span>
+
+        {/* Indicador de auto-save */}
+        <span className="text-xs shrink-0 min-w-[80px] text-center">
+          {autoSaveStatus === 'pendente' && <span className="text-gray-400">Aguardando...</span>}
+          {autoSaveStatus === 'salvando' && <span className="text-blue-500 flex items-center gap-1 justify-center"><span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" /> Salvando</span>}
+          {autoSaveStatus === 'salvo'    && <span className="text-green-600">✓ Salvo</span>}
+          {autoSaveStatus === 'erro'     && <span className="text-red-500">⚠ Erro ao salvar</span>}
+        </span>
+
         <button
           onClick={() => setAgenteAberto(v => !v)}
           className="flex items-center gap-1.5 text-sm text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors"
