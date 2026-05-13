@@ -37,7 +37,7 @@ interface NoMatchConfig {
 interface Etapa {
   id: string
   nome: string
-  envio: EnvioConfig
+  envios: EnvioConfig[]   // múltiplos itens de envio por etapa
   aguardar: boolean
   esperar: EsperarConfig
   se_match: string        // id da próxima etapa
@@ -76,11 +76,13 @@ const DESTINOS_ESPECIAIS = [
   { id: '__escalar__', label: '👤 Escalar para operador' },
 ]
 
+const envioDefault = (): EnvioConfig => ({ tipo: 'texto', conteudo: '', url: '', mensagem_pre: '' })
+
 function novaEtapa(index: number): Etapa {
   return {
     id: `etapa_${Date.now()}_${index}`,
     nome: `Etapa ${index + 1}`,
-    envio: { tipo: 'texto', conteudo: '', url: '', mensagem_pre: '' },
+    envios: [envioDefault()],
     aguardar: true,
     esperar: { tipo: 'keywords', keywords: [], descricao: '', salvar_como: '' },
     se_match: '__proximo__',
@@ -102,17 +104,18 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
   for (let i = 0; i < etapas.length; i++) {
     const e = etapas[i]
     const matchDest = resolveDestino(e.se_match, i)
+    const primeiroEnvio = e.envios[0]
 
-    if (e.envio.tipo === 'link_afiliado') {
+    if (e.envios.length === 1 && primeiroEnvio?.tipo === 'link_afiliado') {
       estagios[e.id] = {
         tipo: 'acao', nome: e.nome,
         acao: 'enviar_link_afiliado',
-        mensagem_pre: e.envio.mensagem_pre,
+        mensagem_pre: primeiroEnvio.mensagem_pre,
         proximo: matchDest,
       }
-    } else if (e.envio.tipo === 'escalar') {
+    } else if (e.envios.length === 1 && primeiroEnvio?.tipo === 'escalar') {
       estagios[e.id] = { tipo: 'acao', nome: e.nome, acao: 'escalar' }
-    } else if (e.envio.tipo === 'encerrar') {
+    } else if (e.envios.length === 1 && primeiroEnvio?.tipo === 'encerrar') {
       estagios[e.id] = { tipo: 'acao', nome: e.nome, acao: 'finalizar_sucesso' }
     } else {
       const noMatch = e.se_no_match
@@ -127,12 +130,13 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
       estagios[e.id] = {
         tipo: 'interacao',
         nome: e.nome,
-        enviar: {
-          tipo: e.envio.tipo,
-          conteudo: e.envio.conteudo || undefined,
-          url: e.envio.url || undefined,
-          legenda: e.envio.conteudo || undefined,
-        },
+        envios: e.envios.map(env => ({
+          tipo: env.tipo,
+          conteudo: env.conteudo || undefined,
+          url: env.url || undefined,
+          legenda: env.conteudo || undefined,
+          mensagem_pre: env.mensagem_pre || undefined,
+        })),
         aguardar: e.aguardar,
         esperar: e.aguardar
           ? {
@@ -180,25 +184,39 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
     }
 
     const nm = est.se_no_match as Record<string, unknown> | null | undefined
-    const enviar = est.enviar as Record<string, unknown> | undefined
 
-    let tipoEnvio: TipoEnvio = 'texto'
-    if (est.acao === 'enviar_link_afiliado') tipoEnvio = 'link_afiliado'
-    else if (est.acao === 'escalar') tipoEnvio = 'escalar'
-    else if (est.acao === 'finalizar_sucesso' || est.acao === 'finalizar_perdida') tipoEnvio = 'encerrar'
-    else if (enviar?.tipo) tipoEnvio = enviar.tipo as TipoEnvio
+    // Constrói array de envios — suporta formato novo (envios[]) e antigo (enviar{})
+    let envios: EnvioConfig[]
+    if (Array.isArray(est.envios) && est.envios.length > 0) {
+      // Formato novo
+      envios = (est.envios as Record<string, unknown>[]).map(env => ({
+        tipo: (env.tipo as TipoEnvio) ?? 'texto',
+        conteudo: (env.conteudo as string) || (env.legenda as string) || '',
+        url: (env.url as string) || '',
+        mensagem_pre: (env.mensagem_pre as string) || '',
+      }))
+    } else {
+      // Formato antigo (enviar{}) ou estágio de ação
+      let tipoEnvio: TipoEnvio = 'texto'
+      const enviar = est.enviar as Record<string, unknown> | undefined
+      if (est.acao === 'enviar_link_afiliado') tipoEnvio = 'link_afiliado'
+      else if (est.acao === 'escalar') tipoEnvio = 'escalar'
+      else if (est.acao === 'finalizar_sucesso' || est.acao === 'finalizar_perdida') tipoEnvio = 'encerrar'
+      else if (enviar?.tipo) tipoEnvio = enviar.tipo as TipoEnvio
+      envios = [{
+        tipo: tipoEnvio,
+        conteudo: (est.enviar as Record<string, unknown> | undefined)?.conteudo as string || (est.enviar as Record<string, unknown> | undefined)?.legenda as string || (est.mensagem_pre as string) || '',
+        url: (est.enviar as Record<string, unknown> | undefined)?.url as string || '',
+        mensagem_pre: (est.mensagem_pre as string) || '',
+      }]
+    }
 
     const esperar = est.esperar as Record<string, unknown> | null | undefined
 
     etapas.push({
       id: current,
       nome: (est.nome as string) || current,
-      envio: {
-        tipo: tipoEnvio,
-        conteudo: (enviar?.conteudo as string) || (enviar?.legenda as string) || (est.mensagem_pre as string) || '',
-        url: (enviar?.url as string) || '',
-        mensagem_pre: (est.mensagem_pre as string) || '',
-      },
+      envios,
       aguardar: (est.aguardar as boolean) ?? true,
       esperar: {
         tipo: (esperar?.tipo as TipoEspera) ?? 'keywords',
@@ -484,6 +502,136 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
   )
 }
 
+// ─── EnvioItemRow — linha individual de envio ─────────────────────────────────
+
+interface EnvioItemRowProps {
+  envio: EnvioConfig
+  index: number
+  total: number
+  fluxoId: number
+  onAtualizar: (patch: Partial<EnvioConfig>) => void
+  onRemover: () => void
+}
+
+function EnvioItemRow({ envio, index, total, fluxoId, onAtualizar, onRemover }: EnvioItemRowProps) {
+  const [uploadando, setUploadando] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const precisaMidia = ['imagem', 'video', 'audio'].includes(envio.tipo)
+  const precisaTexto = ['texto', 'link_afiliado'].includes(envio.tipo)
+  const ehTerminal = ['escalar', 'encerrar'].includes(envio.tipo)
+
+  async function handleUpload(file: File) {
+    setUploadando(true)
+    try {
+      const params = new URLSearchParams({ nome: file.name, contentType: file.type })
+      const r = await fetch(`/api/fluxos/upload?${params}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file,
+      })
+      const data = await r.json()
+      if (!r.ok) { alert(`Erro no upload: ${data.erro ?? r.status}`); return }
+      onAtualizar({ url: data.publicUrl })
+    } catch (e: unknown) {
+      alert(`Erro inesperado no upload: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setUploadando(false)
+    }
+  }
+
+  return (
+    <div className={`border rounded-lg p-3 space-y-2 ${index === 0 ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50'}`}>
+      <div className="flex items-center gap-2">
+        {total > 1 && (
+          <span className="text-xs text-gray-400 font-mono shrink-0">{index + 1}.</span>
+        )}
+        <select
+          value={envio.tipo}
+          onChange={e => onAtualizar({ tipo: e.target.value as TipoEnvio, url: '', conteudo: '', mensagem_pre: '' })}
+          className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-green-300 focus:outline-none"
+        >
+          <option value="texto">💬 Texto</option>
+          <option value="imagem">🖼 Imagem</option>
+          <option value="video">🎥 Vídeo</option>
+          <option value="audio">🎵 Áudio</option>
+          <option value="link_afiliado">🔗 Link rastreado</option>
+          {total === 1 && <option value="escalar">👤 Escalar para operador</option>}
+          {total === 1 && <option value="encerrar">✅ Encerrar fluxo</option>}
+        </select>
+        {total > 1 && (
+          <button
+            onClick={onRemover}
+            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+            title="Remover este envio"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {precisaTexto && (
+        <textarea
+          value={envio.tipo === 'link_afiliado' ? envio.mensagem_pre : envio.conteudo}
+          onChange={e => envio.tipo === 'link_afiliado'
+            ? onAtualizar({ mensagem_pre: e.target.value })
+            : onAtualizar({ conteudo: e.target.value })}
+          rows={3}
+          placeholder={envio.tipo === 'link_afiliado'
+            ? 'Mensagem antes do link (ex: "Aqui está seu acesso:")'
+            : 'Digite a mensagem... Use {{nome}} para variáveis'}
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-green-300 focus:outline-none"
+        />
+      )}
+
+      {precisaMidia && (
+        <div className="space-y-2">
+          {envio.url ? (
+            <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200">
+              <span className="text-xs text-gray-600 truncate flex-1">{envio.url.split('/').pop()}</span>
+              <button onClick={() => onAtualizar({ url: '' })} className="text-red-400 hover:text-red-600 text-xs shrink-0">remover</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadando}
+              className="w-full border-2 border-dashed border-gray-200 rounded-lg p-3 text-sm text-gray-400 hover:border-green-400 hover:text-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {uploadando
+                ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> Enviando...</>
+                : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Clique para fazer upload</>
+              }
+            </button>
+          )}
+          <input
+            ref={fileRef} type="file"
+            accept={envio.tipo === 'imagem' ? 'image/*' : envio.tipo === 'video' ? 'video/*' : 'audio/*'}
+            className="hidden"
+            onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
+          />
+          {envio.url && (
+            <textarea
+              value={envio.conteudo}
+              onChange={e => onAtualizar({ conteudo: e.target.value })}
+              rows={2}
+              placeholder="Legenda (opcional). Use {{nome}} para variáveis."
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-green-300 focus:outline-none"
+            />
+          )}
+        </div>
+      )}
+
+      {ehTerminal && (
+        <p className="text-xs text-gray-400 italic">
+          {envio.tipo === 'escalar' ? 'A conversa será transferida para um operador humano.' : 'O fluxo será encerrado como concluído.'}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ─── Card de etapa ────────────────────────────────────────────────────────────
 
 interface EtapaCardProps {
@@ -500,17 +648,25 @@ interface EtapaCardProps {
 function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, onRemover, fluxoId }: EtapaCardProps) {
   const [aberta, setAberta] = useState(true)
   const [keywordInput, setKeywordInput] = useState('')
-  const [uploadando, setUploadando] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
 
-  const upEnvio = (patch: Partial<EnvioConfig>) =>
-    onAtualizar({ envio: { ...etapa.envio, ...patch } })
+  const upEnvioAt = (idx: number, patch: Partial<EnvioConfig>) =>
+    onAtualizar({ envios: etapa.envios.map((e, i) => i === idx ? { ...e, ...patch } : e) })
+
+  const addEnvio = () =>
+    onAtualizar({ envios: [...etapa.envios, envioDefault()] })
+
+  const removeEnvio = (idx: number) =>
+    onAtualizar({ envios: etapa.envios.filter((_, i) => i !== idx) })
 
   const upEsperar = (patch: Partial<EsperarConfig>) =>
     onAtualizar({ esperar: { ...etapa.esperar, ...patch } })
 
   const upNoMatch = (patch: Partial<NoMatchConfig>) =>
     onAtualizar({ se_no_match: { tipo: 'agente', agente_prompt: '', apos_recuperar: '__proximo__', apos_falhar: '__perdida__', ...etapa.se_no_match, ...patch } })
+
+  // ehAcao: escalar/encerrar como único envio → oculta seção de espera e roteamento
+  const ehAcao = etapa.envios.length === 1 && ['escalar', 'encerrar'].includes(etapa.envios[0]?.tipo ?? '')
+  const podeAdicionarEnvio = !ehAcao
 
   // Keywords
   const addKeyword = () => {
@@ -523,33 +679,6 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
 
   const removeKeyword = (k: string) =>
     upEsperar({ keywords: etapa.esperar.keywords.filter(x => x !== k) })
-
-  // Upload de mídia — envia arquivo direto pelo servidor (sem CORS)
-  async function handleUpload(file: File) {
-    setUploadando(true)
-    try {
-      const params = new URLSearchParams({ nome: file.name, contentType: file.type })
-      const r = await fetch(`/api/fluxos/upload?${params}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: file,
-      })
-      const data = await r.json()
-      if (!r.ok) {
-        alert(`Erro no upload: ${data.erro ?? r.status}`)
-        return
-      }
-      upEnvio({ url: data.publicUrl })
-    } catch (e: unknown) {
-      alert(`Erro inesperado no upload: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setUploadando(false)
-    }
-  }
-
-  const precisaMidia = ['imagem', 'video', 'audio'].includes(etapa.envio.tipo)
-  const precisaTexto = ['texto', 'link_afiliado'].includes(etapa.envio.tipo)
-  const ehAcao = ['link_afiliado', 'escalar', 'encerrar'].includes(etapa.envio.tipo)
 
   const corBorda = index === 0 ? 'border-green-300' : 'border-gray-200'
   const corNumero = index === 0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
@@ -595,78 +724,30 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
           <div className="px-4 py-4 space-y-3">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">📤 O que envio</p>
 
-            <div className="flex gap-2">
-              <select
-                value={etapa.envio.tipo}
-                onChange={e => upEnvio({ tipo: e.target.value as TipoEnvio, url: '', conteudo: '' })}
-                className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-green-300 focus:outline-none"
-              >
-                <option value="texto">💬 Texto</option>
-                <option value="imagem">🖼 Imagem</option>
-                <option value="video">🎥 Vídeo</option>
-                <option value="audio">🎵 Áudio</option>
-                <option value="link_afiliado">🔗 Link rastreado</option>
-                <option value="escalar">👤 Escalar para operador</option>
-                <option value="encerrar">✅ Encerrar fluxo</option>
-              </select>
+            <div className="space-y-2">
+              {etapa.envios.map((envio, idx) => (
+                <EnvioItemRow
+                  key={idx}
+                  envio={envio}
+                  index={idx}
+                  total={etapa.envios.length}
+                  fluxoId={fluxoId}
+                  onAtualizar={patch => upEnvioAt(idx, patch)}
+                  onRemover={() => removeEnvio(idx)}
+                />
+              ))}
             </div>
 
-            {/* Texto ou legenda */}
-            {precisaTexto && (
-              <textarea
-                value={etapa.envio.tipo === 'link_afiliado' ? etapa.envio.mensagem_pre : etapa.envio.conteudo}
-                onChange={e => etapa.envio.tipo === 'link_afiliado'
-                  ? upEnvio({ mensagem_pre: e.target.value })
-                  : upEnvio({ conteudo: e.target.value })}
-                rows={3}
-                placeholder={etapa.envio.tipo === 'link_afiliado'
-                  ? 'Mensagem antes do link (ex: "Aqui está seu acesso:")'
-                  : 'Digite a mensagem... Use {{nome}} para variáveis'}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-green-300 focus:outline-none"
-              />
-            )}
-
-            {/* Upload de mídia */}
-            {precisaMidia && (
-              <div className="space-y-2">
-                {etapa.envio.url ? (
-                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-600 truncate flex-1">{etapa.envio.url.split('/').pop()}</span>
-                    <button onClick={() => upEnvio({ url: '' })} className="text-red-400 hover:text-red-600 text-xs">remover</button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploadando}
-                    className="w-full border-2 border-dashed border-gray-200 rounded-lg p-4 text-sm text-gray-400 hover:border-green-400 hover:text-green-600 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {uploadando
-                      ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> Enviando...</>
-                      : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Clique para fazer upload</>
-                    }
-                  </button>
-                )}
-                <input ref={fileRef} type="file"
-                  accept={etapa.envio.tipo === 'imagem' ? 'image/*' : etapa.envio.tipo === 'video' ? 'video/*' : 'audio/*'}
-                  className="hidden"
-                  onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
-                />
-                {etapa.envio.url && (
-                  <textarea
-                    value={etapa.envio.conteudo}
-                    onChange={e => upEnvio({ conteudo: e.target.value })}
-                    rows={2}
-                    placeholder="Legenda (opcional). Use {{nome}} para variáveis."
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-green-300 focus:outline-none"
-                  />
-                )}
-              </div>
-            )}
-
-            {ehAcao && etapa.envio.tipo !== 'link_afiliado' && (
-              <p className="text-xs text-gray-400 italic">
-                {etapa.envio.tipo === 'escalar' ? 'A conversa será transferida para um operador humano.' : 'O fluxo será encerrado como concluído.'}
-              </p>
+            {podeAdicionarEnvio && (
+              <button
+                onClick={addEnvio}
+                className="w-full text-xs text-green-700 border border-dashed border-green-300 bg-green-50 hover:bg-green-100 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Adicionar envio
+              </button>
             )}
           </div>
 
