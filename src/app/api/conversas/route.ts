@@ -17,31 +17,36 @@ export async function GET(req: NextRequest) {
   const isSupervisor = payload.nivel === 'supervisor'
 
   // Supervisores veem todas (ativas + expiradas, exceto resolvidas)
-  // Operadores veem apenas conversas dentro da janela de 24h
-  const baseWhere = isSupervisor
+  // Operadores veem:
+  //   - SEMPRE as conversas atribuídas a eles (sem limite de tempo)
+  //   - Conversas sem operador (aguardando/aguardando_humano) dentro da janela de 24h
+  const where = isSupervisor
     ? { ...clienteFilter, status: { not: 'resolvida' } }
     : {
         ...clienteFilter,
         status: { not: 'resolvida' },
         OR: [
-          { ultima_mensagem_em: { gt: limite24h } },
-          { ultima_mensagem_em: null },
-        ],
-      }
-
-  const where = isSupervisor
-    ? baseWhere
-    : {
-        AND: [
-          baseWhere,
+          // 1. Atribuídas ao operador — sem filtro de tempo
+          { operador_id: payload.id },
+          // 2. Sem operador, aguardando humano, dentro de 24h
           {
+            operador_id: null,
+            status: 'aguardando_humano',
             OR: [
-              { operador_id: payload.id },
-              { operador_id: null, status: 'aguardando_humano' },
-              { operador_id: null, status: 'aguardando' },
-            ]
-          }
-        ]
+              { ultima_mensagem_em: { gt: limite24h } },
+              { ultima_mensagem_em: null },
+            ],
+          },
+          // 3. Sem operador, aguardando, dentro de 24h
+          {
+            operador_id: null,
+            status: 'aguardando',
+            OR: [
+              { ultima_mensagem_em: { gt: limite24h } },
+              { ultima_mensagem_em: null },
+            ],
+          },
+        ],
       }
 
   const conversas = await prisma.conversas.findMany({

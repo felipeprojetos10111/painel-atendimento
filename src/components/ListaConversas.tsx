@@ -230,7 +230,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
       <div className="p-4 border-b border-[#2a3942]">
         <h2 className="text-base font-semibold text-[#e9edef] mb-3">
           {tr('conversas')}
-          <span className="ml-2 text-xs font-normal text-[#8696a0]">({filtradas.length})</span>
+          <span className="ml-2 text-xs font-normal text-[#8696a0]">({todasFiltradas.length})</span>
         </h2>
         <input
           type="text"
