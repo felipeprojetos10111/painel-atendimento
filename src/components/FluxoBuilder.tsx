@@ -524,28 +524,22 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
   const removeKeyword = (k: string) =>
     upEsperar({ keywords: etapa.esperar.keywords.filter(x => x !== k) })
 
-  // Upload de mídia
+  // Upload de mídia — envia arquivo direto pelo servidor (sem CORS)
   async function handleUpload(file: File) {
     setUploadando(true)
     try {
-      const ext = file.name.split('.').pop()
-      const r = await fetch('/api/fluxos/upload', {
+      const params = new URLSearchParams({ nome: file.name, contentType: file.type })
+      const r = await fetch(`/api/fluxos/upload?${params}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fluxoId, nome: file.name, contentType: file.type, ext }),
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: file,
       })
       const data = await r.json()
       if (!r.ok) {
-        alert(`Erro ao gerar URL de upload: ${data.erro ?? r.status}`)
+        alert(`Erro no upload: ${data.erro ?? r.status}`)
         return
       }
-      const { uploadUrl, publicUrl } = data
-      const putRes = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
-      if (!putRes.ok) {
-        alert(`Erro ao enviar arquivo para o storage: ${putRes.status} ${putRes.statusText}`)
-        return
-      }
-      upEnvio({ url: publicUrl })
+      upEnvio({ url: data.publicUrl })
     } catch (e: unknown) {
       alert(`Erro inesperado no upload: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
