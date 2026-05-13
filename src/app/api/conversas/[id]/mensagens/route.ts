@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   // Auto-claim
-  const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date(), ultima_mensagem_em: new Date(), msgs_sem_resposta: { increment: 1 } }
+  const atualizacaoConversa: Record<string, unknown> = { atualizado_em: new Date(), ultima_mensagem_em: new Date(), msgs_sem_resposta: 0 }
   if (payload?.nivel === 'operador' && !conversa.operador_id) {
     atualizacaoConversa.operador_id = payload.id
     if (['aguardando', 'aguardando_humano'].includes(conversa.status ?? '')) {
