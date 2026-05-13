@@ -5,7 +5,7 @@
  * Timeline vertical: cada etapa tem o que é enviado + o que é esperado + roteamento
  */
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -46,11 +46,17 @@ interface Etapa {
 
 interface AgenteConfig {
   prompt_base: string
+  operador_escalacao_id: number | null
   recuperacao: {
     ativo: boolean
     horas_espera: number
     max_tentativas: number
   }
+}
+
+interface OperadorItem {
+  id: number
+  nome: string
 }
 
 interface FluxoBuilderProps {
@@ -221,6 +227,7 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
     etapas,
     agente: {
       prompt_base: (ag?.prompt_base as string) ?? '',
+      operador_escalacao_id: (ag?.operador_escalacao_id as number | null) ?? null,
       recuperacao: {
         ativo: (rec?.ativo as boolean) ?? true,
         horas_espera: (rec?.horas_espera as number) ?? 3,
@@ -237,7 +244,7 @@ const LABEL_IDIOMAS: Record<string, string> = {
 }
 
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {
-  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
+  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operador_escalacao_id: null, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
   const idiomaSalvo = (definicaoInicial?.idioma as string) ?? 'pt'
 
   const [nome, setNome] = useState(nomeInicial)
@@ -246,6 +253,14 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
   const [agente, setAgente] = useState<AgenteConfig>(init.agente)
   const [salvando, setSalvando] = useState(false)
   const [agenteAberto, setAgenteAberto] = useState(false)
+  const [operadores, setOperadores] = useState<OperadorItem[]>([])
+
+  useEffect(() => {
+    fetch('/api/operadores')
+      .then(r => r.json())
+      .then((lista: OperadorItem[]) => setOperadores(Array.isArray(lista) ? lista : []))
+      .catch(() => {})
+  }, [])
 
   // ── CRUD de etapas ──────────────────────────────────────────────────────────
 
@@ -354,6 +369,25 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
                   placeholder="Ex: Você é um consultor da Roos Trader. Seja direto, empático e nunca pressione o lead."
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-purple-300 focus:outline-none"
                 />
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  👤 Operador de escalação (teste)
+                </label>
+                <select
+                  value={agente.operador_escalacao_id ?? ''}
+                  onChange={e => setAgente(a => ({ ...a, operador_escalacao_id: e.target.value ? Number(e.target.value) : null }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-300 focus:outline-none"
+                >
+                  <option value="">— Fila geral (padrão) —</option>
+                  {operadores.map(op => (
+                    <option key={op.id} value={op.id}>{op.nome}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  Quando definido, escalações deste fluxo vão direto para este operador em vez da fila.
+                </p>
               </div>
 
               <div className="border-t border-gray-100 pt-4">
