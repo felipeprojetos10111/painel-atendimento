@@ -131,13 +131,20 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
       estagios[e.id] = {
         tipo: 'interacao',
         nome: e.nome,
-        envios: e.envios.map(env => ({
-          tipo: env.tipo,
-          conteudo: env.conteudo || undefined,
-          url: env.url || undefined,
-          legenda: env.conteudo || undefined,
-          mensagem_pre: env.mensagem_pre || undefined,
-        })),
+        envios: e.envios
+          // Remove envios incompletos: texto sem conteúdo, mídia sem URL
+          .filter(env => {
+            if (env.tipo === 'texto') return !!env.conteudo?.trim()
+            if (['imagem', 'video', 'audio'].includes(env.tipo)) return !!env.url
+            return true // link_afiliado, etc.
+          })
+          .map(env => ({
+            tipo: env.tipo,
+            conteudo: env.conteudo || undefined,
+            url: env.url || undefined,
+            legenda: env.conteudo || undefined,
+            mensagem_pre: env.mensagem_pre || undefined,
+          })),
         aguardar: e.aguardar,
         esperar: e.aguardar
           ? {
@@ -654,16 +661,22 @@ function EnvioItemRow({ envio, index, total, fluxoId, onAtualizar, onRemover }: 
               <button onClick={() => onAtualizar({ url: '' })} className="text-red-400 hover:text-red-600 text-xs shrink-0">remover</button>
             </div>
           ) : (
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploadando}
-              className="w-full border-2 border-dashed border-gray-200 rounded-lg p-3 text-sm text-gray-400 hover:border-green-400 hover:text-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {uploadando
-                ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> Enviando...</>
-                : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Clique para fazer upload</>
-              }
-            </button>
+            <>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadando}
+                className="w-full border-2 border-dashed border-amber-400 rounded-lg p-3 text-sm text-amber-600 hover:border-amber-500 hover:bg-amber-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {uploadando
+                  ? <><span className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Enviando...</>
+                  : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Clique para fazer upload</>
+                }
+              </button>
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                Arquivo não enviado — este item será ignorado até fazer o upload
+              </p>
+            </>
           )}
           <input
             ref={fileRef} type="file"
