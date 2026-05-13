@@ -46,7 +46,7 @@ interface Props {
 
 const ORIGEM_ESTILO: Record<string, { alinhamento: string; bolha: string }> = {
   lead:     { alinhamento: 'items-start', bolha: 'bg-[#202c33] text-[#e9edef]' },
-  ia:       { alinhamento: 'items-start', bolha: 'bg-[#2a3942] text-[#e9edef]' },
+  ia:       { alinhamento: 'items-end',   bolha: 'bg-[#1a3a4a] text-[#e9edef] border border-[#2a5a72]/50' },
   operador: { alinhamento: 'items-end',   bolha: 'bg-[#005c4b] text-[#e9edef]' },
 }
 
