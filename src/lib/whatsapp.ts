@@ -87,6 +87,18 @@ async function uploadAudioParaMeta(urlMidia: string, token: string, phoneNumberI
   return mediaId
 }
 
+async function estimarDelayAudio(urlMidia: string): Promise<number> {
+  try {
+    const head = await fetch(urlMidia, { method: 'HEAD' })
+    const bytes = parseInt(head.headers.get('content-length') ?? '0')
+    if (bytes > 0) {
+      const duracaoEstimada = bytes / 3000 // 24kbps ≈ 3000 bytes/s
+      return Math.min(Math.max((duracaoEstimada + 0.5) * 1000, 1500), 8000)
+    }
+  } catch { /* usa fallback */ }
+  return 2000
+}
+
 export async function enviarMidiaWhatsApp(
   telefone: string,
   tipo: string,
@@ -101,6 +113,10 @@ export async function enviarMidiaWhatsApp(
     imagem: 'image', documento: 'document', audio: 'audio', video: 'video',
   }
   const waType = tipoWA[tipo] ?? 'document'
+
+  // Delay proporcional à duração estimada do áudio; fixo para outras mídias
+  const delayMs = waType === 'audio' ? await estimarDelayAudio(urlMidia) : 1200
+  await new Promise(r => setTimeout(r, delayMs))
 
   let midiaPayload: Record<string, unknown>
   if (waType === 'audio') {
