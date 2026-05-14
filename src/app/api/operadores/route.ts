@@ -38,6 +38,7 @@ export async function GET() {
       email: op.email,
       nivel: op.nivel,
       ativo: op.ativo,
+      na_fila: op.na_fila,
       criado_em: op.criado_em,
       conversasAtivas: op._count.conversas,
     }))

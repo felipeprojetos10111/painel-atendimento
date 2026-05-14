@@ -20,6 +20,9 @@ export default function PainelPage() {
   const [uploadEmAndamento, setUploadEmAndamento] = useState(false)
   const [operadorNome, setOperadorNome] = useState<string | null>(null)
   const [operadorAtivo, setOperadorAtivo] = useState(false)
+  const [operadorId, setOperadorId] = useState<number | null>(null)
+  const [naFila, setNaFila] = useState(true)
+  const [togglingFila, setTogglingFila] = useState(false)
   const [mostrarMetricas, setMostrarMetricas] = useState(false)
   const [impersonandoOperador, setImpersonandoOperador] = useState(false)
 
@@ -44,7 +47,16 @@ export default function PainelPage() {
           setLogoCliente(data.logoCliente ?? null)
           setOperadorNome(data.nome ?? null)
           setImpersonandoOperador(data.impersonandoOperador ?? false)
-          if (data.id > 0 && data.cliente_id) setOperadorAtivo(true)
+          if (data.id > 0 && data.cliente_id) {
+            setOperadorAtivo(true)
+            setOperadorId(data.id)
+            // Carrega estado na_fila apenas para operadores reais (não supervisores)
+            if (data.nivel === 'operador') {
+              fetch('/api/fila/disponibilidade')
+                .then(r => r.ok ? r.json() : null)
+                .then(d => { if (d) setNaFila(d.na_fila) })
+            }
+          }
         }
       })
   }, [])
@@ -52,6 +64,24 @@ export default function PainelPage() {
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
+  }
+
+  async function toggleNaFila() {
+    if (!operadorId || togglingFila) return
+    setTogglingFila(true)
+    try {
+      const res = await fetch('/api/fila/disponibilidade', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ na_fila: !naFila })
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setNaFila(d.na_fila)
+      }
+    } finally {
+      setTogglingFila(false)
+    }
   }
 
   // O que mostrar na área principal
@@ -106,6 +136,27 @@ export default function PainelPage() {
 
         <div className="flex items-center gap-2">
           <SeletorLingua variante="topbar" />
+
+          {/* Toggle na_fila — visível apenas para operadores (não supervisores) */}
+          {nivel === 'operador' && (
+            <button
+              onClick={toggleNaFila}
+              disabled={togglingFila}
+              title={naFila ? 'Você está na fila — clique para sair' : 'Você está fora da fila — clique para entrar'}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors border font-medium disabled:opacity-50 ${
+                naFila
+                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                  : 'bg-[#202c33] text-orange-400 border-orange-500 hover:bg-[#2a3942]'
+              }`}
+            >
+              {togglingFila ? (
+                <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>{naFila ? '📥' : '⏸'}</span>
+              )}
+              <span className="hidden sm:inline">{naFila ? 'Na fila' : 'Fora da fila'}</span>
+            </button>
+          )}
 
           <button
             onClick={() => router.push('/minhas-respostas')}

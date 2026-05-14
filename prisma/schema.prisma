@@ -107,6 +107,7 @@ model operadores {
   senha_hash        String              @db.VarChar(255)
   nivel             String?             @default("operador") @db.VarChar(20)
   ativo             Boolean?            @default(true)
+  na_fila           Boolean             @default(true)
   lingua            String?             @default("pt") @db.VarChar(5)
   link_plataforma   String?             @db.Text
   affiliate_link_id String?             @db.VarChar(100)

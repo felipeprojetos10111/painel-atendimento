@@ -15,6 +15,7 @@ interface Operador {
   email: string
   nivel: string | null
   ativo: boolean | null
+  na_fila: boolean
   criado_em: string | null
   conversasAtivas: number
 }
@@ -204,6 +205,17 @@ function SecaoOperadores() {
     await carregar()
   }
 
+  async function toggleNaFila(op: Operador) {
+    setAtualizando(op.id)
+    await fetch(`/api/operadores/${op.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ na_fila: !op.na_fila })
+    })
+    setAtualizando(null)
+    await carregar()
+  }
+
   async function handleDeletar(op: Operador) {
     if (!confirm(`${tr('confirmarDeletarOp1')} ${op.nome}? ${tr('confirmarDeletarOp2')}`)) return
     setDeletando(op.id)
@@ -300,6 +312,13 @@ function SecaoOperadores() {
                         <span className="text-xs text-green-600 font-medium">● online</span>
                       )}
                       {!op.ativo && <span className="text-xs text-red-400 italic">{tr('inativo')}</span>}
+                      {op.nivel === 'operador' && op.ativo && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                          op.na_fila ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-600'
+                        }`}>
+                          {op.na_fila ? '📥 na fila' : '⏸ fora da fila'}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-gray-400">{op.email}</span>
@@ -337,6 +356,22 @@ function SecaoOperadores() {
                       </svg>
                       Entrar
                     </button>
+
+                    {/* Toggle na_fila — apenas para operadores (não supervisores) */}
+                    {op.nivel === 'operador' && (
+                      <button
+                        onClick={() => toggleNaFila(op)}
+                        disabled={atualizando === op.id}
+                        title={op.na_fila ? 'Remover da fila de escalações' : 'Colocar na fila de escalações'}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-40 ${
+                          op.na_fila ? 'bg-blue-500' : 'bg-orange-300'
+                        }`}
+                      >
+                        <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                          op.na_fila ? 'translate-x-4' : 'translate-x-0'
+                        }`} />
+                      </button>
+                    )}
 
                     <button
                       onClick={() => toggleAtivo(op)}

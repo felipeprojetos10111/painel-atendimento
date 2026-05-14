@@ -20,10 +20,10 @@ export async function POST(req: NextRequest) {
   // Busca o operador para pegar o cliente_id e validar que é um operador ativo
   const operador = await prisma.operadores.findUnique({
     where: { id: operadorId },
-    select: { cliente_id: true, nivel: true, ativo: true }
+    select: { cliente_id: true, nivel: true, ativo: true, na_fila: true }
   })
 
-  if (!operador?.ativo || operador.nivel !== 'operador') {
+  if (!operador?.ativo || operador.nivel !== 'operador' || !operador.na_fila) {
     // Supervisores não recebem conversas automáticas — não processa
     return NextResponse.json({ ok: true, processadas: 0, motivo: 'operador inelegível' })
   }
