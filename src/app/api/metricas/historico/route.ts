@@ -46,18 +46,29 @@ export async function GET(req: NextRequest) {
       granularidade = 'semana'
   }
 
-  const eventosFiltro = {
-    cliente_id:  clienteId,
-    data_evento: { gte: dataInicio, lte: agora },
-    // operador_id vem null na maioria dos webhooks do broker — filtrar por ele
-    // descartaria quase todos os eventos. Filtramos só por cliente.
-  }
+  // Lead IDs do funil: apenas leads que passaram pelo fluxo WhatsApp (têm conversa)
+  // Eventos sem lead_id (orgânicos do broker) são excluídos.
+  const conversasFunil = await prisma.conversas.findMany({
+    where: {
+      cliente_id: clienteId,
+      ...(operadorId ? { operador_id: operadorId } : {}),
+    },
+    select: { lead_id: true },
+    distinct: ['lead_id'],
+  })
+  const leadIdsFunil = conversasFunil.map(c => c.lead_id).filter(Boolean) as number[]
 
   const [eventos, mensagensOp] = await Promise.all([
-    prisma.eventos_plataforma.findMany({
-      where:  eventosFiltro,
-      select: { tipo: true, is_primeiro_deposito: true, data_evento: true }
-    }),
+    leadIdsFunil.length > 0
+      ? prisma.eventos_plataforma.findMany({
+          where: {
+            cliente_id:  clienteId,
+            data_evento: { gte: dataInicio, lte: agora },
+            lead_id:     { in: leadIdsFunil },
+          },
+          select: { tipo: true, is_primeiro_deposito: true, data_evento: true }
+        })
+      : Promise.resolve([]),
     prisma.mensagens.findMany({
       where: {
         enviado_em: { gte: dataInicio, lte: agora },

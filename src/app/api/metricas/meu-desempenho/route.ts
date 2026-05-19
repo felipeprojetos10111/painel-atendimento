@@ -33,14 +33,48 @@ export async function GET(req: NextRequest) {
       dataInicio = new Date(agora); dataInicio.setDate(agora.getDate() - 7)
   }
 
-  const eventosFiltro = {
-    cliente_id:  clienteId,
-    // operador_id nos eventos_plataforma chega null da maioria dos webhooks do broker;
-    // filtramos apenas por cliente para não perder eventos sem atribuição.
-    data_evento: { gte: dataInicio, lte: agora },
+  // Busca conversas atendidas no período por este operador
+  const conversasAtendidas = await prisma.conversas.findMany({
+    where: {
+      cliente_id:  clienteId,
+      operador_id: operadorId,
+      mensagens: {
+        some: {
+          origem:     { in: ['operador', 'ia'] },
+          enviado_em: { gte: dataInicio, lte: agora },
+        },
+      },
+    },
+    select: { lead_id: true },
+  })
+
+  // Leads únicos atendidos
+  const leadsAtendidos = new Set(conversasAtendidas.map(c => c.lead_id).filter(Boolean)).size
+
+  // Lead IDs do funil — filtra eventos do broker apenas por leads que passaram pelo nosso funil.
+  // eventos_plataforma com lead_id=null são registros orgânicos externos e não devem contar.
+  const leadIdsFunil = conversasAtendidas.map(c => c.lead_id).filter(Boolean) as number[]
+
+  // Se não há leads no funil no período, retorna zeros para eventos
+  if (leadIdsFunil.length === 0) {
+    return NextResponse.json({
+      periodo,
+      leadsAtendidos: 0,
+      registros:      0,
+      ftd:            0,
+      redepositos:    0,
+      totalValorFTD:         0,
+      totalValorRedepositos: 0,
+    })
   }
 
-  const [eventosRegistro, eventosDeposito, conversasAtendidas] = await Promise.all([
+  const eventosFiltro = {
+    cliente_id:  clienteId,
+    data_evento: { gte: dataInicio, lte: agora },
+    lead_id:     { in: leadIdsFunil },
+  }
+
+  const [eventosRegistro, eventosDeposito] = await Promise.all([
     prisma.eventos_plataforma.findMany({
       where:  { ...eventosFiltro, tipo: 'registro' },
       select: { id: true },
@@ -49,26 +83,10 @@ export async function GET(req: NextRequest) {
       where:  { ...eventosFiltro, tipo: 'deposito' },
       select: { id: true, is_primeiro_deposito: true, valor: true },
     }),
-    prisma.conversas.findMany({
-      where: {
-        cliente_id:  clienteId,
-        operador_id: operadorId,
-        mensagens: {
-          some: {
-            origem:     { in: ['operador', 'ia'] },
-            enviado_em: { gte: dataInicio, lte: agora },
-          },
-        },
-      },
-      select: { lead_id: true },
-    }),
   ])
 
-  const ftd        = eventosDeposito.filter(e => e.is_primeiro_deposito === true)
+  const ftd         = eventosDeposito.filter(e => e.is_primeiro_deposito === true)
   const redepositos = eventosDeposito.filter(e => e.is_primeiro_deposito !== true)
-
-  // Leads únicos atendidos
-  const leadsAtendidos = new Set(conversasAtendidas.map(c => c.lead_id).filter(Boolean)).size
 
   return NextResponse.json({
     periodo,
