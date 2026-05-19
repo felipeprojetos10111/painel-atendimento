@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   switch (periodo) {
     case '1d':
-      dataInicio = new Date(agora); dataInicio.setDate(agora.getDate() - 1); break
+      dataInicio = new Date(agora); dataInicio.setHours(0, 0, 0, 0); break
     case '30d':
       dataInicio = new Date(agora); dataInicio.setDate(agora.getDate() - 30); break
     case 'all':

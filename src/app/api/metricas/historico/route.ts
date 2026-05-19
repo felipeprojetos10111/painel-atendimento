@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   switch (periodo) {
     case '1d':
       dataInicio = new Date(agora)
-      dataInicio.setDate(dataInicio.getDate() - 1)
+      dataInicio.setHours(0, 0, 0, 0)
       granularidade = 'hora'
       break
     case '7d':
