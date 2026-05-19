@@ -142,13 +142,34 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   const [busca, setBusca] = useState('')
   const [expiradaAberta, setExpiradaAberta] = useState(false)
   const [toasts, setToasts] = useState<ToastEscalacao[]>([])
+  const [ordemFixa, setOrdemFixa] = useState(false)
   const timerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const operadorIdRef = useRef<number | null>(null)
+  const ordemFixaRef = useRef(false)
+
+  // Mantém a ref sincronizada com o state (para uso dentro de closures de socket)
+  useEffect(() => { ordemFixaRef.current = ordemFixa }, [ordemFixa])
 
   async function carregar() {
     const res = await fetch('/api/conversas')
     const data = await res.json()
     setConversas(data)
+  }
+
+  // Atualiza dados sem alterar a ordem — apenas substitui campos de conversas já presentes
+  // e adiciona novas conversas ao final (sem reordenar as existentes)
+  async function atualizarSemReordenar() {
+    const res = await fetch('/api/conversas')
+    const novaLista: Conversa[] = await res.json()
+    const novoMap = new Map(novaLista.map(c => [c.id, c]))
+    setConversas(prev => {
+      // Atualiza as conversas existentes preservando a ordem
+      const atualizadas = prev.map(c => novoMap.has(c.id) ? novoMap.get(c.id)! : c)
+      // Adiciona conversas novas (que não estavam na lista anterior) ao topo
+      const idsExistentes = new Set(prev.map(c => c.id))
+      const novas = novaLista.filter(c => !idsExistentes.has(c.id))
+      return [...novas, ...atualizadas]
+    })
   }
 
   function adicionarToast(dados: Omit<ToastEscalacao, 'id'>) {
@@ -182,12 +203,19 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
         // Registra presença — supervisores também emitem, mas /api/fila/atribuir os ignora
         socket.emit('operador-online', me.id)
 
-        socket.on('atualizar-lista', () => carregar())
+        socket.on('atualizar-lista', () => {
+          if (ordemFixaRef.current) atualizarSemReordenar()
+          else carregar()
+        })
         socket.on('nova-conversa-fila', (dados: Omit<ToastEscalacao, 'id'>) => {
-          carregar()
+          if (ordemFixaRef.current) atualizarSemReordenar()
+          else carregar()
           adicionarToast(dados)
         })
-        socket.on('conversa-atribuida', () => carregar())
+        socket.on('conversa-atribuida', () => {
+          if (ordemFixaRef.current) atualizarSemReordenar()
+          else carregar()
+        })
       })
 
     return () => {
@@ -235,10 +263,37 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
       </div>
 
       <div className="p-4 border-b border-[#2a3942]">
-        <h2 className="text-base font-semibold text-[#e9edef] mb-3">
-          {tr('conversas')}
-          <span className="ml-2 text-xs font-normal text-[#8696a0]">({todasFiltradas.length})</span>
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-[#e9edef]">
+            {tr('conversas')}
+            <span className="ml-2 text-xs font-normal text-[#8696a0]">({todasFiltradas.length})</span>
+          </h2>
+          <button
+            onClick={() => setOrdemFixa(v => !v)}
+            title={ordemFixa ? 'Ordem fixada — clique para reativar atualização automática' : 'Fixar ordem para analisar sem interrupções'}
+            className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border transition-colors ${
+              ordemFixa
+                ? 'bg-[#00a884]/20 border-[#00a884]/40 text-[#00a884]'
+                : 'bg-[#202c33] border-[#2a3942] text-[#8696a0] hover:text-[#e9edef]'
+            }`}
+          >
+            {ordemFixa ? (
+              <>
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                </svg>
+                Fixada
+              </>
+            ) : (
+              <>
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 1C9.24 1 7 3.24 7 6v1H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2h-1V6c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v1H9V6c0-1.66 1.34-3 3-3zm0 9c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
+                </svg>
+                Fixar ordem
+              </>
+            )}
+          </button>
+        </div>
         <input
           type="text"
           value={busca}
