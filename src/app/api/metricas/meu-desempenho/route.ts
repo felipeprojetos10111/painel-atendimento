@@ -35,7 +35,8 @@ export async function GET(req: NextRequest) {
 
   const eventosFiltro = {
     cliente_id:  clienteId,
-    operador_id: operadorId,
+    // operador_id nos eventos_plataforma chega null da maioria dos webhooks do broker;
+    // filtramos apenas por cliente para não perder eventos sem atribuição.
     data_evento: { gte: dataInicio, lte: agora },
   }
 
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
         operador_id: operadorId,
         mensagens: {
           some: {
-            origem:     'operador',
+            origem:     { in: ['operador', 'ia'] },
             enviado_em: { gte: dataInicio, lte: agora },
           },
         },

@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
   const eventosFiltro = {
     cliente_id:  clienteId,
     data_evento: { gte: dataInicio, lte: agora },
-    // Sempre exige vinculação a um operador — exclui eventos orgânicos do broker
-    operador_id: operadorId ? operadorId : { not: null },
+    // operador_id vem null na maioria dos webhooks do broker — filtrar por ele
+    // descartaria quase todos os eventos. Filtramos só por cliente.
   }
 
   const [eventos, mensagensOp] = await Promise.all([
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     prisma.mensagens.findMany({
       where: {
         enviado_em: { gte: dataInicio, lte: agora },
-        origem:     'operador',
+        origem:     { in: ['operador', 'ia'] },
         conversas: {
           cliente_id: clienteId,
           ...(operadorId ? { operador_id: operadorId } : {}),
