@@ -20,11 +20,19 @@ interface EnvioConfig {
   mensagem_pre: string  // prefixo para link afiliado
 }
 
+interface MatchGrupo {
+  id: string
+  keywords: string[]
+  proximo: string    // destino quando este grupo bate
+  descricao: string  // contexto IA para este grupo
+}
+
 interface EsperarConfig {
   tipo: TipoEspera
-  keywords: string[]
-  descricao: string   // contexto para a IA avaliar semanticamente
-  salvar_como: string // salva a resposta do lead como variável
+  grupos: MatchGrupo[]  // múltiplos grupos de keywords com destinos distintos
+  keywords: string[]    // compat retroativo: = grupos[0].keywords quando apenas 1 grupo
+  descricao: string     // compat retroativo: = grupos[0].descricao quando apenas 1 grupo
+  salvar_como: string   // salva a resposta do lead como variável
 }
 
 interface NoMatchConfig {
@@ -86,13 +94,17 @@ function novaEtapa(index: number): Etapa {
     nome: `Etapa ${index + 1}`,
     envios: [envioDefault()],
     aguardar: true,
-    esperar: { tipo: 'keywords', keywords: [], descricao: '', salvar_como: '' },
+    esperar: {
+      tipo: 'keywords',
+      grupos: [{ id: `g_${Date.now()}`, keywords: [], proximo: '__proximo__', descricao: '' }],
+      keywords: [], descricao: '', salvar_como: '',
+    },
     se_match: '__proximo__',
     se_no_match: null,
   }
 }
 
-function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<string, unknown> {
+function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig, despedidaTexto: string): Record<string, unknown> {
   const estagios: Record<string, unknown> = {}
 
   const resolveDestino = (dest: string, indexAtual: number): string => {
@@ -130,15 +142,24 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
           }
         : null
 
+      // Multi-grupo: quando há 2+ grupos de keywords com destinos distintos,
+      // serializa como grupos_keywords[] — o runtime usará cada grupo separadamente.
+      const grupos = e.esperar.grupos ?? []
+      const isMultiGrupo = e.esperar.tipo === 'keywords' && grupos.length > 1
+
+      // se_match: primeiro grupo (compat) ou se_match padrão
+      const seMatchFinal = isMultiGrupo
+        ? resolveDestino(grupos[0]?.proximo ?? e.se_match, i)
+        : matchDest
+
       estagios[e.id] = {
         tipo: 'interacao',
         nome: e.nome,
         envios: e.envios
-          // Remove envios incompletos: texto sem conteúdo, mídia sem URL
           .filter(env => {
             if (env.tipo === 'texto') return !!env.conteudo?.trim()
             if (['imagem', 'video', 'audio'].includes(env.tipo)) return !!env.url
-            return true // link_afiliado, etc.
+            return true
           })
           .map(env => ({
             tipo: env.tipo,
@@ -151,12 +172,21 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
         esperar: e.aguardar
           ? {
               tipo: e.esperar.tipo,
-              keywords: e.esperar.keywords,
-              descricao: e.esperar.descricao,
+              // single-grupo: keywords no esperar; multi-grupo: vazio (usa grupos_keywords)
+              keywords: isMultiGrupo ? [] : (grupos[0]?.keywords ?? e.esperar.keywords),
+              descricao: isMultiGrupo ? '' : (grupos[0]?.descricao ?? e.esperar.descricao),
               salvar_como: e.esperar.salvar_como || null,
             }
           : null,
-        se_match: matchDest,
+        // grupos_keywords: só emite quando há 2+ grupos
+        ...(isMultiGrupo ? {
+          grupos_keywords: grupos.map(g => ({
+            keywords: g.keywords,
+            proximo: resolveDestino(g.proximo, i),
+            descricao: g.descricao,
+          })),
+        } : {}),
+        se_match: seMatchFinal,
         se_no_match: noMatch,
       }
     }
@@ -166,6 +196,7 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
   estagios['_sucesso_'] = { tipo: 'acao', acao: 'finalizar_sucesso' }
   estagios['_perdida_'] = { tipo: 'acao', acao: 'finalizar_perdida' }
   estagios['_escalar_'] = { tipo: 'acao', acao: 'escalar' }
+  estagios['_despedida_'] = { tipo: 'mensagem', texto: despedidaTexto || TEXTO_DESPEDIDA_PADRAO, acao_final: 'finalizar_perdida' }
 
   return {
     estagio_inicial: etapas[0]?.id ?? '_sucesso_',
@@ -174,31 +205,49 @@ function builderParaDefinicao(etapas: Etapa[], agente: AgenteConfig): Record<str
   }
 }
 
-function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; agente: AgenteConfig } {
+const TEXTO_DESPEDIDA_PADRAO = '¡Gracias por tu tiempo! 🙏 Si en algún momento cambias de opinión o necesitas ayuda, aquí estaremos para ti. ¡Mucho éxito! 💪'
+
+function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; agente: AgenteConfig; despedidaTexto: string } {
   const estagios = (def.estagios ?? {}) as Record<string, Record<string, unknown>>
-  const terminais = ['_sucesso_', '_perdida_', '_escalar_']
+  const terminais = ['_sucesso_', '_perdida_', '_escalar_', '_despedida_']
   const etapas: Etapa[] = []
   const visitados = new Set<string>()
 
-  let current = def.estagio_inicial as string
-  while (current && !terminais.includes(current) && !visitados.has(current)) {
-    visitados.add(current)
-    const est = estagios[current]
-    if (!est) break
+  const toDestUI = (dest: string): string => {
+    if (dest === '_sucesso_') return '__sucesso__'
+    if (dest === '_perdida_') return '__perdida__'
+    if (dest === '_escalar_') return '__escalar__'
+    return dest
+  }
 
-    const toDestUI = (dest: string): string => {
-      if (dest === '_sucesso_') return '__sucesso__'
-      if (dest === '_perdida_') return '__perdida__'
-      if (dest === '_escalar_') return '__escalar__'
-      return dest
-    }
+  // Coleta todos os destinos referenciados por um estágio (exceto terminais e vazios)
+  function destinosDoEstagio(est: Record<string, unknown>): string[] {
+    const dests: string[] = []
+    const add = (d: unknown) => { if (d && typeof d === 'string' && !terminais.includes(d)) dests.push(d) }
+    add(est.se_match)
+    add(est.proximo) // estágios de ação
+    const grupos = est.grupos_keywords as Record<string, unknown>[] | undefined
+    if (grupos) grupos.forEach(g => add(g.proximo))
+    const nm = est.se_no_match as Record<string, unknown> | undefined
+    if (nm) { add(nm.apos_recuperar); add(nm.apos_falhar) }
+    return dests
+  }
+
+  // BFS a partir de estagio_inicial — garante que todos os branches aparecem no builder
+  const fila: string[] = [def.estagio_inicial as string]
+  while (fila.length > 0) {
+    const current = fila.shift()!
+    if (!current || terminais.includes(current) || visitados.has(current)) continue
+    visitados.add(current)
+
+    const est = estagios[current]
+    if (!est) continue
 
     const nm = est.se_no_match as Record<string, unknown> | null | undefined
 
     // Constrói array de envios — suporta formato novo (envios[]) e antigo (enviar{})
     let envios: EnvioConfig[]
     if (Array.isArray(est.envios) && est.envios.length > 0) {
-      // Formato novo
       envios = (est.envios as Record<string, unknown>[]).map(env => ({
         tipo: (env.tipo as TipoEnvio) ?? 'texto',
         conteudo: (env.conteudo as string) || (env.legenda as string) || '',
@@ -206,7 +255,6 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
         mensagem_pre: (env.mensagem_pre as string) || '',
       }))
     } else {
-      // Formato antigo (enviar{}) ou estágio de ação
       let tipoEnvio: TipoEnvio = 'texto'
       const enviar = est.enviar as Record<string, unknown> | undefined
       if (est.acao === 'enviar_link_afiliado') tipoEnvio = 'link_afiliado'
@@ -223,6 +271,25 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
 
     const esperar = est.esperar as Record<string, unknown> | null | undefined
 
+    // Reconstrói grupos_keywords: formato novo (multi-grupo) ou compat (single)
+    const gruposRaw = est.grupos_keywords as Record<string, unknown>[] | undefined
+    let grupos: MatchGrupo[]
+    if (gruposRaw && gruposRaw.length > 0) {
+      grupos = gruposRaw.map(g => ({
+        id: `g_${Math.random().toString(36).slice(2)}`,
+        keywords: (g.keywords as string[]) ?? [],
+        proximo: toDestUI((g.proximo as string) ?? '__proximo__'),
+        descricao: (g.descricao as string) ?? '',
+      }))
+    } else {
+      grupos = [{
+        id: `g_${Math.random().toString(36).slice(2)}`,
+        keywords: (esperar?.keywords as string[]) ?? [],
+        proximo: toDestUI((est.se_match as string) || '__proximo__'),
+        descricao: (esperar?.descricao as string) ?? '',
+      }]
+    }
+
     etapas.push({
       id: current,
       nome: (est.nome as string) || current,
@@ -230,8 +297,9 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
       aguardar: (est.aguardar as boolean) ?? true,
       esperar: {
         tipo: (esperar?.tipo as TipoEspera) ?? 'keywords',
-        keywords: (esperar?.keywords as string[]) ?? [],
-        descricao: (esperar?.descricao as string) ?? '',
+        grupos,
+        keywords: grupos[0]?.keywords ?? [],
+        descricao: grupos[0]?.descricao ?? '',
         salvar_como: (esperar?.salvar_como as string) ?? '',
       },
       se_match: toDestUI((est.se_match as string) || '__proximo__'),
@@ -245,14 +313,66 @@ function definicaoParaBuilder(def: Record<string, unknown>): { etapas: Etapa[]; 
         : null,
     })
 
-    current = est.se_match as string
+    // Adiciona todos os destinos deste estágio à fila (BFS — percorre todos os branches)
+    for (const dest of destinosDoEstagio(est)) {
+      if (!visitados.has(dest)) fila.push(dest)
+    }
+  }
+
+  // Adiciona estágios órfãos (existem no fluxo mas nenhum outro aponta para eles)
+  for (const id of Object.keys(estagios)) {
+    if (!visitados.has(id) && !terminais.includes(id)) {
+      const est = estagios[id]
+      if (!est) continue
+      const esperar = est.esperar as Record<string, unknown> | null | undefined
+      const nm = est.se_no_match as Record<string, unknown> | null | undefined
+      let envios: EnvioConfig[]
+      if (Array.isArray(est.envios) && est.envios.length > 0) {
+        envios = (est.envios as Record<string, unknown>[]).map(env => ({
+          tipo: (env.tipo as TipoEnvio) ?? 'texto',
+          conteudo: (env.conteudo as string) || (env.legenda as string) || '',
+          url: (env.url as string) || '',
+          mensagem_pre: (env.mensagem_pre as string) || '',
+        }))
+      } else {
+        envios = [{ tipo: 'texto', conteudo: '', url: '', mensagem_pre: '' }]
+      }
+      const grupos: MatchGrupo[] = [{
+        id: `g_${Math.random().toString(36).slice(2)}`,
+        keywords: (esperar?.keywords as string[]) ?? [],
+        proximo: toDestUI((est.se_match as string) || '__proximo__'),
+        descricao: (esperar?.descricao as string) ?? '',
+      }]
+      etapas.push({
+        id,
+        nome: (est.nome as string) || id,
+        envios,
+        aguardar: (est.aguardar as boolean) ?? true,
+        esperar: {
+          tipo: (esperar?.tipo as TipoEspera) ?? 'keywords',
+          grupos,
+          keywords: grupos[0]?.keywords ?? [],
+          descricao: grupos[0]?.descricao ?? '',
+          salvar_como: (esperar?.salvar_como as string) ?? '',
+        },
+        se_match: toDestUI((est.se_match as string) || '__proximo__'),
+        se_no_match: nm
+          ? { tipo: (nm.tipo as TipoNoMatch) ?? 'agente', agente_prompt: (nm.agente_prompt as string) ?? '', apos_recuperar: toDestUI((nm.apos_recuperar as string) ?? '__proximo__'), apos_falhar: toDestUI((nm.apos_falhar as string) ?? '__perdida__') }
+          : null,
+      })
+    }
   }
 
   const ag = def.agente as Record<string, unknown> | undefined
   const rec = ag?.recuperacao as Record<string, unknown> | undefined
 
+  // Lê o texto de despedida do estágio reservado _despedida_
+  const despedidaEstagio = estagios['_despedida_']
+  const despedidaTexto = (despedidaEstagio?.texto as string) || TEXTO_DESPEDIDA_PADRAO
+
   return {
     etapas,
+    despedidaTexto,
     agente: {
       prompt_base: (ag?.prompt_base as string) ?? '',
       // Lê operadores_ids novo formato; compat com operador_escalacao_id legado
@@ -276,13 +396,14 @@ const LABEL_IDIOMAS: Record<string, string> = {
 }
 
 export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, onClose, onSaved }: FluxoBuilderProps) {
-  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operadores_ids: [], operador_link_id: null, max_tentativas_agente: 5, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } } }
+  const init = definicaoInicial ? definicaoParaBuilder(definicaoInicial) : { etapas: [novaEtapa(0)], agente: { prompt_base: '', operadores_ids: [], operador_link_id: null, max_tentativas_agente: 5, recuperacao: { ativo: true, horas_espera: 3, max_tentativas: 2 } }, despedidaTexto: TEXTO_DESPEDIDA_PADRAO }
   const idiomaSalvo = (definicaoInicial?.idioma as string) ?? 'pt'
 
   const [nome, setNome] = useState(nomeInicial)
   const [idioma] = useState(idiomaSalvo)
   const [etapas, setEtapas] = useState<Etapa[]>(init.etapas.length > 0 ? init.etapas : [novaEtapa(0)])
   const [agente, setAgente] = useState<AgenteConfig>(init.agente)
+  const [despedidaTexto, setDespedidaTexto] = useState<string>(init.despedidaTexto ?? TEXTO_DESPEDIDA_PADRAO)
   const [salvando, setSalvando] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pendente' | 'salvando' | 'salvo' | 'erro'>('idle')
   const [agenteAberto, setAgenteAberto] = useState(false)
@@ -305,11 +426,16 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
     autoSaveTimer.current = setTimeout(async () => {
       setAutoSaveStatus('salvando')
       try {
-        const definicao = { ...builderParaDefinicao(etapas, agente), idioma }
+        const definicao = { ...builderParaDefinicao(etapas, agente, despedidaTexto), idioma }
         const res = await fetch(`/api/fluxos/${fluxoId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, definicao }),
+          body: JSON.stringify({
+            nome,
+            definicao,
+            reengajamento_horas: agente.recuperacao.horas_espera,
+            reengajamento_max_tentativas: agente.recuperacao.max_tentativas,
+          }),
         })
         if (res.ok) {
           setAutoSaveStatus('salvo')
@@ -322,7 +448,7 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
       }
     }, 2000)
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
-  }, [etapas, agente])
+  }, [etapas, agente, despedidaTexto])
 
   // ── CRUD de etapas ──────────────────────────────────────────────────────────
 
@@ -358,11 +484,16 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
   async function salvar() {
     setSalvando(true)
     try {
-      const definicao = { ...builderParaDefinicao(etapas, agente), idioma }
+      const definicao = { ...builderParaDefinicao(etapas, agente, despedidaTexto), idioma }
       await fetch(`/api/fluxos/${fluxoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, definicao }),
+        body: JSON.stringify({
+          nome,
+          definicao,
+          reengajamento_horas: agente.recuperacao.horas_espera,
+          reengajamento_max_tentativas: agente.recuperacao.max_tentativas,
+        }),
       })
       onSaved()
     } finally {
@@ -587,6 +718,31 @@ export default function FluxoBuilder({ fluxoId, nomeInicial, definicaoInicial, o
               </div>
             ))}
 
+            {/* Mensagem de despedida */}
+            <div className="flex flex-col items-center mt-2">
+              <div className="w-0.5 h-6 bg-gray-300" />
+              <div className="w-full bg-white border border-orange-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-orange-50 border-b border-orange-100">
+                  <span className="text-base">👋</span>
+                  <span className="text-sm font-semibold text-orange-800">Mensagem de despedida</span>
+                  <span className="ml-auto text-xs text-orange-500 font-normal">Enviada quando o lead não quer prosseguir</span>
+                </div>
+                <div className="px-4 py-3">
+                  <textarea
+                    value={despedidaTexto}
+                    onChange={e => setDespedidaTexto(e.target.value)}
+                    rows={3}
+                    placeholder={TEXTO_DESPEDIDA_PADRAO}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-orange-300 focus:outline-none text-gray-700"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Enviada automaticamente quando a IA detecta que o lead pediu para parar ou demonstrou desinteresse.
+                  </p>
+                </div>
+              </div>
+              <div className="w-0.5 h-4 bg-gray-300 mt-1" />
+            </div>
+
             {/* Terminadores visuais */}
             <div className="flex gap-3 justify-center mt-2">
               <span className="text-xs px-3 py-1.5 bg-green-100 text-green-700 rounded-full font-medium">✅ Sucesso</span>
@@ -774,15 +930,56 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
   const ehAcao = etapa.envios.length === 1 && ['escalar', 'encerrar'].includes(etapa.envios[0]?.tipo ?? '')
   const podeAdicionarEnvio = !ehAcao
 
-  // Keywords
-  const addKeyword = () => {
-    const k = keywordInput.trim().toLowerCase()
-    if (k && !etapa.esperar.keywords.includes(k)) {
-      upEsperar({ keywords: [...etapa.esperar.keywords, k] })
-    }
-    setKeywordInput('')
+  // Grupos de keywords — garante ao menos 1 grupo
+  const grupos = etapa.esperar.grupos?.length ? etapa.esperar.grupos : [{ id: `g_${Date.now()}`, keywords: etapa.esperar.keywords, proximo: etapa.se_match, descricao: etapa.esperar.descricao }]
+  const isMultiGrupo = etapa.esperar.tipo === 'keywords' && grupos.length > 1
+
+  const upGrupo = (gid: string, patch: Partial<MatchGrupo>) => {
+    const novos = grupos.map(g => g.id === gid ? { ...g, ...patch } : g)
+    // Sincroniza se_match e campos compat com o primeiro grupo
+    onAtualizar({
+      esperar: { ...etapa.esperar, grupos: novos, keywords: novos[0]?.keywords ?? [], descricao: novos[0]?.descricao ?? '' },
+      se_match: novos[0]?.proximo ?? etapa.se_match,
+    })
   }
 
+  const addGrupo = () => {
+    const novo: MatchGrupo = { id: `g_${Date.now()}`, keywords: [], proximo: '__proximo__', descricao: '' }
+    onAtualizar({ esperar: { ...etapa.esperar, grupos: [...grupos, novo] } })
+  }
+
+  const removeGrupo = (gid: string) => {
+    const novos = grupos.filter(g => g.id !== gid)
+    onAtualizar({
+      esperar: { ...etapa.esperar, grupos: novos, keywords: novos[0]?.keywords ?? [], descricao: novos[0]?.descricao ?? '' },
+      se_match: novos[0]?.proximo ?? etapa.se_match,
+    })
+  }
+
+  // Keyword input per-group
+  const [keywordInputs, setKeywordInputs] = useState<Record<string, string>>({})
+  const getKwInput = (gid: string) => keywordInputs[gid] ?? ''
+  const setKwInput = (gid: string, v: string) => setKeywordInputs(prev => ({ ...prev, [gid]: v }))
+
+  const addKeywordGrupo = (gid: string) => {
+    const k = (getKwInput(gid)).trim().toLowerCase()
+    const grupo = grupos.find(g => g.id === gid)
+    if (k && grupo && !grupo.keywords.includes(k)) {
+      upGrupo(gid, { keywords: [...grupo.keywords, k] })
+    }
+    setKwInput(gid, '')
+  }
+  const removeKeywordGrupo = (gid: string, k: string) => {
+    const grupo = grupos.find(g => g.id === gid)
+    if (grupo) upGrupo(gid, { keywords: grupo.keywords.filter(x => x !== k) })
+  }
+
+  // Legacy single-keyword helpers (kept for non-keywords tipos)
+  const addKeyword = () => {
+    const k = keywordInput.trim().toLowerCase()
+    if (k && !etapa.esperar.keywords.includes(k)) upEsperar({ keywords: [...etapa.esperar.keywords, k] })
+    setKeywordInput('')
+  }
   const removeKeyword = (k: string) =>
     upEsperar({ keywords: etapa.esperar.keywords.filter(x => x !== k) })
 
@@ -895,31 +1092,72 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
                   )}
 
                   {etapa.esperar.tipo === 'keywords' && (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-1.5 min-h-8">
-                        {etapa.esperar.keywords.map(k => (
-                          <span key={k} className="flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                            {k}
-                            <button onClick={() => removeKeyword(k)} className="text-green-600 hover:text-green-900 leading-none">&times;</button>
-                          </span>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          value={keywordInput}
-                          onChange={e => setKeywordInput(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && addKeyword()}
-                          placeholder="sim, quero, claro... (Enter para adicionar)"
-                          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-300 focus:outline-none"
-                        />
-                        <button onClick={addKeyword} className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg">
-                          + Add
-                        </button>
-                      </div>
+                    <div className="space-y-3">
+                      {/* ── Grupos de keywords ─────────────────────────── */}
+                      {grupos.map((grupo, gi) => (
+                        <div key={grupo.id} className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
+                          {grupos.length > 1 && (
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-gray-500">Grupo {gi + 1}</span>
+                              <button onClick={() => removeGrupo(grupo.id)} className="text-xs text-red-400 hover:text-red-600">remover grupo</button>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-1.5 min-h-8">
+                            {grupo.keywords.map(k => (
+                              <span key={k} className="flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                {k}
+                                <button onClick={() => removeKeywordGrupo(grupo.id, k)} className="text-green-600 hover:text-green-900 leading-none">&times;</button>
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              value={getKwInput(grupo.id)}
+                              onChange={e => setKwInput(grupo.id, e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && addKeywordGrupo(grupo.id)}
+                              placeholder="sim, quero, claro... (Enter para adicionar)"
+                              className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-300 focus:outline-none bg-white"
+                            />
+                            <button onClick={() => addKeywordGrupo(grupo.id)} className="text-xs text-green-700 border border-green-200 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg">
+                              + Add
+                            </button>
+                          </div>
+                          {/* Destino inline por grupo */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded shrink-0">✅ Ir para</span>
+                            <select
+                              value={grupo.proximo}
+                              onChange={e => upGrupo(grupo.id, { proximo: e.target.value })}
+                              className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-green-300 focus:outline-none"
+                            >
+                              {opcoesDestino.map(o => (
+                                <option key={o.id} value={o.id}>{o.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Contexto IA por grupo */}
+                          <div>
+                            <input
+                              value={grupo.descricao}
+                              onChange={e => upGrupo(grupo.id, { descricao: e.target.value })}
+                              placeholder="Contexto p/ IA avaliar quando keywords não batem (opcional)"
+                              className="w-full text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-300 focus:outline-none bg-white text-gray-500"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Botão adicionar grupo */}
+                      <button
+                        onClick={addGrupo}
+                        className="w-full text-xs text-blue-700 border border-dashed border-blue-300 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        + Adicionar grupo de keywords (destino diferente)
+                      </button>
                     </div>
                   )}
 
-                  {etapa.esperar.tipo !== 'imagem' && (
+                  {etapa.esperar.tipo !== 'imagem' && etapa.esperar.tipo !== 'keywords' && (
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Contexto para a IA avaliar (quando keywords não batem)</label>
                       <input
@@ -931,16 +1169,16 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
                     </div>
                   )}
 
-                  {etapa.esperar.tipo === 'qualquer' && (
+                  {(etapa.esperar.tipo === 'qualquer' || etapa.esperar.tipo === 'keywords') && (
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Salvar resposta como variável (opcional)</label>
                       <input
                         value={etapa.esperar.salvar_como}
                         onChange={e => upEsperar({ salvar_como: e.target.value })}
-                        placeholder="Ex: nome, email, cidade"
+                        placeholder="Ex: metodo_deposito, nome, cidade"
                         className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-300 focus:outline-none"
                       />
-                      <p className="text-xs text-gray-400 mt-1">Após isso, use {'{{nome}}'} nas mensagens seguintes</p>
+                      <p className="text-xs text-gray-400 mt-1">Após isso, use {'{{metodo_deposito}}'} nas mensagens seguintes</p>
                     </div>
                   )}
                 </>
@@ -953,19 +1191,25 @@ function EtapaCard({ etapa, index, total, opcoesDestino, onAtualizar, onMover, o
             <div className="px-4 py-4 space-y-3">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">🔀 Roteamento</p>
 
-              {/* Match */}
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded shrink-0">✅ Certo</span>
-                <select
-                  value={etapa.se_match}
-                  onChange={e => onAtualizar({ se_match: e.target.value })}
-                  className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-green-300 focus:outline-none"
-                >
-                  {opcoesDestino.map(o => (
-                    <option key={o.id} value={o.id}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Match — só mostra para não-multigrupo (multi-grupo tem destino inline por grupo) */}
+              {!isMultiGrupo && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded shrink-0">✅ Certo</span>
+                  <select
+                    value={etapa.se_match}
+                    onChange={e => {
+                      onAtualizar({ se_match: e.target.value })
+                      // Sincroniza também o primeiro grupo
+                      if (grupos.length > 0) upGrupo(grupos[0].id, { proximo: e.target.value })
+                    }}
+                    className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-green-300 focus:outline-none"
+                  >
+                    {opcoesDestino.map(o => (
+                      <option key={o.id} value={o.id}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* No-match */}
               {etapa.aguardar && (
