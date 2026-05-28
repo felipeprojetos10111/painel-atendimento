@@ -208,8 +208,20 @@ model respostas_rapidas {
   criado_em   DateTime?  @default(now()) @db.Timestamp(6)
   clientes    clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   operadores  operadores @relation(fields: [operador_id], references: [id], onDelete: Cascade)
+  itens       respostas_rapidas_itens[]
 
   @@unique([operador_id, atalho])
+}
+
+model respostas_rapidas_itens {
+  id          Int               @id @default(autoincrement())
+  resposta_id Int
+  ordem       Int               @default(0)
+  tipo        String            @default("texto") @db.VarChar(20)
+  conteudo    String?
+  url_midia   String?
+  criado_em   DateTime?         @default(now()) @db.Timestamp(6)
+  respostas_rapidas respostas_rapidas @relation(fields: [resposta_id], references: [id], onDelete: Cascade)
 }
 
 // ─── Módulo de Fluxos Automatizados ───────────────────────────────────────────

@@ -19,14 +19,20 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params
 
-  // Verifica que a resposta pertence ao operador logado
   const resposta = await prisma.respostas_rapidas.findFirst({
-    where: { id: Number(id), operador_id: payload.id }
+    where: { id: Number(id), operador_id: payload.id },
+    include: { itens: true }
   })
   if (!resposta) return NextResponse.json({ erro: 'Resposta rápida não encontrada.' }, { status: 404 })
 
-  if (resposta.url_midia) {
-    try { await deletarArquivo(extrairChave(resposta.url_midia)) } catch { /* segue mesmo se falhar */ }
+  // Apaga todos os arquivos R2 (itens + campo legado)
+  const urlsParaDeletar = [
+    ...resposta.itens.map(i => i.url_midia).filter(Boolean),
+    resposta.url_midia
+  ].filter(Boolean) as string[]
+
+  for (const url of urlsParaDeletar) {
+    try { await deletarArquivo(extrairChave(url)) } catch { /* segue mesmo se falhar */ }
   }
 
   await prisma.respostas_rapidas.delete({ where: { id: Number(id) } })
@@ -41,7 +47,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params
 
-  // Verifica que a resposta pertence ao operador logado
   const existe = await prisma.respostas_rapidas.findFirst({
     where: { id: Number(id), operador_id: payload.id }
   })
@@ -50,19 +55,44 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
 
   try {
-    const resposta = await prisma.respostas_rapidas.update({
+    await prisma.respostas_rapidas.update({
       where: { id: Number(id) },
       data: {
         ...(body.titulo    !== undefined && { titulo:    body.titulo }),
-        ...(body.tipo      !== undefined && { tipo:      body.tipo }),
-        ...(body.conteudo  !== undefined && { conteudo:  body.conteudo }),
-        ...(body.url_midia !== undefined && { url_midia: body.url_midia }),
         ...(body.categoria !== undefined && { categoria: body.categoria }),
         ...(body.atalho    !== undefined && { atalho:    body.atalho }),
-        ...(body.ativo     !== undefined && { ativo:     body.ativo })
+        ...(body.ativo     !== undefined && { ativo:     body.ativo }),
+        // Atualiza campos legados com o primeiro item para manter compatibilidade
+        ...(body.itens?.length && {
+          tipo:      body.itens[0].tipo,
+          conteudo:  body.itens[0].conteudo  || null,
+          url_midia: body.itens[0].url_midia || null,
+        }),
       }
     })
-    return NextResponse.json(resposta)
+
+    // Substitui itens se fornecidos
+    if (body.itens !== undefined) {
+      await prisma.respostas_rapidas_itens.deleteMany({ where: { resposta_id: Number(id) } })
+      if (body.itens.length > 0) {
+        await prisma.respostas_rapidas_itens.createMany({
+          data: body.itens.map((item: { tipo: string; conteudo?: string; url_midia?: string }, i: number) => ({
+            resposta_id: Number(id),
+            ordem:       i,
+            tipo:        item.tipo,
+            conteudo:    item.conteudo  || null,
+            url_midia:   item.url_midia || null,
+          }))
+        })
+      }
+    }
+
+    const atualizada = await prisma.respostas_rapidas.findUnique({
+      where: { id: Number(id) },
+      include: { itens: { orderBy: { ordem: 'asc' } } }
+    })
+
+    return NextResponse.json(atualizada)
   } catch (err) {
     const mensagem = err instanceof Error ? err.message : 'Erro interno.'
     if (mensagem.includes('Unique constraint') || mensagem.includes('unique constraint')) {

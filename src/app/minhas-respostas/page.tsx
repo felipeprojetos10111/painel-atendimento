@@ -6,16 +6,32 @@ import { useLingua } from '@/contexts/LinguaContext'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-interface RespostaRapida {
+interface ItemForm {
+  tipo: Tipo
+  conteudo: string
+  arquivo: File | null
+  url_midia: string | null // definido após upload ou ao editar
+  semTexto: boolean
+}
+
+interface RespostaRapidaCompleta {
   id: number
   titulo: string
-  tipo: string
-  conteudo: string | null
-  url_midia: string | null
   categoria: string | null
   atalho: string | null
   ativo: boolean | null
   criado_em: string | null
+  itens: {
+    id: number
+    ordem: number
+    tipo: string
+    conteudo: string | null
+    url_midia: string | null
+  }[]
+  // legados
+  tipo?: string
+  conteudo?: string | null
+  url_midia?: string | null
 }
 
 // ─── Config de tipos ──────────────────────────────────────────────────────────
@@ -39,25 +55,26 @@ const TIPO_COR: Record<Tipo, string> = {
   documento: 'bg-yellow-100 text-yellow-700',
 }
 
-const FORM_VAZIO = { titulo: '', categoria: '', tipo: 'texto' as Tipo, conteudo: '', atalho: '' }
+const ITEM_VAZIO: ItemForm = { tipo: 'texto', conteudo: '', arquivo: null, url_midia: null, semTexto: false }
+const FORM_VAZIO = { titulo: '', categoria: '', atalho: '' }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function MinhasRespostasPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const fileRef = useRef<HTMLInputElement>(null)
+  // Each item has its own file ref
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  const [respostas, setRespostas]           = useState<RespostaRapida[]>([])
-  const [form, setForm]                     = useState(FORM_VAZIO)
-  const [editandoId, setEditandoId]         = useState<number | null>(null)
-  const [arquivo, setArquivo]               = useState<File | null>(null)
-  const [semTexto, setSemTexto]             = useState(false)
-  const [salvando, setSalvando]             = useState(false)
-  const [deletando, setDeletando]           = useState<number | null>(null)
-  const [erro, setErro]                     = useState('')
-  const [sucesso, setSucesso]               = useState('')
-  const [busca, setBusca]                   = useState('')
+  const [respostas, setRespostas]             = useState<RespostaRapidaCompleta[]>([])
+  const [form, setForm]                       = useState(FORM_VAZIO)
+  const [itensForm, setItensForm]             = useState<ItemForm[]>([{ ...ITEM_VAZIO }])
+  const [editandoId, setEditandoId]           = useState<number | null>(null)
+  const [salvando, setSalvando]               = useState(false)
+  const [deletando, setDeletando]             = useState<number | null>(null)
+  const [erro, setErro]                       = useState('')
+  const [sucesso, setSucesso]                 = useState('')
+  const [busca, setBusca]                     = useState('')
   const [uploadProgresso, setUploadProgresso] = useState('')
   const [meuLinkInfo, setMeuLinkInfo] = useState<{ affiliate_link_id: string; link_completo: string; mensagem_link: string } | null>(null)
   const [mensagemLink, setMensagemLink]   = useState('')
@@ -100,27 +117,72 @@ export default function MinhasRespostasPage() {
     }
   }
 
-  function setField(campo: keyof typeof FORM_VAZIO, valor: string) {
-    setForm(f => ({ ...f, [campo]: valor }))
-    if (campo === 'tipo') {
-      setArquivo(null)
-      setSemTexto(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
+  // ─── Itens helpers ──────────────────────────────────────────────────────────
+
+  function addItem() {
+    setItensForm(prev => [...prev, { ...ITEM_VAZIO }])
   }
 
-  function iniciarEdicao(r: RespostaRapida) {
+  function removeItem(i: number) {
+    if (itensForm.length <= 1) return
+    setItensForm(prev => prev.filter((_, idx) => idx !== i))
+    // clear the file ref for removed item
+    if (fileRefs.current[i]) fileRefs.current[i]!.value = ''
+  }
+
+  function updateItem(i: number, campo: keyof ItemForm, valor: ItemForm[keyof ItemForm]) {
+    setItensForm(prev => prev.map((item, idx) => {
+      if (idx !== i) return item
+      const updated = { ...item, [campo]: valor }
+      // reset arquivo/url_midia when switching type
+      if (campo === 'tipo') {
+        updated.arquivo = null
+        updated.url_midia = null
+        updated.semTexto = false
+        if (fileRefs.current[i]) fileRefs.current[i]!.value = ''
+      }
+      return updated
+    }))
+  }
+
+  function setItemArquivo(i: number, file: File | null) {
+    setItensForm(prev => prev.map((item, idx) =>
+      idx === i ? { ...item, arquivo: file } : item
+    ))
+  }
+
+  // ─── Edição ──────────────────────────────────────────────────────────────────
+
+  function iniciarEdicao(r: RespostaRapidaCompleta) {
     setEditandoId(r.id)
-    const tipoR = (r.tipo as Tipo) ?? 'texto'
     setForm({
       titulo:    r.titulo,
       categoria: r.categoria ?? '',
-      tipo:      tipoR,
-      conteudo:  r.conteudo ?? '',
       atalho:    r.atalho ?? '',
     })
-    setSemTexto(tipoR !== 'texto' && !r.conteudo)
-    setArquivo(null)
+
+    let itensCarregados: ItemForm[]
+    if (r.itens?.length) {
+      itensCarregados = r.itens.map(item => ({
+        tipo:     (item.tipo as Tipo) ?? 'texto',
+        conteudo: item.conteudo ?? '',
+        arquivo:  null,
+        url_midia: item.url_midia ?? null,
+        semTexto: item.tipo !== 'texto' && !item.conteudo,
+      }))
+    } else {
+      // fallback registro legado
+      const tipoR = (r.tipo as Tipo) ?? 'texto'
+      itensCarregados = [{
+        tipo:     tipoR,
+        conteudo: r.conteudo ?? '',
+        arquivo:  null,
+        url_midia: r.url_midia ?? null,
+        semTexto: tipoR !== 'texto' && !r.conteudo,
+      }]
+    }
+
+    setItensForm(itensCarregados)
     setErro('')
     setSucesso('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -129,37 +191,51 @@ export default function MinhasRespostasPage() {
   function cancelarEdicao() {
     setEditandoId(null)
     setForm(FORM_VAZIO)
-    setArquivo(null)
-    setSemTexto(false)
+    setItensForm([{ ...ITEM_VAZIO }])
+    fileRefs.current.forEach(ref => { if (ref) ref.value = '' })
     setErro('')
   }
+
+  // ─── Submit ──────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErro(''); setSucesso(''); setSalvando(true)
 
     try {
-      let url_midia: string | null = null
+      const itensPayload: { tipo: string; conteudo: string | null; url_midia: string | null }[] = []
 
-      if (form.tipo !== 'texto' && arquivo) {
-        setUploadProgresso(form.tipo === 'video' ? 'Comprimindo e enviando vídeo...' : 'Enviando arquivo...')
-        const fd = new FormData()
-        fd.append('arquivo', arquivo)
-        const uploadRes = await fetch('/api/respostas-rapidas/upload', { method: 'POST', body: fd })
-        if (!uploadRes.ok) throw new Error((await uploadRes.json()).erro ?? 'Erro no upload')
+      for (let i = 0; i < itensForm.length; i++) {
+        const item = itensForm[i]
+        let url_midia = item.url_midia
 
-        const { urlPublica } = await uploadRes.json()
-        url_midia = urlPublica
-        setUploadProgresso('')
+        if (item.tipo !== 'texto' && item.arquivo) {
+          setUploadProgresso(
+            i === 0
+              ? (item.tipo === 'video' ? 'Comprimindo e enviando vídeo...' : 'Enviando arquivo...')
+              : `Enviando item ${i + 1}...`
+          )
+          const fd = new FormData()
+          fd.append('arquivo', item.arquivo)
+          const uploadRes = await fetch('/api/respostas-rapidas/upload', { method: 'POST', body: fd })
+          if (!uploadRes.ok) throw new Error((await uploadRes.json()).erro ?? 'Erro no upload')
+          const { urlPublica } = await uploadRes.json()
+          url_midia = urlPublica
+          setUploadProgresso('')
+        }
+
+        itensPayload.push({
+          tipo:     item.tipo,
+          conteudo: item.semTexto ? null : (item.conteudo || null),
+          url_midia,
+        })
       }
 
       const payload = {
         titulo:    form.titulo,
-        tipo:      form.tipo,
         categoria: form.categoria || null,
         atalho:    form.atalho    || null,
-        conteudo:  semTexto ? null : (form.conteudo || null),
-        ...(url_midia && { url_midia })
+        itens:     itensPayload,
       }
 
       if (editandoId) {
@@ -182,8 +258,8 @@ export default function MinhasRespostasPage() {
       }
 
       setForm(FORM_VAZIO)
-      setArquivo(null)
-      if (fileRef.current) fileRef.current.value = ''
+      setItensForm([{ ...ITEM_VAZIO }])
+      fileRefs.current.forEach(ref => { if (ref) ref.value = '' })
       await carregar()
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro desconhecido')
@@ -192,7 +268,7 @@ export default function MinhasRespostasPage() {
     }
   }
 
-  async function toggleAtivo(r: RespostaRapida) {
+  async function toggleAtivo(r: RespostaRapidaCompleta) {
     await fetch(`/api/respostas-rapidas/${r.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -201,7 +277,7 @@ export default function MinhasRespostasPage() {
     await carregar()
   }
 
-  async function handleDeletar(r: RespostaRapida) {
+  async function handleDeletar(r: RespostaRapidaCompleta) {
     if (!confirm(`Deletar "${r.titulo}"? Esta ação não pode ser desfeita.`)) return
     setDeletando(r.id)
     await fetch(`/api/respostas-rapidas/${r.id}`, { method: 'DELETE' })
@@ -210,13 +286,19 @@ export default function MinhasRespostasPage() {
     await carregar()
   }
 
-  const isMidia = form.tipo !== 'texto'
   const filtradas = respostas.filter(r =>
     !busca ||
     r.titulo.toLowerCase().includes(busca.toLowerCase()) ||
     r.categoria?.toLowerCase().includes(busca.toLowerCase()) ||
     r.atalho?.toLowerCase().includes(busca.toLowerCase())
   )
+
+  // Check if all items in form have required uploads
+  const formValido = itensForm.every(item => {
+    if (item.tipo === 'texto') return true
+    // for media: needs file (new) or existing url_midia (edit)
+    return !!(item.arquivo || (editandoId && item.url_midia))
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -319,12 +401,14 @@ export default function MinhasRespostasPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <Field label="Título" required>
-                <input type="text" value={form.titulo} onChange={e => setField('titulo', e.target.value)}
+                <input type="text" value={form.titulo}
+                  onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
                   required placeholder="Ex: Catálogo de produtos" className={inputCls} />
               </Field>
 
               <Field label="Categoria">
-                <input type="text" value={form.categoria} onChange={e => setField('categoria', e.target.value)}
+                <input type="text" value={form.categoria}
+                  onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
                   placeholder="Ex: Vendas, Suporte" className={inputCls} />
               </Field>
 
@@ -332,95 +416,147 @@ export default function MinhasRespostasPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono">#</span>
                   <input type="text" value={form.atalho}
-                    onChange={e => setField('atalho', e.target.value.replace(/\s/g, '').toLowerCase())}
+                    onChange={e => setForm(f => ({ ...f, atalho: e.target.value.replace(/\s/g, '').toLowerCase() }))}
                     placeholder="saudacao" className={`${inputCls} pl-7 font-mono`} />
                 </div>
               </Field>
 
-              {/* Seletor de tipo */}
+              {/* ── Itens da sequência ───────────────────────────────────── */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                <div className="grid grid-cols-5 gap-1">
-                  {TIPOS.map(t => (
-                    <button key={t} type="button" onClick={() => setField('tipo', t)}
-                      className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                        form.tipo === t
-                          ? 'border-green-500 bg-green-50 text-green-700'
-                          : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
-                      }`}>
-                      <span className="text-base leading-none">{TIPO_CONFIG[t].icone}</span>
-                      {TIPO_CONFIG[t].label}
-                    </button>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Itens da sequência
+                </label>
+                <div className="space-y-4">
+                  {itensForm.map((item, i) => (
+                    <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3 relative">
+                      {/* Badge de ordem + botão remover */}
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold select-none">
+                          {i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(i)}
+                          disabled={itensForm.length <= 1}
+                          title="Remover item"
+                          className="text-gray-300 hover:text-red-500 disabled:opacity-30 transition-colors p-1 rounded"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Seletor de tipo */}
+                      <div className="grid grid-cols-5 gap-1">
+                        {TIPOS.map(t => (
+                          <button key={t} type="button"
+                            onClick={() => updateItem(i, 'tipo', t)}
+                            className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                              item.tipo === t
+                                ? 'border-green-500 bg-green-50 text-green-700'
+                                : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                            }`}>
+                            <span className="text-base leading-none">{TIPO_CONFIG[t].icone}</span>
+                            {TIPO_CONFIG[t].label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Conteúdo de texto */}
+                      {item.tipo === 'texto' && (
+                        <textarea
+                          value={item.conteudo}
+                          onChange={e => updateItem(i, 'conteudo', e.target.value)}
+                          rows={3}
+                          placeholder="Digite o texto da resposta..."
+                          className={`${inputCls} resize-none`}
+                        />
+                      )}
+
+                      {/* Texto anexado à mídia — somente para não-áudio */}
+                      {item.tipo !== 'texto' && item.tipo !== 'audio' && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-medium text-gray-600">
+                              Texto anexado
+                              <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={item.semTexto}
+                                onChange={e => {
+                                  updateItem(i, 'semTexto', e.target.checked)
+                                  if (e.target.checked) updateItem(i, 'conteudo', '')
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                              />
+                              <span className="text-xs text-gray-500">Sem texto</span>
+                            </label>
+                          </div>
+                          {!item.semTexto ? (
+                            <textarea
+                              value={item.conteudo}
+                              onChange={e => updateItem(i, 'conteudo', e.target.value)}
+                              rows={2}
+                              placeholder="Ex: Confira nosso catálogo! 😊"
+                              className={`${inputCls} resize-none`}
+                            />
+                          ) : (
+                            <p className="text-xs text-gray-400 italic bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                              Nenhum texto será enviado junto com o arquivo.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Upload de mídia */}
+                      {item.tipo !== 'texto' && (
+                        <div>
+                          <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl py-4 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors">
+                            <span className="text-2xl mb-1">{TIPO_CONFIG[item.tipo].icone}</span>
+                            <span className="text-sm text-gray-500">
+                              {item.arquivo
+                                ? item.arquivo.name
+                                : item.url_midia
+                                  ? 'Clique para substituir o arquivo'
+                                  : 'Clique para selecionar'}
+                            </span>
+                            {item.arquivo && (
+                              <span className="text-xs text-gray-400 mt-0.5">
+                                {(item.arquivo.size / 1024 / 1024).toFixed(2)} MB
+                              </span>
+                            )}
+                            <input
+                              ref={el => { fileRefs.current[i] = el }}
+                              type="file"
+                              accept={TIPO_CONFIG[item.tipo].accept}
+                              onChange={e => setItemArquivo(i, e.target.files?.[0] ?? null)}
+                              className="hidden"
+                            />
+                          </label>
+                          {editandoId && item.url_midia && !item.arquivo && (
+                            <p className="text-xs text-gray-400 mt-1">Deixe vazio para manter o arquivo atual</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
+
+                {/* Botão adicionar item */}
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="mt-3 w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-green-400 hover:bg-green-50 text-gray-500 hover:text-green-700 text-sm font-medium rounded-xl py-2.5 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Adicionar item
+                </button>
               </div>
-
-              {/* Conteúdo de texto */}
-              {!isMidia && (
-                <Field label="Conteúdo">
-                  <textarea value={form.conteudo} onChange={e => setField('conteudo', e.target.value)}
-                    rows={4} placeholder="Digite o texto da resposta..."
-                    className={`${inputCls} resize-none`} />
-                </Field>
-              )}
-
-              {/* Texto anexado à mídia (opcional) — não disponível para áudio */}
-              {isMidia && form.tipo !== 'audio' && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Texto anexado à mídia
-                      <span className="text-gray-400 font-normal ml-1">(opcional)</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={semTexto}
-                        onChange={e => {
-                          setSemTexto(e.target.checked)
-                          if (e.target.checked) setField('conteudo', '')
-                        }}
-                        className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                      />
-                      <span className="text-xs text-gray-500">Sem texto</span>
-                    </label>
-                  </div>
-                  {!semTexto ? (
-                    <textarea
-                      value={form.conteudo}
-                      onChange={e => setField('conteudo', e.target.value)}
-                      rows={3}
-                      placeholder="Ex: Confira nosso catálogo completo! 😊"
-                      className={`${inputCls} resize-none`}
-                    />
-                  ) : (
-                    <p className="text-xs text-gray-400 italic bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                      Nenhum texto será enviado junto com o arquivo.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Upload de mídia */}
-              {isMidia && (
-                <Field label={`Arquivo de ${TIPO_CONFIG[form.tipo].label}`}
-                  required={!editandoId}>
-                  <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl py-6 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors">
-                    <span className="text-2xl mb-1">{TIPO_CONFIG[form.tipo].icone}</span>
-                    <span className="text-sm text-gray-500">
-                      {arquivo ? arquivo.name : editandoId ? 'Clique para substituir o arquivo' : 'Clique para selecionar'}
-                    </span>
-                    {arquivo && (
-                      <span className="text-xs text-gray-400 mt-0.5">{(arquivo.size / 1024 / 1024).toFixed(2)} MB</span>
-                    )}
-                    <input ref={fileRef} type="file" accept={TIPO_CONFIG[form.tipo].accept}
-                      onChange={e => setArquivo(e.target.files?.[0] ?? null)} className="hidden" />
-                  </label>
-                  {editandoId && !arquivo && (
-                    <p className="text-xs text-gray-400 mt-1">Deixe vazio para manter o arquivo atual</p>
-                  )}
-                </Field>
-              )}
 
               {/* Feedback */}
               {erro   && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erro}</p>}
@@ -428,7 +564,7 @@ export default function MinhasRespostasPage() {
 
               <button
                 type="submit"
-                disabled={salvando || (isMidia && !arquivo && !editandoId)}
+                disabled={salvando || !formValido}
                 className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors"
               >
                 {salvando
@@ -460,8 +596,13 @@ export default function MinhasRespostasPage() {
             ) : (
               <ul className="divide-y divide-gray-50">
                 {filtradas.map(r => {
-                  const cfg = TIPO_CONFIG[r.tipo as Tipo] ?? TIPO_CONFIG.texto
-                  const cor = TIPO_COR[r.tipo as Tipo]   ?? TIPO_COR.texto
+                  // Normaliza itens: fallback para legados
+                  const itens = r.itens?.length
+                    ? r.itens
+                    : [{ id: 0, ordem: 0, tipo: r.tipo ?? 'texto', conteudo: r.conteudo ?? null, url_midia: r.url_midia ?? null }]
+                  const primeiroItem = itens[0]
+                  const cfgPrimeiro = TIPO_CONFIG[(primeiroItem?.tipo as Tipo) ?? 'texto'] ?? TIPO_CONFIG.texto
+                  const multiItens = itens.length > 1
                   const editando = editandoId === r.id
                   return (
                     <li
@@ -470,12 +611,23 @@ export default function MinhasRespostasPage() {
                         editando ? 'bg-green-50 border-l-4 border-l-green-500' : !r.ativo ? 'opacity-50' : 'hover:bg-gray-50'
                       }`}
                     >
-                      <span className="text-2xl mt-0.5 select-none">{cfg.icone}</span>
+                      <span className="text-2xl mt-0.5 select-none">{cfgPrimeiro.icone}</span>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="text-sm font-medium text-gray-800">{r.titulo}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${cor}`}>{cfg.label}</span>
+                          {/* Sequência de ícones */}
+                          <span className="flex items-center gap-0.5 text-sm select-none">
+                            {itens.map((item, idx) => {
+                              const cfg = TIPO_CONFIG[(item.tipo as Tipo)] ?? TIPO_CONFIG.texto
+                              return <span key={idx}>{cfg.icone}</span>
+                            })}
+                          </span>
+                          {multiItens && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700">
+                              {itens.length} itens
+                            </span>
+                          )}
                           {r.atalho && (
                             <span className="text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">#{r.atalho}</span>
                           )}
@@ -484,18 +636,21 @@ export default function MinhasRespostasPage() {
                           )}
                           {!r.ativo && <span className="text-xs text-gray-400 italic">inativa</span>}
                         </div>
-                        {r.conteudo && (
+                        {/* Preview do primeiro conteúdo de texto */}
+                        {itens.find(i => i.conteudo) && (
                           <p className="text-xs text-gray-500 line-clamp-2">
-                            {r.tipo !== 'texto' && <span className="text-gray-400 mr-1">💬</span>}
-                            {r.conteudo}
+                            {primeiroItem?.tipo !== 'texto' && <span className="text-gray-400 mr-1">💬</span>}
+                            {itens.find(i => i.conteudo)?.conteudo}
                           </p>
                         )}
-                        {r.tipo !== 'texto' && !r.conteudo && (
+                        {!itens.find(i => i.conteudo) && primeiroItem?.tipo !== 'texto' && (
                           <p className="text-xs text-gray-400 italic">sem texto anexado</p>
                         )}
-                        {r.url_midia && (
-                          <a href={r.url_midia} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline truncate block max-w-xs">{r.url_midia}</a>
+                        {primeiroItem?.url_midia && (
+                          <a href={primeiroItem.url_midia} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-blue-500 hover:underline truncate block max-w-xs">
+                            {primeiroItem.url_midia}
+                          </a>
                         )}
                       </div>
 

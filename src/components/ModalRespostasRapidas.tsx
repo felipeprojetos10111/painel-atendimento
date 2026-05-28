@@ -3,14 +3,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLingua } from '@/contexts/LinguaContext'
 
-interface RespostaRapida {
+interface ItemResposta {
   id: number
-  titulo: string
+  ordem: number
   tipo: string
   conteudo: string | null
   url_midia: string | null
+}
+
+interface RespostaRapida {
+  id: number
+  titulo: string
   categoria: string | null
   atalho: string | null
+  itens: ItemResposta[]
+  // campos legados (fallback para registros antigos sem itens)
+  tipo?: string
+  conteudo?: string | null
+  url_midia?: string | null
 }
 
 interface Props {
@@ -50,16 +60,23 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onFechar])
 
-  const filtradas = respostas.filter(r => {
+  const filtradas = respostas.map(r => {
+    // Normaliza: garante que itens existe (cria fallback para registros legados)
+    const itens: ItemResposta[] = r.itens?.length
+      ? r.itens
+      : [{ id: 0, ordem: 0, tipo: r.tipo ?? 'texto', conteudo: r.conteudo ?? null, url_midia: r.url_midia ?? null }]
+    return { ...r, itens }
+  }).filter(r => {
     const termo = busca.toLowerCase().trim()
     if (!termo) return true
     if (termo.startsWith('#')) {
       const atalho = termo.slice(1)
       return r.atalho?.toLowerCase().includes(atalho) ?? false
     }
+    const conteudoItens = r.itens.map(i => i.conteudo ?? '').join(' ')
     return (
       r.titulo.toLowerCase().includes(termo) ||
-      r.conteudo?.toLowerCase().includes(termo) ||
+      conteudoItens.toLowerCase().includes(termo) ||
       r.categoria?.toLowerCase().includes(termo) ||
       r.atalho?.toLowerCase().includes(termo)
     )
@@ -138,35 +155,48 @@ export default function ModalRespostasRapidas({ onSelecionar, onFechar }: Props)
                 </div>
                 <ul className="divide-y divide-gray-50">
                   {itens.map(r => {
-                    const cfg = TIPO_ESTILO[r.tipo] ?? TIPO_ESTILO.texto
+                    const primeiroItem = r.itens[0]
+                    const cfgPrimeiro = TIPO_ESTILO[primeiroItem?.tipo ?? 'texto'] ?? TIPO_ESTILO.texto
+                    const multiItens = r.itens.length > 1
+                    const conteudoPreview = r.itens.find(i => i.conteudo)?.conteudo ?? null
+                    const urlPreview = !conteudoPreview ? (r.itens.find(i => i.url_midia)?.url_midia ?? null) : null
                     return (
                       <li
                         key={r.id}
                         onClick={() => onSelecionar(r)}
                         className="flex items-start gap-3 px-5 py-3.5 cursor-pointer hover:bg-green-50 transition-colors group"
                       >
-                        <span className="text-xl mt-0.5 select-none">{cfg.icone}</span>
+                        <span className="text-xl mt-0.5 select-none">{cfgPrimeiro.icone}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-sm font-medium text-gray-800 truncate">
                               {r.titulo}
                             </span>
-                            <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium ${cfg.cor}`}>
-                              {tr(cfg.chave)}
+                            {/* Sequência de ícones dos itens */}
+                            <span className="shrink-0 flex items-center gap-0.5 text-sm select-none">
+                              {r.itens.map((item, idx) => {
+                                const cfgItem = TIPO_ESTILO[item.tipo] ?? TIPO_ESTILO.texto
+                                return <span key={idx}>{cfgItem.icone}</span>
+                              })}
                             </span>
+                            {multiItens && (
+                              <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700">
+                                {r.itens.length} itens
+                              </span>
+                            )}
                             {r.atalho && (
                               <span className="shrink-0 text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
                                 #{r.atalho}
                               </span>
                             )}
                           </div>
-                          {r.conteudo && (
+                          {conteudoPreview && (
                             <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                              {r.conteudo}
+                              {conteudoPreview}
                             </p>
                           )}
-                          {!r.conteudo && r.url_midia && (
-                            <p className="text-xs text-blue-500 truncate">{r.url_midia}</p>
+                          {urlPreview && (
+                            <p className="text-xs text-blue-500 truncate">{urlPreview}</p>
                           )}
                         </div>
                         <svg

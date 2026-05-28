@@ -16,14 +16,21 @@ interface Mensagem {
   enviado_em: string | null
 }
 
-interface RespostaRapida {
-  id: number
-  titulo: string
+interface ItemResposta {
+  id?: number
+  ordem?: number
   tipo: string
   conteudo: string | null
   url_midia: string | null
-  categoria: string | null
-  atalho: string | null
+}
+
+interface RespostaRapida {
+  id: number
+  titulo: string
+  tipo?: string
+  conteudo?: string | null
+  url_midia?: string | null
+  itens?: ItemResposta[]
 }
 
 interface Operador {
@@ -756,12 +763,14 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
   async function handleSelecionarResposta(resposta: RespostaRapida) {
     setModalAberto(false)
-    if (resposta.url_midia) {
-      await enviarConteudo(resposta.conteudo ?? '', resposta.tipo, resposta.url_midia)
-    } else {
-      const conteudo = resposta.conteudo ?? ''
-      if (!conteudo) return
-      await enviarConteudo(conteudo)
+
+    // Usa itens da API ou cria um único item com os campos legados
+    const itens: ItemResposta[] = resposta.itens?.length
+      ? resposta.itens
+      : [{ tipo: resposta.tipo ?? 'texto', conteudo: resposta.conteudo ?? null, url_midia: resposta.url_midia ?? null }]
+
+    for (const item of itens) {
+      await enviarConteudo(item.conteudo ?? '', item.tipo, item.url_midia ?? undefined)
     }
     textareaRef.current?.focus()
   }

@@ -10,7 +10,7 @@ async function getPayload() {
   return verifyToken(token)
 }
 
-// GET /api/respostas-rapidas — respostas do operador logado
+// GET /api/respostas-rapidas — respostas do operador logado (inclui itens ordenados)
 export async function GET(req: NextRequest) {
   const payload = await getPayload()
   if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const categoria = searchParams.get('categoria')
   const atalho    = searchParams.get('atalho')
-  const tipo      = searchParams.get('tipo')
   const todos     = searchParams.get('todos') === 'true'
 
   const respostas = await prisma.respostas_rapidas.findMany({
@@ -27,8 +26,10 @@ export async function GET(req: NextRequest) {
       operador_id: payload.id,
       ...(!todos && { ativo: true }),
       ...(categoria && { categoria }),
-      ...(tipo      && { tipo }),
       ...(atalho    && { atalho: { contains: atalho, mode: 'insensitive' } })
+    },
+    include: {
+      itens: { orderBy: { ordem: 'asc' } }
     },
     orderBy: { criado_em: 'desc' }
   })
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(respostas)
 }
 
-// POST /api/respostas-rapidas — cria resposta para o operador logado
+// POST /api/respostas-rapidas — cria resposta com array de itens
 export async function POST(req: NextRequest) {
   try {
     const payload = await getPayload()
@@ -44,21 +45,19 @@ export async function POST(req: NextRequest) {
     if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
     const body = await req.json()
-    const { titulo, tipo, conteudo, url_midia, categoria, atalho } = body
+    const { titulo, categoria, atalho, itens } = body
 
-    if (!titulo) {
-      return NextResponse.json({ erro: 'O campo título é obrigatório.' }, { status: 400 })
-    }
+    if (!titulo) return NextResponse.json({ erro: 'O campo título é obrigatório.' }, { status: 400 })
+    if (!itens?.length) return NextResponse.json({ erro: 'A resposta precisa ter ao menos 1 item.' }, { status: 400 })
 
     const tiposValidos = ['texto', 'imagem', 'audio', 'video', 'documento']
-    const tipoFinal = tipo ?? 'texto'
-
-    if (!tiposValidos.includes(tipoFinal)) {
-      return NextResponse.json({ erro: `Tipo inválido. Use: ${tiposValidos.join(', ')}` }, { status: 400 })
-    }
-
-    if (tipoFinal !== 'texto' && !url_midia) {
-      return NextResponse.json({ erro: 'url_midia é obrigatório para mídias.' }, { status: 400 })
+    for (const item of itens) {
+      if (!tiposValidos.includes(item.tipo)) {
+        return NextResponse.json({ erro: `Tipo inválido: ${item.tipo}` }, { status: 400 })
+      }
+      if (item.tipo !== 'texto' && !item.url_midia) {
+        return NextResponse.json({ erro: 'url_midia obrigatório para itens de mídia.' }, { status: 400 })
+      }
     }
 
     const resposta = await prisma.respostas_rapidas.create({
@@ -66,15 +65,31 @@ export async function POST(req: NextRequest) {
         cliente_id:  payload.cliente_id,
         operador_id: payload.id,
         titulo,
-        tipo:      tipoFinal,
-        conteudo:  conteudo  || null,
-        url_midia: url_midia || null,
         categoria: categoria || null,
-        atalho:    atalho    || null
+        atalho:    atalho    || null,
+        // campos legados espelham o primeiro item para manter compatibilidade
+        tipo:      itens[0].tipo,
+        conteudo:  itens[0].conteudo || null,
+        url_midia: itens[0].url_midia || null,
       }
     })
 
-    return NextResponse.json(resposta, { status: 201 })
+    await prisma.respostas_rapidas_itens.createMany({
+      data: itens.map((item: { tipo: string; conteudo?: string; url_midia?: string }, i: number) => ({
+        resposta_id: resposta.id,
+        ordem:       i,
+        tipo:        item.tipo,
+        conteudo:    item.conteudo  || null,
+        url_midia:   item.url_midia || null,
+      }))
+    })
+
+    const completa = await prisma.respostas_rapidas.findUnique({
+      where: { id: resposta.id },
+      include: { itens: { orderBy: { ordem: 'asc' } } }
+    })
+
+    return NextResponse.json(completa, { status: 201 })
   } catch (err) {
     const mensagem = err instanceof Error ? err.message : 'Erro interno.'
     if (mensagem.includes('Unique constraint') || mensagem.includes('unique constraint')) {
