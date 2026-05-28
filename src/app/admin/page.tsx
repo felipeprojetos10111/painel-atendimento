@@ -4,7 +4,6 @@ import React, { useEffect, useState, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLingua } from '@/contexts/LinguaContext'
 import SeletorLingua from '@/components/SeletorLingua'
-import SecaoFluxos from '@/components/SecaoFluxos'
 import SecaoHistorico from '@/components/SecaoHistorico'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -27,7 +26,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'operadores' | 'configuracoes' | 'leads' | 'metricas' | 'fluxos' | 'historico'>('metricas')
+  const [aba, setAba] = useState<'operadores' | 'configuracoes' | 'leads' | 'metricas' | 'historico'>('metricas')
   const [impersonando, setImpersonando] = useState(false)
   const [nomeClienteImp, setNomeClienteImp] = useState('')
   const [saindo, setSaindo] = useState(false)
@@ -106,7 +105,6 @@ export default function AdminPage() {
             { key: 'metricas',     label: '📊 Métricas' },
             { key: 'operadores',    label: 'Operadores' },
             { key: 'configuracoes', label: 'Configurações' },
-            { key: 'fluxos',       label: '🤖 Fluxos' },
             { key: 'leads',        label: '📋 Leads' },
             { key: 'historico',    label: '💬 Histórico' },
           ] as const).map(({ key, label }) => (
@@ -128,7 +126,6 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto px-6 py-8">
         {aba === 'operadores'    && <SecaoOperadores />}
         {aba === 'configuracoes' && <SecaoConfiguracoes />}
-        {aba === 'fluxos'        && <SecaoFluxos />}
         {aba === 'leads'         && <SecaoLeads />}
         {aba === 'metricas'      && <SecaoMetricas />}
         {aba === 'historico'     && <SecaoHistorico />}
