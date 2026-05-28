@@ -75,5 +75,25 @@ app.prepare().then(() => {
   httpServer.listen(PORT, () => {
     console.log(`Painel de atendimento rodando em http://localhost:${PORT}`)
     console.log(`DATABASE_URL carregado: ${process.env.DATABASE_URL ? 'sim' : 'NÃO'}`)
+
+    // ── Retry periódico de leads sem operador ────────────────────────────────
+    // Garante que nenhuma conversa fique órfã caso nenhum operador entre online.
+    // Roda 30s após o start (deixa o Next.js terminar de inicializar) e depois
+    // a cada 5 minutos. Usa os 3 tiers de fallback do /api/fila/atribuir.
+    const secret = process.env.INTERNAL_SECRET
+    if (secret) {
+      const dispararRetry = () => {
+        fetch(`http://localhost:${PORT}/api/fila/retry-pendentes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-internal-secret': secret },
+          body: '{}',
+        }).catch(err => console.error('[fila/retry] Erro no retry periódico:', err.message))
+      }
+
+      setTimeout(dispararRetry, 30_000)                    // aquecimento inicial
+      setInterval(dispararRetry, 5 * 60 * 1000)            // a cada 5 minutos
+    } else {
+      console.warn('[fila] INTERNAL_SECRET não configurado — retry periódico desabilitado.')
+    }
   })
 })
