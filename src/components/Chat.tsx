@@ -769,9 +769,39 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
       ? resposta.itens
       : [{ tipo: resposta.tipo ?? 'texto', conteudo: resposta.conteudo ?? null, url_midia: resposta.url_midia ?? null }]
 
-    for (const item of itens) {
-      await enviarConteudo(item.conteudo ?? '', item.tipo, item.url_midia ?? undefined)
+    if (itens.length === 1) {
+      // Caminho simples: item único → comportamento normal (fire-and-forget no WhatsApp)
+      await enviarConteudo(itens[0].conteudo ?? '', itens[0].tipo, itens[0].url_midia ?? undefined)
+    } else {
+      // Múltiplos itens: usa endpoint sequencial que AGUARDA confirmação do WhatsApp
+      // antes de enviar o próximo, garantindo a ordem de entrega.
+      if (enviando) return
+      setEnviando(true)
+      try {
+        const res = await fetch(`/api/conversas/${conversaId}/mensagens/sequencia`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            itens: itens.map(i => ({
+              conteudo:  i.conteudo ?? '',
+              tipo:      i.tipo,
+              url_midia: i.url_midia ?? null,
+            }))
+          })
+        })
+        if (res.ok) {
+          const novas: Mensagem[] = await res.json()
+          setMensagens(prev => {
+            const idsExistentes = new Set(prev.map(m => m.id))
+            const novasMsgs = novas.filter(m => !idsExistentes.has(m.id))
+            return [...prev, ...novasMsgs]
+          })
+        }
+      } finally {
+        setEnviando(false)
+      }
     }
+
     textareaRef.current?.focus()
   }
 
