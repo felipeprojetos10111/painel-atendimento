@@ -371,6 +371,20 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
 
 let socket: Socket | null = null
 
+// Cache de sessão: /api/auth/me não muda durante a sessão do operador
+let meCache: Me | null = null
+let meCachePromise: Promise<Me | null> | null = null
+function fetchMe(): Promise<Me | null> {
+  if (meCache) return Promise.resolve(meCache)
+  if (!meCachePromise) {
+    meCachePromise = fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { meCache = data; return data })
+      .catch(() => null)
+  }
+  return meCachePromise
+}
+
 export default function Chat({ conversaId, onUploadChange }: Props) {
   const { tr } = useLingua()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
@@ -515,20 +529,13 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   }
 
   async function carregarStatus() {
-    const res = await fetch('/api/conversas')
-    const lista = await res.json()
-    const conversa = lista.find((c: {
-      id: number
-      status: string
-      operadores?: { nome: string } | null
-      leads?: { nome: string | null; telefone: string } | null
-    }) => c.id === conversaId)
-    if (conversa) {
-      setStatus(conversa.status ?? '')
-      setOperadorNome(conversa.operadores?.nome ?? null)
-      setLeadNome(conversa.leads?.nome ?? null)
-      setLeadTelefone(conversa.leads?.telefone ?? null)
-    }
+    const res = await fetch(`/api/conversas/${conversaId}`)
+    if (!res.ok) return
+    const conversa = await res.json()
+    setStatus(conversa.status ?? '')
+    setOperadorNome(conversa.operadores?.nome ?? null)
+    setLeadNome(conversa.leads?.nome ?? null)
+    setLeadTelefone(conversa.leads?.telefone ?? null)
   }
 
   async function zerarNaoLidas() {
@@ -540,23 +547,23 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   }
 
   useEffect(() => {
+    // Dispara em paralelo — não aguarda um para começar o outro
     carregarMensagens()
     carregarStatus()
     zerarNaoLidas()
 
-    fetch('/api/auth/me')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: Me | null) => {
-        if (!data) return
-        setMe(data)
-        if (data.nivel === 'supervisor') {
-          fetch('/api/operadores')
-            .then(r => r.json())
-            .then((ops: Operador[]) =>
-              setOperadores(ops.filter(o => o.nivel === 'operador' && o.ativo))
-            )
-        }
-      })
+    // Usa cache de sessão para /api/auth/me (não muda enquanto o operador está logado)
+    fetchMe().then((data: Me | null) => {
+      if (!data) return
+      setMe(data)
+      if (data.nivel === 'supervisor') {
+        fetch('/api/operadores')
+          .then(r => r.json())
+          .then((ops: Operador[]) =>
+            setOperadores(ops.filter(o => o.nivel === 'operador' && o.ativo))
+          )
+      }
+    })
 
     if (!socket) {
       socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!)
@@ -564,32 +571,38 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
     socket.emit('join-conversa', conversaId)
 
-    socket.on('nova-mensagem', (msg: Mensagem) => {
+    // Listeners nomeados — permite remover apenas este handler no cleanup,
+    // sem afetar outros listeners do mesmo evento em outros componentes
+    const handleNovaMensagem = (msg: Mensagem) => {
       if (msg.origem === 'lead' || msg.origem === 'ia') tocarSom()
       setMensagens(prev => {
         if (prev.some(m => m.id === msg.id)) return prev
         return [...prev, msg]
       })
-    })
+    }
 
-    socket.on('status-alterado', (data: { conversaId: number; status: string }) => {
+    const handleStatusAlterado = (data: { conversaId: number; status: string }) => {
       if (data.conversaId === conversaId) {
         setStatus(data.status)
-        carregarStatus() // atualiza operador vinculado também
+        carregarStatus()
       }
-    })
+    }
 
-    socket.on('status-mensagem', (data: { mensagemId: number; status: string }) => {
+    const handleStatusMensagem = (data: { mensagemId: number; status: string }) => {
       setMensagens(prev => prev.map(m =>
         m.id === data.mensagemId ? { ...m, status: data.status } : m
       ))
-    })
+    }
+
+    socket.on('nova-mensagem',  handleNovaMensagem)
+    socket.on('status-alterado', handleStatusAlterado)
+    socket.on('status-mensagem', handleStatusMensagem)
 
     return () => {
       socket?.emit('leave-conversa', conversaId)
-      socket?.off('nova-mensagem')
-      socket?.off('status-alterado')
-      socket?.off('status-mensagem')
+      socket?.off('nova-mensagem',   handleNovaMensagem)
+      socket?.off('status-alterado', handleStatusAlterado)
+      socket?.off('status-mensagem', handleStatusMensagem)
       if (timerRef.current) clearInterval(timerRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

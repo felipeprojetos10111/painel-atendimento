@@ -3,6 +3,31 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// GET /api/conversas/[id] — busca dados de uma única conversa (status, lead, operador)
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')?.value
+  const payload = token ? await verifyToken(token) : null
+
+  if (!payload) return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
+
+  const conversa = await prisma.conversas.findFirst({
+    where: { id: Number(id), cliente_id: payload.cliente_id },
+    select: {
+      id:         true,
+      status:     true,
+      operadores: { select: { nome: true } },
+      leads:      { select: { nome: true, telefone: true } },
+    },
+  })
+
+  if (!conversa) return NextResponse.json({ erro: 'Conversa não encontrada.' }, { status: 404 })
+
+  return NextResponse.json(conversa)
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const cookieStore = await cookies()
