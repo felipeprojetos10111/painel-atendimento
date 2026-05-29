@@ -2075,12 +2075,12 @@ function SecaoRegrasEscala() {
           ) : (
             <div className="space-y-3">
               {regras.map(regra => (
-                <div key={regra.id} className={`flex items-start gap-3 p-4 rounded-xl border transition-colors ${regra.ativo ? 'border-green-100 bg-green-50/50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
+                <div key={regra.id} className={`flex items-center gap-3 p-4 rounded-xl border transition-colors ${regra.ativo ? 'border-green-100 bg-green-50/50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
                   {/* Toggle ativo */}
                   <button
                     onClick={() => toggleAtivo(regra)}
                     title={regra.ativo ? 'Desativar regra' : 'Ativar regra'}
-                    className={`mt-0.5 w-10 h-5 rounded-full transition-colors flex-shrink-0 relative ${regra.ativo ? 'bg-green-400' : 'bg-gray-300'}`}
+                    className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 relative ${regra.ativo ? 'bg-green-400' : 'bg-gray-300'}`}
                   >
                     <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${regra.ativo ? 'translate-x-5' : 'translate-x-0.5'}`} />
                   </button>
@@ -2094,6 +2094,7 @@ function SecaoRegrasEscala() {
                     </p>
                   </div>
 
+                  <div className="flex-shrink-0">
                   {confirmarDeletar === regra.id ? (
                     <button
                       onClick={() => handleDeletar(regra.id)}
@@ -2104,6 +2105,7 @@ function SecaoRegrasEscala() {
                   ) : (
                     <BotaoDeletar onClick={() => handleDeletar(regra.id)} carregando={deletando === regra.id} />
                   )}
+                  </div>
                 </div>
               ))}
             </div>
