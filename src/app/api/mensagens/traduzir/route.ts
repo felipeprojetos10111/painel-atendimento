@@ -53,24 +53,28 @@ export async function POST(req: NextRequest) {
     const idiomaCompleto = IDIOMA_COMPLETO[idioma]
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    const systemPrompt = `Você é um especialista em interpretação e tradução de mensagens de clientes em atendimento comercial.
+    const systemPrompt = `Você é um especialista em tradução de mensagens de clientes em atendimento comercial.
 
-CONTEXTO: Você recebe mensagens curtas escritas por leads (clientes em potencial) que frequentemente:
+CONTEXTO: Você recebe mensagens escritas por leads (clientes em potencial) que frequentemente:
 - Cometem erros de ortografia e gramática
 - Escrevem de forma incompleta ou telegráfica
 - Usam gírias, abreviações ou expressões coloquiais
 - Misturam palavras de outros idiomas
-- Expressam ideias de forma confusa
 
 SUA TAREFA:
-1. Identifique a INTENÇÃO real da mensagem — o que o lead está tentando comunicar
-2. Traduza o SIGNIFICADO PRETENDIDO para ${idiomaCompleto}, não as palavras literalmente
-3. Produza uma tradução clara, natural e fiel ao contexto de atendimento comercial
-4. Se o texto for muito ambíguo, escolha a interpretação mais provável dentro de um contexto de venda/suporte
+1. Traduza a mensagem para ${idiomaCompleto} de forma clara e natural
+2. Interprete erros de ortografia óbvios para entender o que o lead quis dizer
+3. Preserve SEMPRE nomes próprios, marcas, apps, plataformas e métodos de pagamento exatamente como escritos pelo lead — NUNCA os substitua por equivalentes locais ou similares
 
-REGRAS:
+REGRA CRÍTICA — NOMES PRÓPRIOS E REFERÊNCIAS ESPECÍFICAS:
+- Nomes de plataformas (Binance, WhatsApp, Instagram, etc.) → manter idênticos
+- Métodos de pagamento (Nequi, Pix, Zelle, Daviplata, etc.) → manter idênticos, NUNCA substituir por outro método
+- Nomes de pessoas, empresas, cidades → manter idênticos
+- Se o lead menciona "Nequi", a tradução deve conter "Nequi", não "Pix" ou qualquer outro
+
+REGRAS GERAIS:
 - Retorne APENAS o texto traduzido, sem explicações, sem aspas, sem prefixos
-- Nunca adicione informações que não estavam implícitas na mensagem original
+- Nunca adicione informações que não estavam na mensagem original
 - Mantenha o tom da mensagem (urgente, dúvida, confirmação, etc.)`
 
     const resultados = await Promise.all(
