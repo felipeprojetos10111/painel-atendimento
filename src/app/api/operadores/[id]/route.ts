@@ -82,6 +82,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (!existe) return NextResponse.json({ erro: 'Operador não encontrado.' }, { status: 404 })
 
     // Desvincula conversas antes de deletar (evita foreign key constraint)
+    // Conversas ativas voltam para aguardando_humano para serem reatribuídas
+    await prisma.conversas.updateMany({
+      where: { operador_id: Number(id), status: { in: ['em_atendimento', 'aguardando_humano'] } },
+      data: { operador_id: null, status: 'aguardando_humano' }
+    })
+    // Demais conversas só zeram o operador_id
     await prisma.conversas.updateMany({
       where: { operador_id: Number(id) },
       data: { operador_id: null }
