@@ -1,3 +1,5 @@
+import { spawnSync } from 'child_process'
+
 export interface WhatsAppCreds {
   token?: string | null
   phoneNumberId?: string | null
@@ -48,6 +50,43 @@ export async function enviarMensagemWhatsApp(
 // media_id da Meta expira em 30 dias — usamos TTL de 25 dias para segurança
 const _mediaIdCache = new Map<string, { id: string; expiresAt: number }>()
 
+/**
+ * Converte qualquer áudio (WebM, MP3, WAV, etc.) para OGG/Opus via FFmpeg.
+ * WhatsApp Business API exige OGG/Opus para voice notes (voice: true).
+ * Sem conversão, arquivos WebM (gravados pelo browser Chrome) chegam como
+ * documentos e disparam o aviso "verificar email" no WhatsApp do lead.
+ */
+function converterParaOggOpus(inputBuffer: Buffer): Buffer | null {
+  try {
+    const result = spawnSync(
+      'ffmpeg',
+      [
+        '-i', 'pipe:0',
+        '-c:a', 'libopus',
+        '-b:a', '32k',
+        '-ar', '16000',
+        '-ac', '1',
+        '-f', 'ogg',
+        '-loglevel', 'error',
+        'pipe:1',
+      ],
+      { input: inputBuffer, maxBuffer: 50 * 1024 * 1024 }
+    )
+
+    if (result.status === 0 && result.stdout && result.stdout.length > 0) {
+      console.log(`[WhatsApp] FFmpeg: OGG/Opus gerado (${(result.stdout.length / 1024).toFixed(0)} KB)`)
+      return result.stdout as Buffer
+    }
+
+    const stderr = result.stderr?.toString() ?? ''
+    console.warn('[WhatsApp] FFmpeg saiu com erro:', stderr.slice(0, 300))
+    return null
+  } catch (e) {
+    console.warn('[WhatsApp] FFmpeg não disponível:', e)
+    return null
+  }
+}
+
 async function uploadAudioParaMeta(urlMidia: string, token: string, phoneNumberId: string): Promise<string> {
   const cached = _mediaIdCache.get(urlMidia)
   if (cached && cached.expiresAt > Date.now()) {
@@ -55,19 +94,23 @@ async function uploadAudioParaMeta(urlMidia: string, token: string, phoneNumberI
     return cached.id
   }
 
-  const mimeType = urlMidia.toLowerCase().includes('.mp3') ? 'audio/mpeg' : 'audio/ogg'
-  const ext = mimeType === 'audio/mpeg' ? 'mp3' : 'ogg'
-
   // Baixa o arquivo do R2
   const audioRes = await fetch(urlMidia)
   if (!audioRes.ok) throw new Error(`Falha ao baixar áudio: ${audioRes.status}`)
-  const buffer = await audioRes.arrayBuffer()
+  const rawBuffer = Buffer.from(await audioRes.arrayBuffer())
+
+  // Sempre converte para OGG/Opus — garante compatibilidade com voice:true
+  // WebM (Chrome), WAV, MP3 etc. precisam virar OGG/Opus senão chegam como documento
+  const oggBuffer = converterParaOggOpus(rawBuffer)
+  const finalBuffer = oggBuffer ?? rawBuffer
+  const mimeType    = oggBuffer ? 'audio/ogg' : (urlMidia.toLowerCase().includes('.mp3') ? 'audio/mpeg' : 'audio/ogg')
+  const ext         = mimeType === 'audio/mpeg' ? 'mp3' : 'ogg'
 
   // Faz upload para Meta via multipart
   const formData = new FormData()
   formData.append('messaging_product', 'whatsapp')
   formData.append('type', mimeType)
-  formData.append('file', new Blob([buffer], { type: mimeType }), `audio.${ext}`)
+  formData.append('file', new Blob([new Uint8Array(finalBuffer)], { type: mimeType }), `audio.${ext}`)
 
   const uploadRes = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/media`, {
     method: 'POST',
