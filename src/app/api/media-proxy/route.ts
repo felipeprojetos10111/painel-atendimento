@@ -7,9 +7,10 @@ import { verifyToken } from '@/lib/auth'
  * GET /api/media-proxy?url=<encoded_url>
  *
  * Proxy autenticado para mídias recebidas do WhatsApp (lookaside.fbsbx.com).
- * O browser não consegue acessar essas URLs diretamente (401) porque precisam
- * do token Bearer. Este endpoint busca a mídia com o token do cliente e
- * repassa os bytes ao browser.
+ *
+ * As URLs do WhatsApp são assinadas com o token ativo no momento em que foram
+ * salvas. Se o token mudar depois, a URL original retorna 401. Nesse caso,
+ * extraímos o media_id da URL e buscamos uma URL fresca via Graph API.
  */
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies()
@@ -22,7 +23,6 @@ export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url')
   if (!url) return new NextResponse('Parâmetro url obrigatório', { status: 400 })
 
-  // Só faz proxy de URLs do Facebook/WhatsApp por segurança
   let decoded: string
   try {
     decoded = decodeURIComponent(url)
@@ -39,20 +39,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(decoded)
   }
 
-  // Busca o whatsapp_token do cliente logado
+  // Busca credenciais do cliente logado
   const cliente = await prisma.clientes.findUnique({
     where: { id: payload.cliente_id },
-    select: { whatsapp_token: true }
+    select: { whatsapp_token: true, phone_number_id: true }
   })
 
   if (!cliente?.whatsapp_token) {
     return new NextResponse('Token WhatsApp não configurado', { status: 500 })
   }
 
+  const waToken = cliente.whatsapp_token
+
   try {
-    const mediaRes = await fetch(decoded, {
-      headers: { Authorization: `Bearer ${cliente.whatsapp_token}` },
+    // 1ª tentativa: usa a URL armazenada diretamente
+    let downloadUrl = decoded
+    let mediaRes = await fetch(downloadUrl, {
+      headers: { Authorization: `Bearer ${waToken}` },
     })
+
+    // Se 401 → URL assinada com token antigo → busca URL fresca via Graph API
+    if (mediaRes.status === 401) {
+      const mid = extrairMediaId(decoded)
+      if (mid) {
+        console.log(`[media-proxy] URL expirada, buscando URL fresca para mid=${mid}`)
+        const graphRes = await fetch(
+          `https://graph.facebook.com/v18.0/${mid}`,
+          { headers: { Authorization: `Bearer ${waToken}` } }
+        )
+        if (graphRes.ok) {
+          const data = await graphRes.json() as { url?: string }
+          if (data.url) {
+            downloadUrl = data.url
+            mediaRes = await fetch(downloadUrl, {
+              headers: { Authorization: `Bearer ${waToken}` },
+            })
+          }
+        }
+      }
+    }
 
     if (!mediaRes.ok) {
       return new NextResponse(`Erro ao buscar mídia: ${mediaRes.status}`, { status: mediaRes.status })
@@ -70,7 +95,20 @@ export async function GET(req: NextRequest) {
       },
     })
   } catch (err) {
-    console.error('[media-proxy] Erro ao buscar mídia:', err)
+    console.error('[media-proxy] Erro:', err)
     return new NextResponse('Erro interno', { status: 500 })
+  }
+}
+
+/**
+ * Extrai o media_id do parâmetro `mid` de uma URL do WhatsApp.
+ * Exemplo: lookaside.fbsbx.com/...?mid=1489494539640785&...  → "1489494539640785"
+ */
+function extrairMediaId(url: string): string | null {
+  try {
+    const u = new URL(url)
+    return u.searchParams.get('mid')
+  } catch {
+    return null
   }
 }
