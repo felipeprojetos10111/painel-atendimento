@@ -26,7 +26,7 @@ const FORM_OPERADOR_VAZIO = { nome: '', email: '', senha: '', nivel: 'operador' 
 export default function AdminPage() {
   const router = useRouter()
   const { tr } = useLingua()
-  const [aba, setAba] = useState<'operadores' | 'configuracoes' | 'leads' | 'metricas' | 'historico'>('metricas')
+  const [aba, setAba] = useState<'operadores' | 'configuracoes' | 'leads' | 'metricas' | 'historico' | 'regras-escala'>('metricas')
   const [impersonando, setImpersonando] = useState(false)
   const [nomeClienteImp, setNomeClienteImp] = useState('')
   const [saindo, setSaindo] = useState(false)
@@ -102,11 +102,12 @@ export default function AdminPage() {
       <div className="border-b border-gray-200 bg-white px-6">
         <nav className="flex gap-1 -mb-px">
           {([
-            { key: 'metricas',     label: '📊 Métricas' },
-            { key: 'operadores',    label: 'Operadores' },
-            { key: 'configuracoes', label: 'Configurações' },
-            { key: 'leads',        label: '📋 Leads' },
-            { key: 'historico',    label: '💬 Histórico' },
+            { key: 'metricas',       label: '📊 Métricas' },
+            { key: 'operadores',     label: 'Operadores' },
+            { key: 'regras-escala',  label: '🎯 Regras de Escala' },
+            { key: 'configuracoes',  label: 'Configurações' },
+            { key: 'leads',          label: '📋 Leads' },
+            { key: 'historico',      label: '💬 Histórico' },
           ] as const).map(({ key, label }) => (
             <button
               key={key}
@@ -129,6 +130,7 @@ export default function AdminPage() {
         {aba === 'leads'         && <SecaoLeads />}
         {aba === 'metricas'      && <SecaoMetricas />}
         {aba === 'historico'     && <SecaoHistorico />}
+        {aba === 'regras-escala' && <SecaoRegrasEscala />}
       </div>
     </div>
   )
@@ -1935,5 +1937,164 @@ function BotaoDeletar({ onClick, carregando }: { onClick: () => void; carregando
           </svg>
       }
     </button>
+  )
+}
+
+// ── Seção: Regras de Escala Automática ────────────────────────────────────────
+type RegraEscala = {
+  id: number
+  mensagem_referencia: string
+  operador_id: number
+  ativo: boolean
+  criado_em: string
+  operadores: { id: number; nome: string } | null
+}
+
+function SecaoRegrasEscala() {
+  const [regras, setRegras] = useState<RegraEscala[]>([])
+  const [operadores, setOperadores] = useState<{ id: number; nome: string }[]>([])
+  const [mensagem, setMensagem] = useState('')
+  const [operadorId, setOperadorId] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [deletando, setDeletando] = useState<number | null>(null)
+  const [erro, setErro] = useState('')
+
+  async function carregar() {
+    const [resRegras, resOps] = await Promise.all([
+      fetch('/api/regras-escala'),
+      fetch('/api/operadores'),
+    ])
+    if (resRegras.ok) setRegras(await resRegras.json())
+    if (resOps.ok) setOperadores(await resOps.json())
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setErro('')
+    if (!mensagem.trim()) return setErro('Informe a mensagem de referência.')
+    if (!operadorId) return setErro('Selecione um operador.')
+    setSalvando(true)
+    const res = await fetch('/api/regras-escala', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mensagem_referencia: mensagem.trim(), operador_id: Number(operadorId) })
+    })
+    setSalvando(false)
+    if (res.ok) {
+      setMensagem('')
+      setOperadorId('')
+      await carregar()
+    } else {
+      const data = await res.json()
+      setErro(data.erro || 'Erro ao criar regra.')
+    }
+  }
+
+  async function toggleAtivo(regra: RegraEscala) {
+    await fetch(`/api/regras-escala/${regra.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ativo: !regra.ativo })
+    })
+    await carregar()
+  }
+
+  async function handleDeletar(id: number) {
+    if (!confirm('Remover esta regra de escala?')) return
+    setDeletando(id)
+    await fetch(`/api/regras-escala/${id}`, { method: 'DELETE' })
+    setDeletando(null)
+    await carregar()
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      {/* Formulário */}
+      <section className="lg:col-span-2">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="font-semibold text-gray-800 text-base mb-1">Nova Regra de Escala</h2>
+          <p className="text-xs text-gray-500 mb-5">
+            Quando a primeira mensagem do lead tiver ≥90% de similaridade com a mensagem de referência, a conversa vai direto para o operador vinculado.
+          </p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Mensagem de referência</label>
+              <textarea
+                value={mensagem}
+                onChange={e => setMensagem(e.target.value)}
+                placeholder='Ex: "oi, vim pelo alexandre"'
+                rows={3}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Encaminhar para</label>
+              <select
+                value={operadorId}
+                onChange={e => setOperadorId(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                <option value="">Selecione um operador</option>
+                {operadores.map(op => (
+                  <option key={op.id} value={op.id}>{op.nome}</option>
+                ))}
+              </select>
+            </div>
+            {erro && <p className="text-xs text-red-500">{erro}</p>}
+            <button
+              type="submit"
+              disabled={salvando}
+              className="w-full bg-green-500 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
+            >
+              {salvando ? 'Salvando...' : 'Criar Regra'}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Lista de regras */}
+      <section className="lg:col-span-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="font-semibold text-gray-800 text-base mb-5">
+            Regras cadastradas <span className="text-sm font-normal text-gray-400">({regras.length})</span>
+          </h2>
+
+          {regras.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <span className="text-3xl mb-2">🎯</span>
+              <p className="text-sm">Nenhuma regra cadastrada ainda.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {regras.map(regra => (
+                <div key={regra.id} className={`flex items-start gap-3 p-4 rounded-xl border transition-colors ${regra.ativo ? 'border-green-100 bg-green-50/50' : 'border-gray-100 bg-gray-50/50 opacity-60'}`}>
+                  {/* Toggle ativo */}
+                  <button
+                    onClick={() => toggleAtivo(regra)}
+                    title={regra.ativo ? 'Desativar regra' : 'Ativar regra'}
+                    className={`mt-0.5 w-10 h-5 rounded-full transition-colors flex-shrink-0 relative ${regra.ativo ? 'bg-green-400' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${regra.ativo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 font-medium truncate">
+                      &quot;{regra.mensagem_referencia}&quot;
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      → <span className="font-medium text-gray-700">{regra.operadores?.nome ?? `Operador ${regra.operador_id}`}</span>
+                    </p>
+                  </div>
+
+                  <BotaoDeletar onClick={() => handleDeletar(regra.id)} carregando={deletando === regra.id} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   )
 }

@@ -32,6 +32,7 @@ model clientes {
   links_enviados     links_enviados[]
   eventos_plataforma eventos_plataforma[]
   sessoes_presenca   sessoes_presenca[]
+  regras_escala      regras_escala[]
   fluxos             fluxos[]
   execucoes_fluxo    execucoes_fluxo[]
 }
@@ -119,6 +120,20 @@ model operadores {
   links_enviados     links_enviados[]
   eventos_plataforma eventos_plataforma[]
   sessoes_presenca   sessoes_presenca[]
+  regras_escala      regras_escala[]
+}
+
+model regras_escala {
+  id                   Int        @id @default(autoincrement())
+  cliente_id           Int
+  mensagem_referencia  String     @db.Text
+  operador_id          Int
+  ativo                Boolean    @default(true)
+  criado_em            DateTime   @default(now()) @db.Timestamp(6)
+  clientes             clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  operadores           operadores @relation(fields: [operador_id], references: [id], onDelete: Cascade)
+
+  @@index([cliente_id, ativo])
 }
 
 model config_ia {
