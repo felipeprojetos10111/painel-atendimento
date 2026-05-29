@@ -1957,6 +1957,7 @@ function SecaoRegrasEscala() {
   const [operadorId, setOperadorId] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [deletando, setDeletando] = useState<number | null>(null)
+  const [confirmarDeletar, setConfirmarDeletar] = useState<number | null>(null)
   const [erro, setErro] = useState('')
 
   async function carregar() {
@@ -2002,7 +2003,12 @@ function SecaoRegrasEscala() {
   }
 
   async function handleDeletar(id: number) {
-    if (!confirm('Remover esta regra de escala?')) return
+    if (confirmarDeletar !== id) {
+      setConfirmarDeletar(id)
+      setTimeout(() => setConfirmarDeletar(null), 3000)
+      return
+    }
+    setConfirmarDeletar(null)
     setDeletando(id)
     await fetch(`/api/regras-escala/${id}`, { method: 'DELETE' })
     setDeletando(null)
@@ -2088,7 +2094,16 @@ function SecaoRegrasEscala() {
                     </p>
                   </div>
 
-                  <BotaoDeletar onClick={() => handleDeletar(regra.id)} carregando={deletando === regra.id} />
+                  {confirmarDeletar === regra.id ? (
+                    <button
+                      onClick={() => handleDeletar(regra.id)}
+                      className="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors whitespace-nowrap"
+                    >
+                      Confirmar
+                    </button>
+                  ) : (
+                    <BotaoDeletar onClick={() => handleDeletar(regra.id)} carregando={deletando === regra.id} />
+                  )}
                 </div>
               ))}
             </div>
