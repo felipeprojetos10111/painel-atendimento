@@ -421,6 +421,8 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const [leadNome, setLeadNome] = useState<string | null>(null)
   const [leadTelefone, setLeadTelefone] = useState<string | null>(null)
   const [modalAberto, setModalAberto] = useState(false)
+  const [iaCarregando, setIaCarregando]   = useState<'melhorar' | 'traduzir' | null>(null)
+  const [idiomaTraducao, setIdiomaTraducao] = useState<'pt' | 'en' | 'es'>('es')
   const [me, setMe] = useState<Me | null>(null)
   const [operadores, setOperadores] = useState<Operador[]>([])
   const [transferindo, setTransferindo] = useState(false)
@@ -435,6 +437,29 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const animFrameRef = useRef<number | null>(null)
+
+  async function aplicarIA(acao: 'melhorar' | 'traduzir') {
+    if (!texto.trim() || iaCarregando) return
+    setIaCarregando(acao)
+    try {
+      const res = await fetch('/api/ia/texto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          texto: texto.trim(),
+          acao,
+          ...(acao === 'traduzir' && { idioma: idiomaTraducao }),
+        }),
+      })
+      const data = await res.json()
+      if (data.resultado) {
+        setTexto(data.resultado)
+        setTimeout(() => ajustarAltura(), 0)
+        textareaRef.current?.focus()
+      }
+    } catch { /* silencioso */ }
+    finally { setIaCarregando(null) }
+  }
 
   function ajustarAltura() {
     const el = textareaRef.current
@@ -1014,6 +1039,57 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                 </svg>
                 {tr('gravarAudio')}
               </button>
+            )}
+
+            {/* ── Botão Melhorar texto ─────────────────────────────────── */}
+            {!gravando && !audioBlob && (
+              <button
+                type="button"
+                disabled={ocupado || !texto.trim() || !!iaCarregando}
+                onClick={() => aplicarIA('melhorar')}
+                title="Melhorar ortografia e clareza do texto"
+                className="flex items-center gap-1.5 text-xs font-medium text-[#8696a0] hover:text-purple-400 hover:bg-purple-900/20 px-3 py-1.5 rounded-lg border border-[#2a3942] hover:border-purple-700 transition-colors disabled:opacity-40"
+              >
+                {iaCarregando === 'melhorar'
+                  ? <span className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                  : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                }
+                Melhorar
+              </button>
+            )}
+
+            {/* ── Botão Traduzir + seletor de idioma ──────────────────── */}
+            {!gravando && !audioBlob && (
+              <div className="flex items-center gap-0 border border-[#2a3942] rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  disabled={ocupado || !texto.trim() || !!iaCarregando}
+                  onClick={() => aplicarIA('traduzir')}
+                  title="Traduzir o texto para o idioma selecionado"
+                  className="flex items-center gap-1.5 text-xs font-medium text-[#8696a0] hover:text-blue-400 hover:bg-blue-900/20 px-3 py-1.5 transition-colors disabled:opacity-40"
+                >
+                  {iaCarregando === 'traduzir'
+                    ? <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                      </svg>
+                  }
+                  Traduzir
+                </button>
+                <select
+                  value={idiomaTraducao}
+                  onChange={e => setIdiomaTraducao(e.target.value as 'pt' | 'en' | 'es')}
+                  className="text-xs text-[#8696a0] bg-[#1a2530] border-l border-[#2a3942] px-1.5 py-1.5 focus:outline-none cursor-pointer hover:text-[#e9edef] transition-colors"
+                >
+                  <option value="pt">🇧🇷 PT</option>
+                  <option value="en">🇺🇸 EN</option>
+                  <option value="es">🇪🇸 ES</option>
+                </select>
+              </div>
             )}
 
             {/* Input de arquivo oculto */}
