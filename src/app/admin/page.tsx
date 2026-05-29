@@ -2080,9 +2080,9 @@ function SecaoRegrasEscala() {
                   <button
                     onClick={() => toggleAtivo(regra)}
                     title={regra.ativo ? 'Desativar regra' : 'Ativar regra'}
-                    className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 relative ${regra.ativo ? 'bg-green-400' : 'bg-gray-300'}`}
+                    className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 relative ${regra.ativo ? 'bg-green-400' : 'bg-gray-300'}`}
                   >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${regra.ativo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${regra.ativo ? 'translate-x-4' : 'translate-x-0.5'}`} />
                   </button>
 
                   <div className="flex-1 min-w-0">
