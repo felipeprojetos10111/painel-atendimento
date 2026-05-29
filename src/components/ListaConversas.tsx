@@ -97,10 +97,9 @@ function ItemConversa({
               {naoLidas > 99 ? '99+' : naoLidas}
             </span>
           )}
-          {expirada
-            ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[#202c33] text-[#8696a0]">⏱ Expirada</span>
-            : <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCor}`}>{statusLabel}</span>
-          }
+          {expirada && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[#202c33] text-[#8696a0]">⏱ Expirada</span>
+          )}
         </div>
       </div>
       {ultimaMensagem && (
