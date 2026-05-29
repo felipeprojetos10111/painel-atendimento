@@ -865,12 +865,12 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   async function handleSelecionarResposta(resposta: RespostaRapida) {
     setModalAberto(false)
 
-    // Atualiza tag da conversa com o título da resposta rápida enviada
+    // Atualiza tag da conversa com a última resposta rápida enviada
     setConversaTag(resposta.titulo)
     fetch(`/api/conversas/${conversaId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tag: resposta.titulo }),
+      body: JSON.stringify({ ultima_resposta_rapida_id: resposta.id }),
     }).catch(() => {})
 
     // Usa itens da API ou cria um único item com os campos legados

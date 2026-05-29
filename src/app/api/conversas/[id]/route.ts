@@ -18,14 +18,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: {
       id:         true,
       status:     true,
+      tag:        true,
       operadores: { select: { nome: true } },
       leads:      { select: { nome: true, telefone: true } },
+      ultima_resposta_rapida: { select: { titulo: true } },
     },
   })
 
   if (!conversa) return NextResponse.json({ erro: 'Conversa não encontrada.' }, { status: 404 })
 
-  return NextResponse.json(conversa)
+  return NextResponse.json({
+    ...conversa,
+    tag: conversa.ultima_resposta_rapida?.titulo ?? conversa.tag ?? null,
+  })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -53,10 +58,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const conversa = await prisma.conversas.update({
     where: { id: Number(id) },
     data: {
-      ...(body.status      !== undefined && { status: body.status }),
-      ...(body.operador_id !== undefined && { operador_id: body.operador_id }),
-      ...(body.nao_lidas   !== undefined && { nao_lidas: body.nao_lidas }),
-      ...(body.tag         !== undefined && { tag: body.tag }),
+      ...(body.status                    !== undefined && { status: body.status }),
+      ...(body.operador_id               !== undefined && { operador_id: body.operador_id }),
+      ...(body.nao_lidas                 !== undefined && { nao_lidas: body.nao_lidas }),
+      ...(body.ultima_resposta_rapida_id !== undefined && { ultima_resposta_rapida_id: body.ultima_resposta_rapida_id }),
       atualizado_em: new Date()
     }
   })

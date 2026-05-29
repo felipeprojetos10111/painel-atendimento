@@ -48,9 +48,11 @@ model conversas {
   msgs_sem_resposta    Int?        @default(0)
   criado_em            DateTime?   @default(now()) @db.Timestamp(6)
   atualizado_em        DateTime?   @default(now()) @db.Timestamp(6)
-  ultima_mensagem_em   DateTime?   @db.Timestamp(6)
-  tag                  String?     @db.VarChar(150)
+  ultima_mensagem_em         DateTime?   @db.Timestamp(6)
+  tag                        String?     @db.VarChar(150)
+  ultima_resposta_rapida_id  Int?
   clientes      clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  ultima_resposta_rapida respostas_rapidas? @relation(fields: [ultima_resposta_rapida_id], references: [id], onDelete: SetNull)
   leads         leads?      @relation(fields: [lead_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   operadores    operadores? @relation(fields: [operador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   filas              filas[]
@@ -227,9 +229,10 @@ model respostas_rapidas {
   favorita  Boolean    @default(false)
   ordem     Int        @default(0)
   criado_em DateTime?  @default(now()) @db.Timestamp(6)
-  clientes       clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
-  operadores  operadores @relation(fields: [operador_id], references: [id], onDelete: Cascade)
-  itens       respostas_rapidas_itens[]
+  clientes       clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  operadores     operadores  @relation(fields: [operador_id], references: [id], onDelete: Cascade)
+  itens          respostas_rapidas_itens[]
+  conversas_tag  conversas[]
 
   @@unique([operador_id, atalho])
 }

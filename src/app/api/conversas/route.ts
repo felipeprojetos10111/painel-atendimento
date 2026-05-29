@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
     include: {
       leads: { select: { nome: true, telefone: true } },
       operadores: { select: { nome: true } },
+      ultima_resposta_rapida: { select: { titulo: true } },
       mensagens: {
         orderBy: { enviado_em: 'desc' },
         take: 1
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
   // Adiciona flag janela_expirada para o frontend diferenciar visualmente
   const resultado = conversas.map(c => ({
     ...c,
+    tag: c.ultima_resposta_rapida?.titulo ?? c.tag ?? null,
     janela_expirada: c.ultima_mensagem_em
       ? c.ultima_mensagem_em < limite24h
       : false,
