@@ -448,25 +448,38 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const animFrameRef = useRef<number | null>(null)
 
   async function traduzirMensagens(msgs: Mensagem[], idioma: string) {
+    // Inclui mensagens de texto do lead ainda não traduzidas para esse idioma
+    // Aceita tipo 'texto', null ou '' (mensagens legadas sem tipo definido)
+    const tiposTexto = ['texto', null, '', undefined]
     const paraTraduzi = msgs.filter(m =>
       m.origem === 'lead' &&
       m.conteudo?.trim() &&
-      m.tipo === 'texto' &&
+      tiposTexto.includes(m.tipo as string | null | undefined) &&
       m.traducao_idioma !== idioma
     )
-    if (!paraTraduzi.length) return
+    if (!paraTraduzi.length) {
+      // Já traduzidas — só recarrega para exibir
+      await carregarMensagens()
+      return
+    }
 
     setTraduzindo(true)
     try {
-      await fetch('/api/mensagens/traduzir', {
+      const res = await fetch('/api/mensagens/traduzir', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: paraTraduzi.map(m => m.id), idioma })
       })
-      // Reload messages to get translations
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('[traducao] API erro:', err)
+      }
       await carregarMensagens()
-    } catch { /* silent */ }
-    finally { setTraduzindo(false) }
+    } catch (err) {
+      console.error('[traducao] Falha na requisição:', err)
+    } finally {
+      setTraduzindo(false)
+    }
   }
 
   async function aplicarIA(acao: 'melhorar' | 'traduzir') {
