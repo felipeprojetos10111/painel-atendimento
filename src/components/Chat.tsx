@@ -610,10 +610,11 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     return `${m}:${seg}`
   }
 
-  async function carregarMensagens() {
+  async function carregarMensagens(): Promise<Mensagem[]> {
     const res = await fetch(`/api/conversas/${conversaId}/mensagens`)
-    const data = await res.json()
+    const data: Mensagem[] = await res.json()
     setMensagens(data)
+    return data
   }
 
   async function carregarStatus() {
@@ -635,8 +636,10 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   }
 
   useEffect(() => {
-    // Dispara em paralelo — não aguarda um para começar o outro
-    carregarMensagens()
+    // Carrega mensagens e, se tradução estiver ativa, traduz automaticamente
+    carregarMensagens().then(msgs => {
+      if (traducaoAtiva) traduzirMensagens(msgs, idiomaTraducaoLead)
+    })
     carregarStatus()
     zerarNaoLidas()
 
