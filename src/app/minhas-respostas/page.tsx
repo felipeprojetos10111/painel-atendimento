@@ -243,13 +243,19 @@ export default function MinhasRespostasPage() {
         itens:     itensPayload,
       }
 
+      // Helper: parseia JSON da resposta de forma segura (evita erro críptico se servidor retornar HTML)
+      async function parseJson(res: Response) {
+        const text = await res.text()
+        try { return JSON.parse(text) } catch { throw new Error(`Erro do servidor (${res.status}). Tente recarregar a página.`) }
+      }
+
       if (editandoId) {
         const res = await fetch(`/api/respostas-rapidas/${editandoId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
-        if (!res.ok) throw new Error((await res.json()).erro ?? 'Erro ao atualizar')
+        if (!res.ok) throw new Error((await parseJson(res)).erro ?? 'Erro ao atualizar')
         setSucesso('Resposta atualizada com sucesso!')
         setEditandoId(null)
       } else {
@@ -258,14 +264,14 @@ export default function MinhasRespostasPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
-        if (!res.ok) throw new Error((await res.json()).erro ?? 'Erro ao cadastrar')
+        if (!res.ok) throw new Error((await parseJson(res)).erro ?? 'Erro ao cadastrar')
         setSucesso('Resposta cadastrada com sucesso!')
       }
 
       setForm(FORM_VAZIO)
       setItensForm([{ ...ITEM_VAZIO }])
       fileRefs.current.forEach(ref => { if (ref) ref.value = '' })
-      await carregar()
+      try { await carregar() } catch { /* não bloqueia sucesso se só o reload falhar */ }
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro desconhecido')
     } finally {
