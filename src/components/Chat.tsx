@@ -443,6 +443,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const enviandoLockRef = useRef(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -725,7 +726,8 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
   async function enviarConteudo(conteudo: string, tipo = 'texto', url_midia?: string) {
     if (tipo === 'texto' && !conteudo.trim()) return
-    if (enviando) return
+    if (enviandoLockRef.current || enviando) return
+    enviandoLockRef.current = true
     setEnviando(true)
 
     const body: Record<string, string> = { conteudo, tipo }
@@ -746,6 +748,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     }
 
     setEnviando(false)
+    enviandoLockRef.current = false
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -871,7 +874,8 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     } else {
       // Múltiplos itens: usa endpoint sequencial que AGUARDA confirmação do WhatsApp
       // antes de enviar o próximo, garantindo a ordem de entrega.
-      if (enviando) return
+      if (enviandoLockRef.current || enviando) return
+      enviandoLockRef.current = true
       setEnviando(true)
       try {
         const res = await fetch(`/api/conversas/${conversaId}/mensagens/sequencia`, {
@@ -896,6 +900,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
         }
       } finally {
         setEnviando(false)
+        enviandoLockRef.current = false
       }
     }
 
