@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       where: {
         id:      { in: ids.map(Number) },
         origem:  'lead',
-        tipo:    'texto',
+        tipo:    { in: ['texto', 'audio'] },
         conteudo: { not: '' },
         OR: [
           { traducao_idioma: null },
