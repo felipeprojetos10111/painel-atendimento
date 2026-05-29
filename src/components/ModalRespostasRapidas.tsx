@@ -16,6 +16,7 @@ interface RespostaRapida {
   titulo: string
   categoria: string | null
   atalho: string | null
+  delay_segundos?: number
   itens: ItemResposta[]
   // campos legados (fallback para registros antigos sem itens)
   tipo?: string

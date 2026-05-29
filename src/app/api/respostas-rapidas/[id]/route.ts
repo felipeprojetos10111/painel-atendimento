@@ -58,10 +58,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await prisma.respostas_rapidas.update({
       where: { id: Number(id) },
       data: {
-        ...(body.titulo    !== undefined && { titulo:    body.titulo }),
-        ...(body.categoria !== undefined && { categoria: body.categoria }),
-        ...(body.atalho    !== undefined && { atalho:    body.atalho }),
-        ...(body.ativo     !== undefined && { ativo:     body.ativo }),
+        ...(body.titulo         !== undefined && { titulo:         body.titulo }),
+        ...(body.categoria      !== undefined && { categoria:      body.categoria }),
+        ...(body.atalho         !== undefined && { atalho:         body.atalho }),
+        ...(body.ativo          !== undefined && { ativo:          body.ativo }),
+        ...(body.delay_segundos !== undefined && { delay_segundos: Number(body.delay_segundos) || 0 }),
         // Atualiza campos legados com o primeiro item para manter compatibilidade
         ...(body.itens?.length && {
           tipo:      body.itens[0].tipo,

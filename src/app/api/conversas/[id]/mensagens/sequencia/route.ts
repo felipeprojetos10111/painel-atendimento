@@ -19,11 +19,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const token = req.cookies.get('token')?.value
   const payload = token ? await verifyToken(token) : null
 
-  const { itens } = await req.json()
+  const { itens, delaySegundos = 0 } = await req.json()
 
   if (!Array.isArray(itens) || itens.length === 0) {
     return NextResponse.json({ erro: 'Campo "itens" obrigatório.' }, { status: 400 })
   }
+
+  const delayMs = Math.min(Math.max(Number(delaySegundos) || 0, 0), 60) * 1000 // 0–60s
 
   const conversa = await prisma.conversas.findFirst({
     where: { id: Number(id), cliente_id: payload?.cliente_id ?? -1 },
@@ -124,6 +126,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         // Interrompe a sequência em caso de erro para não enviar itens fora de ordem
         break
+      }
+
+      // Delay entre itens (exceto após o último)
+      const isUltimoItem = itens.indexOf(item) === itens.length - 1
+      if (delayMs > 0 && !isUltimoItem) {
+        await new Promise(resolve => setTimeout(resolve, delayMs))
       }
     } else {
       // Sem telefone: apenas salva no banco sem enviar ao WhatsApp

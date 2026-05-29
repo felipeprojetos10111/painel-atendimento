@@ -30,6 +30,7 @@ interface RespostaRapida {
   tipo?: string
   conteudo?: string | null
   url_midia?: string | null
+  delay_segundos?: number
   itens?: ItemResposta[]
 }
 
@@ -786,7 +787,8 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               conteudo:  i.conteudo ?? '',
               tipo:      i.tipo,
               url_midia: i.url_midia ?? null,
-            }))
+            })),
+            delaySegundos: resposta.delay_segundos ?? 0,
           })
         })
         if (res.ok) {

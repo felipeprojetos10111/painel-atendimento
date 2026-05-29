@@ -19,6 +19,7 @@ interface RespostaRapidaCompleta {
   titulo: string
   categoria: string | null
   atalho: string | null
+  delay_segundos: number
   ativo: boolean | null
   criado_em: string | null
   itens: {
@@ -56,7 +57,7 @@ const TIPO_COR: Record<Tipo, string> = {
 }
 
 const ITEM_VAZIO: ItemForm = { tipo: 'texto', conteudo: '', arquivo: null, url_midia: null, semTexto: false }
-const FORM_VAZIO = { titulo: '', categoria: '', atalho: '' }
+const FORM_VAZIO = { titulo: '', categoria: '', atalho: '', delay_segundos: 0 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -156,9 +157,10 @@ export default function MinhasRespostasPage() {
   function iniciarEdicao(r: RespostaRapidaCompleta) {
     setEditandoId(r.id)
     setForm({
-      titulo:    r.titulo,
-      categoria: r.categoria ?? '',
-      atalho:    r.atalho ?? '',
+      titulo:         r.titulo,
+      categoria:      r.categoria ?? '',
+      atalho:         r.atalho ?? '',
+      delay_segundos: r.delay_segundos ?? 0,
     })
 
     let itensCarregados: ItemForm[]
@@ -232,10 +234,11 @@ export default function MinhasRespostasPage() {
       }
 
       const payload = {
-        titulo:    form.titulo,
-        categoria: form.categoria || null,
-        atalho:    form.atalho    || null,
-        itens:     itensPayload,
+        titulo:         form.titulo,
+        categoria:      form.categoria || null,
+        atalho:         form.atalho    || null,
+        delay_segundos: Number(form.delay_segundos) || 0,
+        itens:          itensPayload,
       }
 
       if (editandoId) {
@@ -418,6 +421,19 @@ export default function MinhasRespostasPage() {
                   <input type="text" value={form.atalho}
                     onChange={e => setForm(f => ({ ...f, atalho: e.target.value.replace(/\s/g, '').toLowerCase() }))}
                     placeholder="saudacao" className={`${inputCls} pl-7 font-mono`} />
+                </div>
+              </Field>
+
+              <Field label="Delay entre itens" hint="segundos (0 = sem delay)">
+                <div className="relative">
+                  <input
+                    type="number" min={0} max={60} step={1}
+                    value={form.delay_segundos}
+                    onChange={e => setForm(f => ({ ...f, delay_segundos: Math.max(0, Math.min(60, Number(e.target.value) || 0)) }))}
+                    className={inputCls}
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">seg</span>
                 </div>
               </Field>
 
