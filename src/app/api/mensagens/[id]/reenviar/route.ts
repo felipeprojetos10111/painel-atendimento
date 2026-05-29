@@ -50,8 +50,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       let waId: string | null = null
       if (isMidia && mensagem.url_midia) {
         waId = await enviarMidiaWhatsApp(telefone, mensagem.tipo!, mensagem.url_midia, mensagem.conteudo || undefined, waCreds)
-      } else {
+      } else if ((mensagem.conteudo ?? '').trim()) {
         waId = await enviarMensagemWhatsApp(telefone, mensagem.conteudo, waCreds)
+      } else {
+        throw new Error('Mensagem de texto sem conteúdo — não é possível reenviar.')
       }
       const data: Record<string, unknown> = { status: 'enviado' }
       if (waId) data.whatsapp_id = waId

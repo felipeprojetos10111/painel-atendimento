@@ -65,6 +65,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const tipoFinal = item.tipo ?? 'texto'
     const isMidia = tipoFinal !== 'texto'
 
+    // Pula itens de texto sem conteúdo (WhatsApp rejeita body vazio)
+    if (!isMidia && !(item.conteudo ?? '').trim()) continue
+
     // Persiste a mensagem com status inicial "enviando"
     const mensagem = await prisma.mensagens.create({
       data: {
