@@ -990,6 +990,57 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
             )
           )}
 
+          {/* ── Tradução de mensagens do lead ───────────────────── */}
+          <div className="flex items-center gap-0 border border-[#2a3942] rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={async () => {
+                const nova = !traducaoAtiva
+                setTraducaoAtiva(nova)
+                localStorage.setItem('traducao-ativa', String(nova))
+                if (nova) await traduzirMensagens(mensagens, idiomaTraducaoLead)
+              }}
+              title={traducaoAtiva ? 'Desativar tradução do lead' : 'Traduzir mensagens do lead automaticamente'}
+              className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 transition-colors ${
+                traducaoAtiva
+                  ? 'text-teal-400 bg-teal-900/20'
+                  : 'text-[#8696a0] hover:text-teal-400 hover:bg-teal-900/10'
+              }`}
+            >
+              {traduzindo
+                ? <span className="w-3 h-3 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                : (
+                  /* Ícone de "balão de fala com letras" — diferente do globo do toolbar */
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                )
+              }
+              <span className="hidden sm:inline">{traducaoAtiva ? 'Tradução ON' : 'Tradução'}</span>
+            </button>
+            {traducaoAtiva && (
+              <select
+                value={idiomaTraducaoLead}
+                onChange={async e => {
+                  const novo = e.target.value as 'pt' | 'en' | 'es'
+                  setIdiomaTraducaoLead(novo)
+                  await fetch('/api/operadores/preferencias', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idioma_traducao: novo })
+                  })
+                  await traduzirMensagens(mensagens, novo)
+                }}
+                className="text-xs text-[#8696a0] bg-[#1a2530] border-l border-[#2a3942] px-1.5 py-1 focus:outline-none cursor-pointer hover:text-[#e9edef] transition-colors"
+              >
+                <option value="pt">🇧🇷 PT</option>
+                <option value="en">🇺🇸 EN</option>
+                <option value="es">🇪🇸 ES</option>
+              </select>
+            )}
+          </div>
+
           {!resolvida && (
             <button
               onClick={encerrar}
@@ -1141,58 +1192,6 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
                   <option value="en">🇺🇸 EN</option>
                   <option value="es">🇪🇸 ES</option>
                 </select>
-              </div>
-            )}
-
-            {/* ── Toggle tradução de mensagens do lead ─────────────────── */}
-            {!gravando && !audioBlob && (
-              <div className="flex items-center gap-0 border border-[#2a3942] rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const nova = !traducaoAtiva
-                    setTraducaoAtiva(nova)
-                    localStorage.setItem('traducao-ativa', String(nova))
-                    if (nova) {
-                      await traduzirMensagens(mensagens, idiomaTraducaoLead)
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 transition-colors ${
-                    traducaoAtiva
-                      ? 'text-green-400 bg-green-900/20'
-                      : 'text-[#8696a0] hover:text-[#e9edef]'
-                  }`}
-                  title={traducaoAtiva ? 'Desativar tradução' : 'Ativar tradução de mensagens do lead'}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                  </svg>
-                  {traduzindo
-                    ? <span className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-                    : 'Traduzir lead'
-                  }
-                </button>
-                {traducaoAtiva && (
-                  <select
-                    value={idiomaTraducaoLead}
-                    onChange={async e => {
-                      const novo = e.target.value as 'pt' | 'en' | 'es'
-                      setIdiomaTraducaoLead(novo)
-                      await fetch('/api/operadores/preferencias', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idioma_traducao: novo })
-                      })
-                      await traduzirMensagens(mensagens, novo)
-                    }}
-                    className="text-xs text-[#8696a0] bg-[#1a2530] border-l border-[#2a3942] px-1.5 py-1.5 focus:outline-none cursor-pointer hover:text-[#e9edef] transition-colors"
-                  >
-                    <option value="pt">🇧🇷 PT</option>
-                    <option value="en">🇺🇸 EN</option>
-                    <option value="es">🇪🇸 ES</option>
-                  </select>
-                )}
               </div>
             )}
 
