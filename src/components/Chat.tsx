@@ -373,7 +373,14 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
   }
 
   if (msg.tipo === 'audio' && msg.url_midia) {
-    return <audio controls src={mediaSrc(msg.url_midia)} className="max-w-[240px]" />
+    return (
+      <div className="flex flex-col gap-1">
+        <audio controls src={mediaSrc(msg.url_midia)} className="max-w-[240px]" />
+        {msg.conteudo && (
+          <p className="text-xs text-[#8696a0] italic px-1">🎙 {msg.conteudo}</p>
+        )}
+      </div>
+    )
   }
 
   if (msg.tipo === 'documento' && msg.url_midia) {
