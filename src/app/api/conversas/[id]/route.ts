@@ -61,6 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(body.status                    !== undefined && { status: body.status }),
       ...(body.operador_id               !== undefined && { operador_id: body.operador_id }),
       ...(body.nao_lidas                 !== undefined && { nao_lidas: body.nao_lidas }),
+      ...(body.msgs_sem_resposta         !== undefined && { msgs_sem_resposta: body.msgs_sem_resposta }),
       ...(body.ultima_resposta_rapida_id !== undefined && { ultima_resposta_rapida_id: body.ultima_resposta_rapida_id }),
       atualizado_em: new Date()
     }

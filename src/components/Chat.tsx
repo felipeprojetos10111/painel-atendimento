@@ -929,6 +929,14 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     setEncerrando(false)
   }
 
+  async function visualizar() {
+    await fetch(`/api/conversas/${conversaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nao_lidas: 0, msgs_sem_resposta: 0 })
+    })
+  }
+
   async function transferir(novoOperadorId: number) {
     const op = operadores.find(o => o.id === novoOperadorId)
     if (!op) return
@@ -1070,6 +1078,16 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               </select>
             )}
           </div>
+
+          {!resolvida && (
+            <button
+              onClick={visualizar}
+              title="Zera notificações sem encerrar a conversa"
+              className="text-xs text-[#8696a0] border border-[#2a3942] hover:bg-[#202c33] hover:text-[#e9edef] px-2.5 py-1 rounded-lg transition-colors"
+            >
+              Visualizado
+            </button>
+          )}
 
           {!resolvida && (
             <button
