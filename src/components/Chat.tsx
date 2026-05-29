@@ -461,13 +461,13 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const animFrameRef = useRef<number | null>(null)
 
   async function traduzirMensagens(msgs: Mensagem[], idioma: string) {
-    // Inclui mensagens de texto do lead ainda não traduzidas para esse idioma
-    // Aceita tipo 'texto', null ou '' (mensagens legadas sem tipo definido)
-    const tiposTexto = ['texto', null, '', undefined]
+    // Inclui mensagens de texto e áudio (com transcrição) do lead ainda não traduzidas
+    // Aceita tipo 'texto', 'audio', null ou '' (mensagens legadas sem tipo definido)
+    const tiposTraduziveis = ['texto', 'audio', null, '', undefined]
     const paraTraduzi = msgs.filter(m =>
       m.origem === 'lead' &&
       m.conteudo?.trim() &&
-      tiposTexto.includes(m.tipo as string | null | undefined) &&
+      tiposTraduziveis.includes(m.tipo as string | null | undefined) &&
       m.traducao_idioma !== idioma
     )
     if (!paraTraduzi.length) {
