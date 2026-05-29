@@ -22,6 +22,7 @@ interface RespostaRapidaCompleta {
   atalho: string | null
   ativo: boolean | null
   favorita: boolean
+  gera_tag: boolean
   criado_em: string | null
   itens: {
     id: number
@@ -338,6 +339,15 @@ export default function MinhasRespostasPage() {
       body: JSON.stringify({ favorita: !r.favorita })
     })
     setRespostas(prev => prev.map(x => x.id === r.id ? { ...x, favorita: !r.favorita } : x))
+  }
+
+  async function toggleGeraTag(r: RespostaRapidaCompleta) {
+    await fetch(`/api/respostas-rapidas/${r.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gera_tag: !r.gera_tag })
+    })
+    setRespostas(prev => prev.map(x => x.id === r.id ? { ...x, gera_tag: !r.gera_tag } : x))
   }
 
   async function handleDeletar(r: RespostaRapidaCompleta) {
@@ -764,6 +774,18 @@ export default function MinhasRespostasPage() {
 
                       {/* Ações */}
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Gera tag */}
+                        <button
+                          onClick={() => toggleGeraTag(r)}
+                          title={r.gera_tag ? 'Remover tag automática' : 'Atribuir tag automática ao enviar'}
+                          className={`p-1.5 rounded-lg transition-colors ${r.gera_tag ? 'text-emerald-500 hover:text-emerald-600' : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'}`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={r.gera_tag ? 2.5 : 1.5}
+                              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                        </button>
+
                         {/* Favorita */}
                         <button
                           onClick={() => toggleFavorita(r)}

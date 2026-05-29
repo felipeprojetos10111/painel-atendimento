@@ -32,6 +32,7 @@ interface RespostaRapida {
   titulo: string
   atalho?: string | null
   favorita?: boolean
+  gera_tag?: boolean
   tipo?: string
   conteudo?: string | null
   url_midia?: string | null
@@ -865,13 +866,15 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   async function handleSelecionarResposta(resposta: RespostaRapida) {
     setModalAberto(false)
 
-    // Atualiza tag da conversa com a última resposta rápida enviada
-    setConversaTag(resposta.titulo)
-    fetch(`/api/conversas/${conversaId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ultima_resposta_rapida_id: resposta.id }),
-    }).catch(() => {})
+    // Só atualiza a tag se a resposta rápida estiver marcada como "gera_tag"
+    if (resposta.gera_tag) {
+      setConversaTag(resposta.titulo)
+      fetch(`/api/conversas/${conversaId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ultima_resposta_rapida_id: resposta.id }),
+      }).catch(() => {})
+    }
 
     // Usa itens da API ou cria um único item com os campos legados
     const itens: ItemResposta[] = resposta.itens?.length

@@ -227,6 +227,7 @@ model respostas_rapidas {
   atalho      String?    @db.VarChar(50)
   ativo     Boolean?   @default(true)
   favorita  Boolean    @default(false)
+  gera_tag  Boolean    @default(false)
   ordem     Int        @default(0)
   criado_em DateTime?  @default(now()) @db.Timestamp(6)
   clientes       clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
