@@ -21,12 +21,15 @@ export async function GET(req: NextRequest) {
   const atalho    = searchParams.get('atalho')
   const todos     = searchParams.get('todos') === 'true'
 
+  const favoritas = searchParams.get('favoritas') === 'true'
+
   const respostas = await prisma.respostas_rapidas.findMany({
     where: {
       operador_id: payload.id,
       ...(!todos && { ativo: true }),
       ...(categoria && { categoria }),
-      ...(atalho    && { atalho: { contains: atalho, mode: 'insensitive' } })
+      ...(atalho    && { atalho: { contains: atalho, mode: 'insensitive' } }),
+      ...(favoritas && { favorita: true }),
     },
     include: {
       itens: { orderBy: { ordem: 'asc' } }

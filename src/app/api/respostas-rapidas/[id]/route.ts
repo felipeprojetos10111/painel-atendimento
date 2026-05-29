@@ -62,6 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.categoria !== undefined && { categoria: body.categoria }),
         ...(body.atalho    !== undefined && { atalho:    body.atalho }),
         ...(body.ativo     !== undefined && { ativo:     body.ativo }),
+        ...(body.favorita  !== undefined && { favorita:  body.favorita }),
         // Atualiza campos legados com o primeiro item para manter compatibilidade
         ...(body.itens?.length && {
           tipo:      body.itens[0].tipo,

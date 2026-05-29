@@ -30,6 +30,8 @@ interface ItemResposta {
 interface RespostaRapida {
   id: number
   titulo: string
+  atalho?: string | null
+  favorita?: boolean
   tipo?: string
   conteudo?: string | null
   url_midia?: string | null
@@ -436,6 +438,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const [operadores, setOperadores] = useState<Operador[]>([])
   const [transferindo, setTransferindo] = useState(false)
   const [encerrando, setEncerrando] = useState(false)
+  const [respostasFavoritas, setRespostasFavoritas] = useState<RespostaRapida[]>([])
   const [barras, setBarras] = useState<number[]>(Array(28).fill(0))
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -642,6 +645,12 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     })
     carregarStatus()
     zerarNaoLidas()
+
+    // Carrega respostas favoritas para atalhos da toolbar
+    fetch('/api/respostas-rapidas?favoritas=true')
+      .then(r => r.json())
+      .then((data: RespostaRapida[]) => setRespostasFavoritas(data))
+      .catch(() => {})
 
     // Usa cache de sessão para /api/auth/me (não muda enquanto o operador está logado)
     fetchMe().then((data: Me | null) => {
@@ -1098,6 +1107,27 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
         </div>
       ) : (
         <div className="bg-[#1f2c33] border-t border-[#2a3942] px-4 py-3">
+          {/* Linha de atalhos favoritos */}
+          {respostasFavoritas.length > 0 && !gravando && !audioBlob && (
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {respostasFavoritas.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  disabled={ocupado}
+                  onClick={() => handleSelecionarResposta(r)}
+                  title={r.titulo}
+                  className="flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-900/20 hover:bg-amber-900/40 px-2.5 py-1 rounded-lg border border-amber-800/40 hover:border-amber-700 transition-colors disabled:opacity-50 max-w-[140px]"
+                >
+                  <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  <span className="truncate">{r.atalho ?? r.titulo}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Barra de ferramentas */}
           <div className="flex items-center gap-2 mb-2">
             <button
