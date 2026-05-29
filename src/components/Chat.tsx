@@ -977,10 +977,6 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusCor}`}>
-            {statusLabel}
-          </span>
-
           {me?.nivel === 'supervisor' && !resolvida && (
             transferindo ? (
               <div className="flex items-center gap-1">
