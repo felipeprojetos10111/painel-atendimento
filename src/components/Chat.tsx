@@ -424,6 +424,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const [status, setStatus] = useState('')
   const [operadorNome, setOperadorNome] = useState<string | null>(null)
   const [leadNome, setLeadNome] = useState<string | null>(null)
+  const [conversaTag, setConversaTag] = useState<string | null>(null)
   const [leadTelefone, setLeadTelefone] = useState<string | null>(null)
   const [modalAberto, setModalAberto] = useState(false)
   const [iaCarregando, setIaCarregando]   = useState<'melhorar' | 'traduzir' | null>(null)
@@ -629,6 +630,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
     setOperadorNome(conversa.operadores?.nome ?? null)
     setLeadNome(conversa.leads?.nome ?? null)
     setLeadTelefone(conversa.leads?.telefone ?? null)
+    setConversaTag(conversa.tag ?? null)
   }
 
   async function zerarNaoLidas() {
@@ -863,6 +865,14 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   async function handleSelecionarResposta(resposta: RespostaRapida) {
     setModalAberto(false)
 
+    // Atualiza tag da conversa com o título da resposta rápida enviada
+    setConversaTag(resposta.titulo)
+    fetch(`/api/conversas/${conversaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag: resposta.titulo }),
+    }).catch(() => {})
+
     // Usa itens da API ou cria um único item com os campos legados
     const itens: ItemResposta[] = resposta.itens?.length
       ? resposta.itens
@@ -966,6 +976,13 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
               <p className="text-xs text-[#8696a0] leading-tight font-mono">{leadTelefone}</p>
             )}
           </div>
+
+          {/* Tag da última resposta rápida enviada */}
+          {conversaTag && (
+            <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-900/40 text-emerald-400 border border-emerald-700/30 truncate max-w-[160px]" title={conversaTag}>
+              {conversaTag}
+            </span>
+          )}
 
           {/* Operador responsável */}
           {operadorNome && (

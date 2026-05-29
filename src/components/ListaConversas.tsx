@@ -19,6 +19,7 @@ interface Conversa {
   msgs_sem_resposta?: number | null
   atualizado_em: string | null
   janela_expirada: boolean
+  tag: string | null
   leads: { nome: string | null; telefone: string } | null
   operadores: { nome: string } | null
   mensagens: Mensagem[]
@@ -107,6 +108,11 @@ function ItemConversa({
           <span>{ultimaMensagem.origem === 'lead' ? '👤' : ultimaMensagem.origem === 'ia' ? '🤖' : '🧑‍💼'}</span>{' '}
           {ultimaMensagem.conteudo}
         </p>
+      )}
+      {c.tag && (
+        <span className="self-start text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-900/40 text-emerald-400 border border-emerald-700/30 truncate max-w-full">
+          {c.tag}
+        </span>
       )}
       <div className="flex items-center justify-between gap-1">
         <span className="text-xs text-[#3b4a54]">
