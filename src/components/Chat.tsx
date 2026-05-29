@@ -320,21 +320,31 @@ function StatusMensagem({ status, onReenviar }: { status: string | null; onReenv
   return null
 }
 
+// Retorna a URL de mídia passando pelo proxy quando for do WhatsApp (lookaside.fbsbx.com)
+function mediaSrc(url: string): string {
+  const isWhatsApp = url.includes('lookaside.fbsbx.com') ||
+                     url.includes('graph.facebook.com') ||
+                     url.includes('cdn.fbsbx.com')
+  if (!isWhatsApp) return url
+  return `/api/media-proxy?url=${encodeURIComponent(url)}`
+}
+
 // Renderiza o conteúdo da mensagem (texto, imagem, documento, áudio, vídeo)
 function ConteudoMensagem({ msg }: { msg: Mensagem }) {
   const isOperador = msg.origem === 'operador'
 
   if (msg.tipo === 'imagem' && msg.url_midia) {
+    const src = mediaSrc(msg.url_midia)
     return (
       <div className="space-y-1">
-        <a href={msg.url_midia} target="_blank" rel="noopener noreferrer">
+        <a href={src} target="_blank" rel="noopener noreferrer">
           <img
-            src={msg.url_midia}
-            alt={msg.conteudo}
+            src={src}
+            alt={msg.conteudo ?? undefined}
             className="max-w-[220px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
             onError={e => {
               const parent = (e.target as HTMLElement).parentElement
-              if (parent) parent.innerHTML = `<span class="text-sm underline">📎 ${msg.conteudo}</span>`
+              if (parent) parent.innerHTML = `<span class="text-sm underline">📎 ${msg.conteudo ?? 'Imagem'}</span>`
             }}
           />
         </a>
@@ -348,7 +358,7 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
   if (msg.tipo === 'video' && msg.url_midia) {
     return (
       <div className="space-y-1">
-        <video controls src={msg.url_midia} className="max-w-[260px] rounded-lg" />
+        <video controls src={mediaSrc(msg.url_midia)} className="max-w-[260px] rounded-lg" />
         {msg.conteudo && (
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.conteudo}</p>
         )}
@@ -357,13 +367,14 @@ function ConteudoMensagem({ msg }: { msg: Mensagem }) {
   }
 
   if (msg.tipo === 'audio' && msg.url_midia) {
-    return <audio controls src={msg.url_midia} className="max-w-[240px]" />
+    return <audio controls src={mediaSrc(msg.url_midia)} className="max-w-[240px]" />
   }
 
   if (msg.tipo === 'documento' && msg.url_midia) {
+    const src = mediaSrc(msg.url_midia)
     return (
       <a
-        href={msg.url_midia}
+        href={src}
         target="_blank"
         rel="noopener noreferrer"
         className={`flex items-center gap-2 text-sm underline underline-offset-2 ${isOperador ? 'text-white' : 'text-blue-700'}`}
