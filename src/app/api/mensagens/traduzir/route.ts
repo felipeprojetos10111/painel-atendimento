@@ -53,13 +53,33 @@ export async function POST(req: NextRequest) {
     const idiomaCompleto = IDIOMA_COMPLETO[idioma]
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+    const systemPrompt = `Você é um especialista em interpretação e tradução de mensagens de clientes em atendimento comercial.
+
+CONTEXTO: Você recebe mensagens curtas escritas por leads (clientes em potencial) que frequentemente:
+- Cometem erros de ortografia e gramática
+- Escrevem de forma incompleta ou telegráfica
+- Usam gírias, abreviações ou expressões coloquiais
+- Misturam palavras de outros idiomas
+- Expressam ideias de forma confusa
+
+SUA TAREFA:
+1. Identifique a INTENÇÃO real da mensagem — o que o lead está tentando comunicar
+2. Traduza o SIGNIFICADO PRETENDIDO para ${idiomaCompleto}, não as palavras literalmente
+3. Produza uma tradução clara, natural e fiel ao contexto de atendimento comercial
+4. Se o texto for muito ambíguo, escolha a interpretação mais provável dentro de um contexto de venda/suporte
+
+REGRAS:
+- Retorne APENAS o texto traduzido, sem explicações, sem aspas, sem prefixos
+- Nunca adicione informações que não estavam implícitas na mensagem original
+- Mantenha o tom da mensagem (urgente, dúvida, confirmação, etc.)`
+
     const resultados = await Promise.all(
       mensagens.map(async (msg) => {
         try {
           const response = await anthropic.messages.create({
             model: 'claude-haiku-4-5',
-            max_tokens: 1024,
-            system: `Você é um tradutor. Traduza o texto para ${idiomaCompleto}. Retorne APENAS o texto traduzido, sem explicações, sem aspas.`,
+            max_tokens: 512,
+            system: systemPrompt,
             messages: [{ role: 'user', content: msg.conteudo }],
           })
 
