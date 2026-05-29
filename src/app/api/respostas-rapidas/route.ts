@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     include: {
       itens: { orderBy: { ordem: 'asc' } }
     },
-    orderBy: { criado_em: 'desc' }
+    orderBy: [{ ordem: 'asc' }, { criado_em: 'desc' }]
   })
 
   return NextResponse.json(respostas)

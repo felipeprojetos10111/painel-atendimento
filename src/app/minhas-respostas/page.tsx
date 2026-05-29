@@ -84,6 +84,48 @@ export default function MinhasRespostasPage() {
   const [msgSucesso, setMsgSucesso]       = useState('')
   const [msgErro, setMsgErro]             = useState('')
 
+  // ─── Drag-and-drop (reordenação da lista) ───────────────────────────────────
+  const dragIndex  = useRef<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
+
+  function handleDragStart(i: number) {
+    dragIndex.current = i
+  }
+
+  function handleDragOver(e: React.DragEvent, i: number) {
+    e.preventDefault()
+    setDragOver(i)
+  }
+
+  async function handleDrop(dropIndex: number) {
+    const fromIndex = dragIndex.current
+    if (fromIndex === null || fromIndex === dropIndex) {
+      dragIndex.current = null; setDragOver(null); return
+    }
+
+    // Reordena localmente (usa `filtradas` como base apenas se não há filtro ativo)
+    const nova = [...respostas]
+    const [movido] = nova.splice(fromIndex, 1)
+    nova.splice(dropIndex, 0, movido)
+    setRespostas(nova)
+    dragIndex.current = null
+    setDragOver(null)
+
+    // Persiste no servidor
+    try {
+      await fetch('/api/respostas-rapidas/reordenar', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: nova.map(r => r.id) }),
+      })
+    } catch { /* silencioso — a ordem local já foi atualizada */ }
+  }
+
+  function handleDragEnd() {
+    dragIndex.current = null
+    setDragOver(null)
+  }
+
   async function carregar() {
     const res = await fetch('/api/respostas-rapidas?todos=true')
     setRespostas(await res.json())
@@ -630,7 +672,7 @@ export default function MinhasRespostasPage() {
               </div>
             ) : (
               <ul className="divide-y divide-gray-50">
-                {filtradas.map(r => {
+                {filtradas.map((r, i) => {
                   // Normaliza itens: fallback para legados
                   const itens = r.itens?.length
                     ? r.itens
@@ -639,13 +681,34 @@ export default function MinhasRespostasPage() {
                   const cfgPrimeiro = TIPO_CONFIG[(primeiroItem?.tipo as Tipo) ?? 'texto'] ?? TIPO_CONFIG.texto
                   const multiItens = itens.length > 1
                   const editando = editandoId === r.id
+                  const isDragOver = dragOver === i && dragIndex.current !== i
                   return (
                     <li
                       key={r.id}
-                      className={`flex items-start gap-4 px-6 py-4 transition-colors ${
-                        editando ? 'bg-green-50 border-l-4 border-l-green-500' : !r.ativo ? 'opacity-50' : 'hover:bg-gray-50'
+                      draggable={!busca} // drag desativado quando há filtro ativo
+                      onDragStart={() => handleDragStart(i)}
+                      onDragOver={e => handleDragOver(e, i)}
+                      onDrop={() => handleDrop(i)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-start gap-3 px-4 py-4 transition-colors cursor-default ${
+                        isDragOver     ? 'border-t-2 border-t-green-400 bg-green-50' :
+                        editando       ? 'bg-green-50 border-l-4 border-l-green-500' :
+                        !r.ativo       ? 'opacity-50' : 'hover:bg-gray-50'
                       }`}
                     >
+                      {/* Alça de drag — oculta quando há busca ativa */}
+                      {!busca && (
+                        <div
+                          className="mt-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing shrink-0 self-center"
+                          title="Arrastar para reordenar"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="9"  cy="5"  r="1.5" /><circle cx="15" cy="5"  r="1.5" />
+                            <circle cx="9"  cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+                            <circle cx="9"  cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
+                          </svg>
+                        </div>
+                      )}
                       <span className="text-2xl mt-0.5 select-none">{cfgPrimeiro.icone}</span>
 
                       <div className="flex-1 min-w-0">
