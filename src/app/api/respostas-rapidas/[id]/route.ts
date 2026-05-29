@@ -58,11 +58,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await prisma.respostas_rapidas.update({
       where: { id: Number(id) },
       data: {
-        ...(body.titulo         !== undefined && { titulo:         body.titulo }),
-        ...(body.categoria      !== undefined && { categoria:      body.categoria }),
-        ...(body.atalho         !== undefined && { atalho:         body.atalho }),
-        ...(body.ativo          !== undefined && { ativo:          body.ativo }),
-        ...(body.delay_segundos !== undefined && { delay_segundos: Number(body.delay_segundos) || 0 }),
+        ...(body.titulo    !== undefined && { titulo:    body.titulo }),
+        ...(body.categoria !== undefined && { categoria: body.categoria }),
+        ...(body.atalho    !== undefined && { atalho:    body.atalho }),
+        ...(body.ativo     !== undefined && { ativo:     body.ativo }),
         // Atualiza campos legados com o primeiro item para manter compatibilidade
         ...(body.itens?.length && {
           tipo:      body.itens[0].tipo,
@@ -77,12 +76,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await prisma.respostas_rapidas_itens.deleteMany({ where: { resposta_id: Number(id) } })
       if (body.itens.length > 0) {
         await prisma.respostas_rapidas_itens.createMany({
-          data: body.itens.map((item: { tipo: string; conteudo?: string; url_midia?: string }, i: number) => ({
-            resposta_id: Number(id),
-            ordem:       i,
-            tipo:        item.tipo,
-            conteudo:    item.conteudo  || null,
-            url_midia:   item.url_midia || null,
+          data: body.itens.map((item: { tipo: string; conteudo?: string; url_midia?: string; delay_depois?: number }, i: number) => ({
+            resposta_id:  Number(id),
+            ordem:        i,
+            tipo:         item.tipo,
+            conteudo:     item.conteudo    || null,
+            url_midia:    item.url_midia   || null,
+            delay_depois: Number(item.delay_depois) || 0,
           }))
         })
       }

@@ -219,9 +219,8 @@ model respostas_rapidas {
   url_midia   String?
   categoria   String?    @db.VarChar(80)
   atalho      String?    @db.VarChar(50)
-  ativo          Boolean?   @default(true)
-  delay_segundos Int        @default(0)
-  criado_em      DateTime?  @default(now()) @db.Timestamp(6)
+  ativo     Boolean?   @default(true)
+  criado_em DateTime?  @default(now()) @db.Timestamp(6)
   clientes       clientes   @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   operadores  operadores @relation(fields: [operador_id], references: [id], onDelete: Cascade)
   itens       respostas_rapidas_itens[]
@@ -230,13 +229,14 @@ model respostas_rapidas {
 }
 
 model respostas_rapidas_itens {
-  id          Int               @id @default(autoincrement())
-  resposta_id Int
-  ordem       Int               @default(0)
-  tipo        String            @default("texto") @db.VarChar(20)
-  conteudo    String?
-  url_midia   String?
-  criado_em   DateTime?         @default(now()) @db.Timestamp(6)
+  id            Int               @id @default(autoincrement())
+  resposta_id   Int
+  ordem         Int               @default(0)
+  tipo          String            @default("texto") @db.VarChar(20)
+  conteudo      String?
+  url_midia     String?
+  delay_depois  Int               @default(0)
+  criado_em     DateTime?         @default(now()) @db.Timestamp(6)
   respostas_rapidas respostas_rapidas @relation(fields: [resposta_id], references: [id], onDelete: Cascade)
 }
 

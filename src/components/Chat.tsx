@@ -22,6 +22,7 @@ interface ItemResposta {
   tipo: string
   conteudo: string | null
   url_midia: string | null
+  delay_depois?: number
 }
 
 interface RespostaRapida {
@@ -30,7 +31,6 @@ interface RespostaRapida {
   tipo?: string
   conteudo?: string | null
   url_midia?: string | null
-  delay_segundos?: number
   itens?: ItemResposta[]
 }
 
@@ -784,11 +784,11 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             itens: itens.map(i => ({
-              conteudo:  i.conteudo ?? '',
-              tipo:      i.tipo,
-              url_midia: i.url_midia ?? null,
+              conteudo:     i.conteudo ?? '',
+              tipo:         i.tipo,
+              url_midia:    i.url_midia ?? null,
+              delay_depois: i.delay_depois ?? 0,
             })),
-            delaySegundos: resposta.delay_segundos ?? 0,
           })
         })
         if (res.ok) {

@@ -12,6 +12,7 @@ interface ItemForm {
   arquivo: File | null
   url_midia: string | null // definido após upload ou ao editar
   semTexto: boolean
+  delay_depois: number // segundos de espera após este item antes do próximo
 }
 
 interface RespostaRapidaCompleta {
@@ -19,7 +20,6 @@ interface RespostaRapidaCompleta {
   titulo: string
   categoria: string | null
   atalho: string | null
-  delay_segundos: number
   ativo: boolean | null
   criado_em: string | null
   itens: {
@@ -28,6 +28,7 @@ interface RespostaRapidaCompleta {
     tipo: string
     conteudo: string | null
     url_midia: string | null
+    delay_depois: number
   }[]
   // legados
   tipo?: string
@@ -56,8 +57,8 @@ const TIPO_COR: Record<Tipo, string> = {
   documento: 'bg-yellow-100 text-yellow-700',
 }
 
-const ITEM_VAZIO: ItemForm = { tipo: 'texto', conteudo: '', arquivo: null, url_midia: null, semTexto: false }
-const FORM_VAZIO = { titulo: '', categoria: '', atalho: '', delay_segundos: 0 }
+const ITEM_VAZIO: ItemForm = { tipo: 'texto', conteudo: '', arquivo: null, url_midia: null, semTexto: false, delay_depois: 0 }
+const FORM_VAZIO = { titulo: '', categoria: '', atalho: '' }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -157,30 +158,31 @@ export default function MinhasRespostasPage() {
   function iniciarEdicao(r: RespostaRapidaCompleta) {
     setEditandoId(r.id)
     setForm({
-      titulo:         r.titulo,
-      categoria:      r.categoria ?? '',
-      atalho:         r.atalho ?? '',
-      delay_segundos: r.delay_segundos ?? 0,
+      titulo:    r.titulo,
+      categoria: r.categoria ?? '',
+      atalho:    r.atalho ?? '',
     })
 
     let itensCarregados: ItemForm[]
     if (r.itens?.length) {
       itensCarregados = r.itens.map(item => ({
-        tipo:     (item.tipo as Tipo) ?? 'texto',
-        conteudo: item.conteudo ?? '',
-        arquivo:  null,
-        url_midia: item.url_midia ?? null,
-        semTexto: item.tipo !== 'texto' && !item.conteudo,
+        tipo:        (item.tipo as Tipo) ?? 'texto',
+        conteudo:    item.conteudo ?? '',
+        arquivo:     null,
+        url_midia:   item.url_midia ?? null,
+        semTexto:    item.tipo !== 'texto' && !item.conteudo,
+        delay_depois: item.delay_depois ?? 0,
       }))
     } else {
       // fallback registro legado
       const tipoR = (r.tipo as Tipo) ?? 'texto'
       itensCarregados = [{
-        tipo:     tipoR,
-        conteudo: r.conteudo ?? '',
-        arquivo:  null,
-        url_midia: r.url_midia ?? null,
-        semTexto: tipoR !== 'texto' && !r.conteudo,
+        tipo:        tipoR,
+        conteudo:    r.conteudo ?? '',
+        arquivo:     null,
+        url_midia:   r.url_midia ?? null,
+        semTexto:    tipoR !== 'texto' && !r.conteudo,
+        delay_depois: 0,
       }]
     }
 
@@ -205,7 +207,7 @@ export default function MinhasRespostasPage() {
     setErro(''); setSucesso(''); setSalvando(true)
 
     try {
-      const itensPayload: { tipo: string; conteudo: string | null; url_midia: string | null }[] = []
+      const itensPayload: { tipo: string; conteudo: string | null; url_midia: string | null; delay_depois: number }[] = []
 
       for (let i = 0; i < itensForm.length; i++) {
         const item = itensForm[i]
@@ -227,18 +229,18 @@ export default function MinhasRespostasPage() {
         }
 
         itensPayload.push({
-          tipo:     item.tipo,
-          conteudo: item.semTexto ? null : (item.conteudo || null),
+          tipo:        item.tipo,
+          conteudo:    item.semTexto ? null : (item.conteudo || null),
           url_midia,
+          delay_depois: item.delay_depois ?? 0,
         })
       }
 
       const payload = {
-        titulo:         form.titulo,
-        categoria:      form.categoria || null,
-        atalho:         form.atalho    || null,
-        delay_segundos: Number(form.delay_segundos) || 0,
-        itens:          itensPayload,
+        titulo:    form.titulo,
+        categoria: form.categoria || null,
+        atalho:    form.atalho    || null,
+        itens:     itensPayload,
       }
 
       if (editandoId) {
@@ -424,19 +426,6 @@ export default function MinhasRespostasPage() {
                 </div>
               </Field>
 
-              <Field label="Delay entre itens" hint="segundos (0 = sem delay)">
-                <div className="relative">
-                  <input
-                    type="number" min={0} max={60} step={1}
-                    value={form.delay_segundos}
-                    onChange={e => setForm(f => ({ ...f, delay_segundos: Math.max(0, Math.min(60, Number(e.target.value) || 0)) }))}
-                    className={inputCls}
-                    placeholder="0"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">seg</span>
-                </div>
-              </Field>
-
               {/* ── Itens da sequência ───────────────────────────────────── */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -444,7 +433,8 @@ export default function MinhasRespostasPage() {
                 </label>
                 <div className="space-y-4">
                   {itensForm.map((item, i) => (
-                    <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-3 relative">
+                    <div key={i} className="space-y-0">
+                    <div className="border border-gray-200 rounded-xl p-4 space-y-3 relative">
                       {/* Badge de ordem + botão remover */}
                       <div className="flex items-center justify-between">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold select-none">
@@ -557,6 +547,29 @@ export default function MinhasRespostasPage() {
                           )}
                         </div>
                       )}
+                    </div>
+                    {/* Delay connector — visível apenas quando não é o último item */}
+                    {i < itensForm.length - 1 && (
+                      <div className="flex items-center gap-2 py-2 px-1">
+                        <div className="flex flex-col items-center gap-0.5 shrink-0 ml-2.5">
+                          <div className="w-px h-2 bg-gray-300" />
+                          <div className="w-px h-2 bg-gray-300" />
+                        </div>
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 flex-1">
+                          <span className="text-xs text-amber-700 font-medium">⏱ Aguardar</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={120}
+                            step={1}
+                            value={item.delay_depois}
+                            onChange={e => updateItem(i, 'delay_depois', Math.max(0, Math.min(120, Number(e.target.value) || 0)))}
+                            className="w-14 text-center border border-amber-300 rounded px-1.5 py-0.5 text-xs text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          />
+                          <span className="text-xs text-amber-700">seg antes do próximo</span>
+                        </div>
+                      </div>
+                    )}
                     </div>
                   ))}
                 </div>
