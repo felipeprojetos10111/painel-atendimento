@@ -169,6 +169,16 @@ export default function MinhasRespostasPage() {
     setItensForm(prev => [...prev, { ...ITEM_VAZIO }])
   }
 
+  function moverItem(i: number, direcao: 'cima' | 'baixo') {
+    const j = direcao === 'cima' ? i - 1 : i + 1
+    if (j < 0 || j >= itensForm.length) return
+    setItensForm(prev => {
+      const arr = [...prev]
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      return arr
+    })
+  }
+
   function removeItem(i: number) {
     if (itensForm.length <= 1) return
     setItensForm(prev => prev.filter((_, idx) => idx !== i))
@@ -503,11 +513,35 @@ export default function MinhasRespostasPage() {
                   {itensForm.map((item, i) => (
                     <div key={i} className="space-y-0">
                     <div className="border border-gray-200 rounded-xl p-4 space-y-3 relative">
-                      {/* Badge de ordem + botão remover */}
+                      {/* Badge de ordem + setas + botão remover */}
                       <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold select-none">
-                          {i + 1}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold select-none">
+                            {i + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => moverItem(i, 'cima')}
+                            disabled={i === 0}
+                            title="Mover para cima"
+                            className="text-gray-400 hover:text-green-600 disabled:opacity-20 transition-colors p-0.5 rounded"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moverItem(i, 'baixo')}
+                            disabled={i === itensForm.length - 1}
+                            title="Mover para baixo"
+                            className="text-gray-400 hover:text-green-600 disabled:opacity-20 transition-colors p-0.5 rounded"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeItem(i)}
