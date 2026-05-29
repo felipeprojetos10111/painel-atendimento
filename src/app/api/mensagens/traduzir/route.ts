@@ -29,14 +29,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: 'Idioma inválido. Use: pt, en ou es.' }, { status: 400 })
     }
 
-    // Fetch messages — only translate lead text messages not already translated to this language
+    // Busca mensagens do lead ainda não traduzidas para este idioma.
+    // IMPORTANTE: usar OR explícito para incluir linhas com traducao_idioma NULL,
+    // pois NOT(NULL = 'pt') = NULL (falso) no SQL — o que excluiria mensagens sem tradução.
     const mensagens = await prisma.mensagens.findMany({
       where: {
-        id: { in: ids.map(Number) },
-        origem: 'lead',
-        tipo: 'texto',
+        id:      { in: ids.map(Number) },
+        origem:  'lead',
+        tipo:    'texto',
         conteudo: { not: '' },
-        NOT: { traducao_idioma: idioma },
+        OR: [
+          { traducao_idioma: null },
+          { traducao_idioma: { not: idioma } },
+        ],
       },
       select: { id: true, conteudo: true },
     })
