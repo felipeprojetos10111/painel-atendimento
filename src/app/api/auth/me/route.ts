@@ -19,7 +19,7 @@ export async function GET() {
   // Busca lingua salva no banco (pode ter sido atualizada após o login)
   const operador = await prisma.operadores.findUnique({
     where: { id: payload.id },
-    select: { lingua: true }
+    select: { lingua: true, idioma_traducao: true }
   })
 
   // Busca nome e logo do cliente (null para super_admin)
@@ -47,6 +47,7 @@ export async function GET() {
     nivel:             payload.nivel,
     cliente_id:        payload.cliente_id,
     lingua:            operador?.lingua ?? 'en',
+    idioma_traducao:   operador?.idioma_traducao ?? 'pt',
     nomeCliente,
     logoCliente,
     impersonando,

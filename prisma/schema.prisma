@@ -87,17 +87,19 @@ model leads {
 }
 
 model mensagens {
-  id          Int        @id @default(autoincrement())
-  conversa_id Int?
-  origem      String     @db.VarChar(20)
-  conteudo    String
-  tipo        String?    @default("texto") @db.VarChar(20)
-  url_midia   String?
-  whatsapp_id  String?    @db.VarChar(100)
-  status       String?    @db.VarChar(20)
-  origem_fluxo String?    @db.VarChar(30) // estagio_mensagem | estagio_ia | reengajamento | null
-  enviado_em   DateTime?  @default(now()) @db.Timestamp(6)
-  conversas    conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id               Int        @id @default(autoincrement())
+  conversa_id      Int?
+  origem           String     @db.VarChar(20)
+  conteudo         String
+  tipo             String?    @default("texto") @db.VarChar(20)
+  url_midia        String?
+  whatsapp_id      String?    @db.VarChar(100)
+  status           String?    @db.VarChar(20)
+  origem_fluxo     String?    @db.VarChar(30) // estagio_mensagem | estagio_ia | reengajamento | null
+  traducao         String?    @db.Text
+  traducao_idioma  String?    @db.VarChar(5)
+  enviado_em       DateTime?  @default(now()) @db.Timestamp(6)
+  conversas        conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model operadores {
@@ -110,6 +112,7 @@ model operadores {
   ativo             Boolean?            @default(true)
   na_fila           Boolean             @default(true)
   lingua            String?             @default("pt") @db.VarChar(5)
+  idioma_traducao   String?             @default("pt") @db.VarChar(5)
   link_plataforma   String?             @db.Text
   affiliate_link_id String?             @db.VarChar(100)
   mensagem_link     String?             @db.Text
