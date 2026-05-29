@@ -145,6 +145,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   const { tr } = useLingua()
   const [conversas, setConversas] = useState<Conversa[]>([])
   const [busca, setBusca] = useState('')
+  const [tagFiltro, setTagFiltro] = useState('')
   const [expiradaAberta, setExpiradaAberta] = useState(false)
   const [toasts, setToasts] = useState<ToastEscalacao[]>([])
   const [ordemFixa, setOrdemFixa] = useState(false)
@@ -231,13 +232,15 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const tagsDisponiveis = Array.from(
+    new Set(conversas.map(c => c.tag).filter(Boolean) as string[])
+  ).sort()
+
   const todasFiltradas = conversas.filter(c => {
     const termo = busca.toLowerCase()
-    return (
-      !termo ||
-      c.leads?.telefone.includes(termo) ||
-      c.leads?.nome?.toLowerCase().includes(termo)
-    )
+    const passaBusca = !termo || c.leads?.telefone.includes(termo) || c.leads?.nome?.toLowerCase().includes(termo)
+    const passaTag = !tagFiltro || c.tag === tagFiltro
+    return passaBusca && passaTag
   })
 
   const filtradas  = todasFiltradas.filter(c => !c.janela_expirada)
@@ -299,13 +302,30 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
             )}
           </button>
         </div>
-        <input
-          type="text"
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
-          placeholder={tr('buscarConversa')}
-          className="w-full text-sm text-[#e9edef] bg-[#202c33] border border-[#2a3942] rounded-lg px-3 py-2 placeholder-[#3b4a54] focus:outline-none focus:ring-2 focus:ring-[#00a884]"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder={tr('buscarConversa')}
+            className="flex-1 min-w-0 text-sm text-[#e9edef] bg-[#202c33] border border-[#2a3942] rounded-lg px-3 py-2 placeholder-[#3b4a54] focus:outline-none focus:ring-2 focus:ring-[#00a884]"
+          />
+          <select
+            value={tagFiltro}
+            onChange={e => setTagFiltro(e.target.value)}
+            title="Filtrar por tag"
+            className={`text-xs bg-[#202c33] border rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-[#00a884] cursor-pointer transition-colors shrink-0 ${
+              tagFiltro
+                ? 'border-emerald-700 text-emerald-400'
+                : 'border-[#2a3942] text-[#8696a0]'
+            }`}
+          >
+            <option value="">🏷 Tag</option>
+            {tagsDisponiveis.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
