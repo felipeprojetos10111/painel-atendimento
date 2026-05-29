@@ -69,7 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Notifica todos via Socket.io para atualizar listas em tempo real
   const io = (global as unknown as { io: import('socket.io').Server }).io
-  if (io && (body.status !== undefined || body.operador_id !== undefined)) {
+  if (io && (body.status !== undefined || body.operador_id !== undefined || body.nao_lidas !== undefined || body.msgs_sem_resposta !== undefined)) {
     io.to('operadores').emit('atualizar-lista', { conversaId: Number(id) })
     // Notifica também quem está dentro da conversa (ex: status mudou para resolvida)
     io.to(`conversa-${id}`).emit('status-alterado', {
