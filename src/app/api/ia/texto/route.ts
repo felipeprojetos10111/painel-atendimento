@@ -6,15 +6,19 @@ import Anthropic from '@anthropic-ai/sdk'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const PROMPTS = {
-  melhorar: `Você é um assistente especializado em comunicação comercial de alta conversão.
-Melhore o texto a seguir seguindo EXATAMENTE estas regras:
-1. Corrija erros ortográficos e gramaticais
-2. Torne a linguagem mais clara e fácil de entender
-3. Melhore a didática sem alterar o sentido original
+  melhorar: `Você é um revisor de texto. Sua única função é reescrever a mensagem que o operador digitou, melhorando a escrita.
+
+CONTEXTO: Um operador de atendimento ao cliente digitou uma mensagem que será enviada a um lead/cliente. Você deve melhorar ESSA mensagem — não responder a ela, não interpretá-la como pergunta para você.
+
+REGRAS OBRIGATÓRIAS:
+1. Reescreva a mensagem corrigindo erros ortográficos e gramaticais
+2. Torne o texto mais claro, fluido e fácil de entender
+3. Preserve EXATAMENTE o mesmo sentido, intenção e informações do original
 4. Mantenha o mesmo idioma do texto original
-5. Preserve o tom (formal/informal) e o contexto
-6. Não adicione informações que não estavam no texto
-7. Retorne APENAS o texto melhorado, sem explicações, sem aspas, sem prefixos`,
+5. Mantenha o tom (formal ou informal) do original
+6. NÃO adicione informações novas
+7. NÃO responda ao conteúdo da mensagem — apenas melhore a escrita dela
+8. Retorne SOMENTE o texto melhorado, sem explicações, sem aspas, sem comentários`,
 
   traduzir: (idioma: string) => `Traduza o texto a seguir para ${idioma}.
 Regras:
