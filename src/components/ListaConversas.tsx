@@ -313,8 +313,8 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
           <select
             value={tagFiltro}
             onChange={e => setTagFiltro(e.target.value)}
-            title="Filtrar por tag"
-            className={`text-xs bg-[#202c33] border rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-[#00a884] cursor-pointer transition-colors shrink-0 ${
+            title={tagFiltro || 'Filtrar por tag'}
+            className={`text-xs bg-[#202c33] border rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-[#00a884] cursor-pointer transition-colors shrink-0 max-w-[90px] ${
               tagFiltro
                 ? 'border-emerald-700 text-emerald-400'
                 : 'border-[#2a3942] text-[#8696a0]'
