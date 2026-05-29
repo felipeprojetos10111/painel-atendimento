@@ -60,34 +60,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const resposta = await prisma.respostas_rapidas.create({
-      data: {
-        cliente_id:  payload.cliente_id,
-        operador_id: payload.id,
-        titulo,
-        categoria: categoria || null,
-        atalho:    atalho    || null,
-        // campos legados espelham o primeiro item para manter compatibilidade
-        tipo:      itens[0].tipo,
-        conteudo:  itens[0].conteudo || null,
-        url_midia: itens[0].url_midia || null,
-      }
-    })
+    const completa = await prisma.$transaction(async (tx) => {
+      const resposta = await tx.respostas_rapidas.create({
+        data: {
+          cliente_id:  payload.cliente_id!,
+          operador_id: payload.id,
+          titulo,
+          categoria: categoria || null,
+          atalho:    atalho    || null,
+          // campos legados espelham o primeiro item para manter compatibilidade
+          tipo:      itens[0].tipo,
+          conteudo:  itens[0].conteudo || null,
+          url_midia: itens[0].url_midia || null,
+        }
+      })
 
-    await prisma.respostas_rapidas_itens.createMany({
-      data: itens.map((item: { tipo: string; conteudo?: string; url_midia?: string; delay_depois?: number }, i: number) => ({
-        resposta_id:  resposta.id,
-        ordem:        i,
-        tipo:         item.tipo,
-        conteudo:     item.conteudo    || null,
-        url_midia:    item.url_midia   || null,
-        delay_depois: Number(item.delay_depois) || 0,
-      }))
-    })
+      await tx.respostas_rapidas_itens.createMany({
+        data: itens.map((item: { tipo: string; conteudo?: string; url_midia?: string; delay_depois?: number }, i: number) => ({
+          resposta_id:  resposta.id,
+          ordem:        i,
+          tipo:         item.tipo,
+          conteudo:     item.conteudo    || null,
+          url_midia:    item.url_midia   || null,
+          delay_depois: Number(item.delay_depois) || 0,
+        }))
+      })
 
-    const completa = await prisma.respostas_rapidas.findUnique({
-      where: { id: resposta.id },
-      include: { itens: { orderBy: { ordem: 'asc' } } }
+      return tx.respostas_rapidas.findUnique({
+        where: { id: resposta.id },
+        include: { itens: { orderBy: { ordem: 'asc' } } }
+      })
     })
 
     return NextResponse.json(completa, { status: 201 })
