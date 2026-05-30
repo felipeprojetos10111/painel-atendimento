@@ -33,6 +33,7 @@ interface RespostaRapida {
   atalho?: string | null
   favorita?: boolean
   gera_tag?: boolean
+  delay_inicio?: number
   tipo?: string
   conteudo?: string | null
   url_midia?: string | null
@@ -448,6 +449,7 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   const [transferindo, setTransferindo] = useState(false)
   const [encerrando, setEncerrando] = useState(false)
   const [respostasFavoritas, setRespostasFavoritas] = useState<RespostaRapida[]>([])
+  const [countdownInicio, setCountdownInicio] = useState<number>(0)
   const [barras, setBarras] = useState<number[]>(Array(28).fill(0))
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -873,6 +875,26 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   async function handleSelecionarResposta(resposta: RespostaRapida) {
     setModalAberto(false)
 
+    // Delay de início: aguarda N segundos com countdown antes do primeiro envio
+    const delayInicio = resposta.delay_inicio ?? 0
+    if (delayInicio > 0) {
+      enviandoLockRef.current = true
+      setCountdownInicio(delayInicio)
+      await new Promise<void>(resolve => {
+        let restante = delayInicio
+        const tick = setInterval(() => {
+          restante -= 1
+          setCountdownInicio(restante)
+          if (restante <= 0) {
+            clearInterval(tick)
+            setCountdownInicio(0)
+            resolve()
+          }
+        }, 1000)
+      })
+      enviandoLockRef.current = false
+    }
+
     // Só atualiza a tag se a resposta rápida estiver marcada como "gera_tag"
     if (resposta.gera_tag) {
       setConversaTag(resposta.titulo)
@@ -1153,6 +1175,16 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
         </div>
       ) : (
         <div className="bg-[#1f2c33] border-t border-[#2a3942] px-4 py-3">
+          {/* Countdown de delay de início */}
+          {countdownInicio > 0 && (
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
+              <span className="text-xs text-amber-400 font-medium">
+                Enviando em {countdownInicio}s...
+              </span>
+            </div>
+          )}
+
           {/* Linha de atalhos favoritos */}
           {respostasFavoritas.length > 0 && !gravando && !audioBlob && (
             <div className="flex items-center gap-1.5 mb-2 flex-wrap">

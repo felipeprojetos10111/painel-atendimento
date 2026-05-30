@@ -23,6 +23,7 @@ interface RespostaRapidaCompleta {
   ativo: boolean | null
   favorita: boolean
   gera_tag: boolean
+  delay_inicio: number
   criado_em: string | null
   itens: {
     id: number
@@ -60,7 +61,7 @@ const TIPO_COR: Record<Tipo, string> = {
 }
 
 const ITEM_VAZIO: ItemForm = { tipo: 'texto', conteudo: '', arquivo: null, url_midia: null, semTexto: false, delay_depois: 0 }
-const FORM_VAZIO = { titulo: '', categoria: '', atalho: '' }
+const FORM_VAZIO = { titulo: '', categoria: '', atalho: '', delay_inicio: 0 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -212,9 +213,10 @@ export default function MinhasRespostasPage() {
   function iniciarEdicao(r: RespostaRapidaCompleta) {
     setEditandoId(r.id)
     setForm({
-      titulo:    r.titulo,
-      categoria: r.categoria ?? '',
-      atalho:    r.atalho ?? '',
+      titulo:       r.titulo,
+      categoria:    r.categoria ?? '',
+      atalho:       r.atalho ?? '',
+      delay_inicio: r.delay_inicio ?? 0,
     })
 
     let itensCarregados: ItemForm[]
@@ -291,10 +293,11 @@ export default function MinhasRespostasPage() {
       }
 
       const payload = {
-        titulo:    form.titulo,
-        categoria: form.categoria || null,
-        atalho:    form.atalho    || null,
-        itens:     itensPayload,
+        titulo:       form.titulo,
+        categoria:    form.categoria || null,
+        atalho:       form.atalho    || null,
+        delay_inicio: Number(form.delay_inicio) || 0,
+        itens:        itensPayload,
       }
 
       // Helper: parseia JSON da resposta de forma segura (evita erro críptico se servidor retornar HTML)
@@ -501,6 +504,18 @@ export default function MinhasRespostasPage() {
                   <input type="text" value={form.atalho}
                     onChange={e => setForm(f => ({ ...f, atalho: e.target.value.replace(/\s/g, '').toLowerCase() }))}
                     placeholder="saudacao" className={`${inputCls} pl-7 font-mono`} />
+                </div>
+              </Field>
+
+              <Field label="Delay de início" hint="segundos antes do 1º envio">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min={0} max={120}
+                    value={form.delay_inicio}
+                    onChange={e => setForm(f => ({ ...f, delay_inicio: Math.max(0, Math.min(120, Number(e.target.value) || 0)) }))}
+                    className={`${inputCls} w-24`}
+                  />
+                  <span className="text-xs text-gray-400">seg (0 = imediato)</span>
                 </div>
               </Field>
 

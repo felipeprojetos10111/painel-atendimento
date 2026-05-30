@@ -61,9 +61,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.titulo    !== undefined && { titulo:    body.titulo }),
         ...(body.categoria !== undefined && { categoria: body.categoria }),
         ...(body.atalho    !== undefined && { atalho:    body.atalho }),
-        ...(body.ativo     !== undefined && { ativo:     body.ativo }),
-        ...(body.favorita  !== undefined && { favorita:  body.favorita }),
-        ...(body.gera_tag  !== undefined && { gera_tag:  body.gera_tag }),
+        ...(body.ativo        !== undefined && { ativo:        body.ativo }),
+        ...(body.favorita     !== undefined && { favorita:     body.favorita }),
+        ...(body.gera_tag     !== undefined && { gera_tag:     body.gera_tag }),
+        ...(body.delay_inicio !== undefined && { delay_inicio: Number(body.delay_inicio) }),
         // Atualiza campos legados com o primeiro item para manter compatibilidade
         ...(body.itens?.length && {
           tipo:      body.itens[0].tipo,
