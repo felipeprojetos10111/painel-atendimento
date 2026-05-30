@@ -421,6 +421,7 @@ function fetchMe(): Promise<Me | null> {
 export default function Chat({ conversaId, onUploadChange }: Props) {
   const { tr } = useLingua()
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
+  const [carregandoChat, setCarregandoChat] = useState(true)
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [enviandoArquivo, setEnviandoArquivo] = useState(false)
@@ -626,10 +627,22 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   }
 
   async function carregarMensagens(): Promise<Mensagem[]> {
-    const res = await fetch(`/api/conversas/${conversaId}/mensagens`)
-    const data: Mensagem[] = await res.json()
-    setMensagens(data)
-    return data
+    try {
+      const res = await fetch(`/api/conversas/${conversaId}/mensagens`)
+      if (!res.ok) throw new Error('Falha ao carregar mensagens')
+      const data: Mensagem[] = await res.json()
+      setMensagens(data)
+      return data
+    } catch {
+      // Retry automático após 3s em caso de falha
+      await new Promise(r => setTimeout(r, 3000))
+      const res = await fetch(`/api/conversas/${conversaId}/mensagens`)
+      const data: Mensagem[] = await res.json()
+      setMensagens(data)
+      return data
+    } finally {
+      setCarregandoChat(false)
+    }
   }
 
   async function carregarStatus() {
@@ -652,9 +665,13 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
   }
 
   useEffect(() => {
-    // Carrega mensagens e, se tradução estiver ativa, traduz automaticamente
+    // Carrega mensagens — tradução roda em background sem bloquear exibição
+    setCarregandoChat(true)
     carregarMensagens().then(msgs => {
-      if (traducaoAtiva) traduzirMensagens(msgs, idiomaTraducaoLead)
+      if (traducaoAtiva) {
+        // Pequeno delay para não competir com as outras requests do mount
+        setTimeout(() => traduzirMensagens(msgs, idiomaTraducaoLead), 500)
+      }
     })
     carregarStatus()
     zerarNaoLidas()
@@ -1135,6 +1152,12 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
       {/* Mensagens */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        {carregandoChat && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-[#8696a0]">
+            <span className="w-8 h-8 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm">Carregando mensagens...</span>
+          </div>
+        )}
         {mensagens.map(m => {
           const estilo = ORIGEM_ESTILO[m.origem] ?? ORIGEM_ESTILO.lead
           const label = ORIGEM_CHAVE[m.origem] ? tr(ORIGEM_CHAVE[m.origem]) : m.origem
