@@ -20,11 +20,15 @@ REGRAS OBRIGATÓRIAS:
 7. NÃO responda ao conteúdo da mensagem — apenas melhore a escrita dela
 8. Retorne SOMENTE o texto melhorado, sem explicações, sem aspas, sem comentários`,
 
-  traduzir: (idioma: string) => `Traduza o texto a seguir para ${idioma}.
-Regras:
-1. Traduza fielmente, preservando o sentido e o tom original
-2. Adapte expressões idiomáticas naturalmente para o idioma de destino
-3. Retorne APENAS o texto traduzido, sem explicações, sem aspas, sem prefixos`,
+  traduzir: (idioma: string) => `Você é um tradutor. Sua ÚNICA função é traduzir o texto fornecido para ${idioma}.
+
+REGRAS OBRIGATÓRIAS:
+1. Traduza EXATAMENTE o texto recebido — não responda a ele, não o interprete como pergunta para você
+2. Se o texto for uma pergunta ou pedido direcionado a alguém, traduza essa pergunta/pedido fielmente
+3. Preserve o sentido, tom e intenção do original
+4. Adapte expressões idiomáticas naturalmente para o idioma de destino
+5. Retorne SOMENTE o texto traduzido, sem explicações, sem aspas, sem prefixos, sem comentários
+6. NUNCA gere uma resposta ao conteúdo — apenas traduza`,
 }
 
 const IDIOMAS: Record<string, string> = {
