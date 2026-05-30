@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     if (!payload.cliente_id) return NextResponse.json({ erro: 'Sem contexto de cliente' }, { status: 403 })
 
     const body = await req.json()
-    const { titulo, categoria, atalho, itens } = body
+    const { titulo, categoria, atalho, delay_inicio, itens } = body
 
     if (!titulo) return NextResponse.json({ erro: 'O campo título é obrigatório.' }, { status: 400 })
     if (!itens?.length) return NextResponse.json({ erro: 'A resposta precisa ter ao menos 1 item.' }, { status: 400 })
@@ -69,8 +69,9 @@ export async function POST(req: NextRequest) {
           cliente_id:  payload.cliente_id!,
           operador_id: payload.id,
           titulo,
-          categoria: categoria || null,
-          atalho:    atalho    || null,
+          categoria:    categoria     || null,
+          atalho:       atalho        || null,
+          delay_inicio: Number(delay_inicio) || 0,
           // campos legados espelham o primeiro item para manter compatibilidade
           tipo:      itens[0].tipo,
           conteudo:  itens[0].conteudo || null,
