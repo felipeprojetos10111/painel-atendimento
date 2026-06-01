@@ -103,6 +103,9 @@ model mensagens {
   traducao_idioma  String?    @db.VarChar(5)
   enviado_em       DateTime?  @default(now()) @db.Timestamp(6)
   conversas        conversas? @relation(fields: [conversa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([conversa_id])
+  @@index([conversa_id, enviado_em])
 }
 
 model operadores {
