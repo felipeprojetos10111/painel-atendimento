@@ -6,13 +6,14 @@ import { enviarMensagemWhatsApp, enviarMidiaWhatsApp } from '@/lib/whatsapp'
 /**
  * POST /api/conversas/[id]/mensagens/sequencia
  *
- * Envia uma sequência de itens (texto/mídia) de forma estritamente ordenada.
- * Ao contrário do endpoint padrão (fire-and-forget), este aguarda a confirmação
- * do WhatsApp para cada item antes de enviar o próximo, garantindo a ordem de
- * entrega — essencial para respostas rápidas com múltiplos áudios/mídias.
+ * Estratégia otimizada:
+ * 1. Cria TODOS os registros no banco imediatamente (rápido)
+ * 2. Retorna a resposta ao cliente sem esperar o WhatsApp
+ * 3. Envia ao WhatsApp em background mantendo a ordem via async serial
+ * 4. Atualiza status via Socket.io conforme cada envio é confirmado
  *
- * Body: { itens: [{ conteudo, tipo, url_midia }] }
- * Response: mensagens[] (na ordem enviada, com status atualizado)
+ * Body: { itens: [{ conteudo, tipo, url_midia, delay_depois }] }
+ * Response: mensagens[] com status "enviando" (atualiza via socket)
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const telefone = conversa.leads?.telefone
   const io = (global as unknown as { io: import('socket.io').Server }).io
 
-  // Auto-claim: atribui operador na primeira resposta (mesma lógica do endpoint padrão)
+  // Auto-claim + atualiza conversa
   const atualizacaoConversa: Record<string, unknown> = {
     atualizado_em:      new Date(),
     ultima_mensagem_em: new Date(),
@@ -59,89 +60,88 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   await prisma.conversas.update({ where: { id: Number(id) }, data: atualizacaoConversa })
 
-  const mensagensCriadas = []
+  // ── FASE 1: cria todos os registros no banco imediatamente ──────────────
+  const itensFiltrados = itens.filter(item => {
+    const isMidia = (item.tipo ?? 'texto') !== 'texto'
+    return isMidia ? !!item.url_midia : !!(item.conteudo ?? '').trim()
+  })
 
-  for (const item of itens) {
-    const tipoFinal = item.tipo ?? 'texto'
-    const isMidia = tipoFinal !== 'texto'
+  const mensagensCriadas = await Promise.all(
+    itensFiltrados.map((item) =>
+      prisma.mensagens.create({
+        data: {
+          conversa_id: Number(id),
+          origem:    'operador',
+          conteudo:  (item.tipo ?? 'texto') !== 'texto' ? (item.conteudo ?? '') : (item.conteudo ?? '').trim(),
+          tipo:      item.tipo ?? 'texto',
+          url_midia: item.url_midia ?? null,
+          status:    'enviando',
+        }
+      })
+    )
+  )
 
-    // Pula itens de texto sem conteúdo (WhatsApp rejeita body vazio)
-    if (!isMidia && !(item.conteudo ?? '').trim()) continue
-
-    // Persiste a mensagem com status inicial "enviando"
-    const mensagem = await prisma.mensagens.create({
-      data: {
-        conversa_id: Number(id),
-        origem:    'operador',
-        conteudo:  isMidia ? (item.conteudo ?? '') : (item.conteudo ?? '').trim(),
-        tipo:      tipoFinal,
-        url_midia: item.url_midia ?? null,
-        status:    'enviando',
-      }
-    })
-
-    // Notifica o painel em tempo real (aparece com status "enviando")
-    if (io) {
+  // Notifica o painel imediatamente — todas as mensagens aparecem com "enviando"
+  if (io) {
+    for (const mensagem of mensagensCriadas) {
       io.to(`conversa-${id}`).emit('nova-mensagem', {
         ...mensagem,
         operador: payload?.nome ?? 'Operador',
       })
     }
-
-    // Envia ao WhatsApp e AGUARDA a resposta antes de prosseguir
-    if (telefone) {
-      try {
-        let waId: string | null = null
-        if (isMidia && item.url_midia) {
-          waId = await enviarMidiaWhatsApp(telefone, tipoFinal, item.url_midia, item.conteudo ?? undefined, waCreds)
-        } else {
-          waId = await enviarMensagemWhatsApp(telefone, (item.conteudo ?? '').trim(), waCreds)
-        }
-
-        await prisma.mensagens.update({
-          where: { id: mensagem.id },
-          data: { status: 'enviado', whatsapp_id: waId },
-        })
-
-        if (io) {
-          io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: 'enviado' })
-        }
-
-        mensagensCriadas.push({ ...mensagem, status: 'enviado', whatsapp_id: waId })
-      } catch (err) {
-        console.error('[WhatsApp sequencial] Falha ao enviar item —', String(err))
-
-        await prisma.mensagens.update({
-          where: { id: mensagem.id },
-          data: { status: 'erro' },
-        })
-
-        if (io) {
-          io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: 'erro' })
-        }
-
-        mensagensCriadas.push({ ...mensagem, status: 'erro' })
-
-        // Interrompe a sequência em caso de erro para não enviar itens fora de ordem
-        break
-      }
-
-      // Delay específico deste item antes do próximo (exceto no último)
-      const isUltimoItem = itens.indexOf(item) === itens.length - 1
-      const delayDepois = Math.min(Math.max(Number(item.delay_depois) || 0, 0), 120) * 1000
-      if (delayDepois > 0 && !isUltimoItem) {
-        await new Promise(resolve => setTimeout(resolve, delayDepois))
-      }
-    } else {
-      // Sem telefone: apenas salva no banco sem enviar ao WhatsApp
-      mensagensCriadas.push(mensagem)
-    }
-  }
-
-  // Notifica a lista de conversas para atualizar preview
-  if (io) {
     io.to('operadores').emit('atualizar-lista', { conversaId: Number(id) })
   }
 
+  // ── FASE 2: envia ao WhatsApp em background, mantendo a ordem ──────────
+  if (telefone) {
+    const enviarBackground = async () => {
+      for (let i = 0; i < mensagensCriadas.length; i++) {
+        const mensagem = mensagensCriadas[i]
+        const item     = itensFiltrados[i]
+        const tipoFinal = item.tipo ?? 'texto'
+        const isMidia   = tipoFinal !== 'texto'
+
+        try {
+          let waId: string | null = null
+          if (isMidia && item.url_midia) {
+            waId = await enviarMidiaWhatsApp(telefone, tipoFinal, item.url_midia, item.conteudo ?? undefined, waCreds)
+          } else {
+            waId = await enviarMensagemWhatsApp(telefone, (item.conteudo ?? '').trim(), waCreds)
+          }
+
+          await prisma.mensagens.update({
+            where: { id: mensagem.id },
+            data: { status: 'enviado', whatsapp_id: waId },
+          })
+
+          if (io) {
+            io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: 'enviado' })
+          }
+        } catch (err) {
+          console.error('[WhatsApp sequencial] Falha ao enviar item —', String(err))
+          await prisma.mensagens.update({
+            where: { id: mensagem.id },
+            data: { status: 'erro' },
+          })
+          if (io) {
+            io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: 'erro' })
+          }
+          break // Interrompe para não enviar fora de ordem
+        }
+
+        // Delay entre itens (exceto no último)
+        const isUltimo = i === mensagensCriadas.length - 1
+        const delayMs  = Math.min(Math.max(Number(item.delay_depois) || 0, 0), 120) * 1000
+        if (delayMs > 0 && !isUltimo) {
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+      }
+    }
+
+    // Fire-and-forget — não bloqueia a resposta HTTP
+    enviarBackground()
+  }
+
+  // Retorna imediatamente com as mensagens criadas (status "enviando")
   return NextResponse.json(mensagensCriadas, { status: 201 })
 }
