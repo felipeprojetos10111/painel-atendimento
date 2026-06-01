@@ -53,6 +53,9 @@ model conversas {
   ultima_resposta_rapida_id  Int?
   clientes      clientes    @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   ultima_resposta_rapida respostas_rapidas? @relation(fields: [ultima_resposta_rapida_id], references: [id], onDelete: SetNull)
+
+  @@index([cliente_id, status])
+  @@index([cliente_id, atualizado_em(sort: Desc)])
   leads         leads?      @relation(fields: [lead_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   operadores    operadores? @relation(fields: [operador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   filas              filas[]
