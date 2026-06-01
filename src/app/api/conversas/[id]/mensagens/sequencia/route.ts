@@ -60,26 +60,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   await prisma.conversas.update({ where: { id: Number(id) }, data: atualizacaoConversa })
 
-  // ── FASE 1: cria todos os registros no banco imediatamente ──────────────
+  // ── FASE 1: cria registros no banco em sequência para garantir ordem ────
+  // (inserts sequenciais são ~5ms cada — negligível vs latência WhatsApp)
   const itensFiltrados = itens.filter(item => {
     const isMidia = (item.tipo ?? 'texto') !== 'texto'
     return isMidia ? !!item.url_midia : !!(item.conteudo ?? '').trim()
   })
 
-  const mensagensCriadas = await Promise.all(
-    itensFiltrados.map((item) =>
-      prisma.mensagens.create({
-        data: {
-          conversa_id: Number(id),
-          origem:    'operador',
-          conteudo:  (item.tipo ?? 'texto') !== 'texto' ? (item.conteudo ?? '') : (item.conteudo ?? '').trim(),
-          tipo:      item.tipo ?? 'texto',
-          url_midia: item.url_midia ?? null,
-          status:    'enviando',
-        }
-      })
-    )
-  )
+  const mensagensCriadas: Awaited<ReturnType<typeof prisma.mensagens.create>>[] = []
+  for (const item of itensFiltrados) {
+    const tipoFinal = item.tipo ?? 'texto'
+    const isMidia   = tipoFinal !== 'texto'
+    const mensagem  = await prisma.mensagens.create({
+      data: {
+        conversa_id: Number(id),
+        origem:    'operador',
+        conteudo:  isMidia ? (item.conteudo ?? '') : (item.conteudo ?? '').trim(),
+        tipo:      tipoFinal,
+        url_midia: item.url_midia ?? null,
+        status:    'enviando',
+      }
+    })
+    mensagensCriadas.push(mensagem)
+  }
 
   // Notifica o painel imediatamente — todas as mensagens aparecem com "enviando"
   if (io) {
