@@ -96,8 +96,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // ── FASE 2: envia ao WhatsApp em background, mantendo a ordem ──────────
+  const total = mensagensCriadas.length
+
+  // Notifica a lista de conversas que o envio começou
+  if (io && total > 0) {
+    io.to('operadores').emit('progresso-envio', {
+      conversaId: Number(id),
+      enviados: 0,
+      total,
+      temErro: false,
+    })
+  }
+
   if (telefone) {
     const enviarBackground = async () => {
+      let enviados = 0
+
       for (let i = 0; i < mensagensCriadas.length; i++) {
         const mensagem = mensagensCriadas[i]
         const item     = itensFiltrados[i]
@@ -117,8 +131,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             data: { status: 'enviado', whatsapp_id: waId },
           })
 
+          enviados++
+
           if (io) {
             io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: 'enviado' })
+            io.to('operadores').emit('progresso-envio', {
+              conversaId: Number(id),
+              enviados,
+              total,
+              temErro: false,
+            })
           }
         } catch (err) {
           console.error('[WhatsApp sequencial] Falha ao enviar item —', String(err))
@@ -128,6 +150,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           })
           if (io) {
             io.to(`conversa-${id}`).emit('status-mensagem', { mensagemId: mensagem.id, status: 'erro' })
+            io.to('operadores').emit('progresso-envio', {
+              conversaId: Number(id),
+              enviados,
+              total,
+              temErro: true,
+            })
           }
           break // Interrompe para não enviar fora de ordem
         }

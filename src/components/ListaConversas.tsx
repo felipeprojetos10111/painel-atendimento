@@ -63,13 +63,14 @@ function formatarHorario(dataStr: string): string {
 }
 
 function ItemConversa({
-  c, selecionada, onSelecionar, tr, expirada = false
+  c, selecionada, onSelecionar, tr, expirada = false, envio
 }: {
   c: Conversa
   selecionada: boolean
   onSelecionar: (id: number) => void
   tr: (key: string) => string
   expirada?: boolean
+  envio?: { enviados: number; total: number; temErro: boolean }
 }) {
   const statusCor = STATUS_COR[c.status ?? ''] ?? 'bg-gray-100 text-gray-600'
   const statusLabel = STATUS_CHAVE[c.status ?? ''] ? tr(STATUS_CHAVE[c.status!]) : (c.status ?? '')
@@ -135,6 +136,42 @@ function ItemConversa({
           </span>
         ) : null}
       </div>
+
+      {/* Barra de progresso de envio */}
+      {envio && (
+        <div className="mt-1">
+          {envio.temErro ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 h-1 rounded-full bg-red-900/40">
+                <div
+                  className="h-1 rounded-full bg-red-500 transition-all duration-300"
+                  style={{ width: `${Math.round((envio.enviados / envio.total) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-red-400 shrink-0">⚠ Falha no envio</span>
+            </div>
+          ) : envio.enviados >= envio.total ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 h-1 rounded-full bg-[#00a884]/30">
+                <div className="h-1 rounded-full bg-[#00a884] w-full transition-all duration-300" />
+              </div>
+              <span className="text-xs text-[#00a884] shrink-0">✓ Enviado</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 h-1 rounded-full bg-[#2a3942]">
+                <div
+                  className="h-1 rounded-full bg-[#00a884] transition-all duration-500"
+                  style={{ width: `${Math.round((envio.enviados / envio.total) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-[#8696a0] shrink-0 tabular-nums">
+                {envio.enviados}/{envio.total}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </li>
   )
 }
@@ -149,6 +186,8 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   const [expiradaAberta, setExpiradaAberta] = useState(false)
   const [toasts, setToasts] = useState<ToastEscalacao[]>([])
   const [ordemFixa, setOrdemFixa] = useState(false)
+  const [enviosAtivos, setEnviosAtivos] = useState<Map<number, { enviados: number; total: number; temErro: boolean }>>(new Map())
+  const limparEnvioTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
   const timerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const operadorIdRef = useRef<number | null>(null)
   const ordemFixaRef = useRef(false)
@@ -222,12 +261,34 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
           if (ordemFixaRef.current) atualizarSemReordenar()
           else carregar()
         })
+        socket.on('progresso-envio', ({ conversaId, enviados, total, temErro }: {
+          conversaId: number; enviados: number; total: number; temErro: boolean
+        }) => {
+          setEnviosAtivos(prev => {
+            const next = new Map(prev)
+            next.set(conversaId, { enviados, total, temErro })
+            return next
+          })
+          // Só auto-limpa quando concluído com SUCESSO — erro fica pinado até o operador clicar
+          const concluido = !temErro && enviados >= total
+          if (concluido) {
+            clearTimeout(limparEnvioTimers.current[conversaId])
+            limparEnvioTimers.current[conversaId] = setTimeout(() => {
+              setEnviosAtivos(prev => {
+                const next = new Map(prev)
+                next.delete(conversaId)
+                return next
+              })
+            }, 1500)
+          }
+        })
       })
 
     return () => {
       socket?.off('atualizar-lista')
       socket?.off('nova-conversa-fila')
       socket?.off('conversa-atribuida')
+      socket?.off('progresso-envio')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -243,8 +304,25 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
     return passaBusca && passaTag
   })
 
-  const filtradas  = todasFiltradas.filter(c => !c.janela_expirada)
-  const expiradas  = todasFiltradas.filter(c =>  c.janela_expirada)
+  const ativas = todasFiltradas.filter(c => !c.janela_expirada)
+  const expiradas = todasFiltradas.filter(c => c.janela_expirada)
+
+  // Conversas com envio ativo ficam pinadas no topo; as demais seguem ordem normal do servidor
+  const pinadas  = ativas.filter(c => enviosAtivos.has(c.id))
+  const filtradas = ativas.filter(c => !enviosAtivos.has(c.id))
+
+  function handleSelecionar(id: number) {
+    // Ao clicar numa conversa com erro, limpa o indicador
+    const envio = enviosAtivos.get(id)
+    if (envio?.temErro) {
+      setEnviosAtivos(prev => {
+        const next = new Map(prev)
+        next.delete(id)
+        return next
+      })
+    }
+    onSelecionar(id)
+  }
 
   return (
     <aside className="w-80 flex flex-col border-r border-[#2a3942] bg-[#111b21] relative">
@@ -329,12 +407,28 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Conversas ativas */}
+        {/* Conversas pinadas no topo (envio em andamento ou com erro) */}
+        {pinadas.length > 0 && (
+          <ul className="divide-y divide-[#2a3942] border-b-2 border-[#00a884]/20">
+            {pinadas.map(c => (
+              <ItemConversa
+                key={c.id}
+                c={c}
+                selecionada={conversaSelecionada === c.id}
+                onSelecionar={handleSelecionar}
+                tr={tr}
+                envio={enviosAtivos.get(c.id)}
+              />
+            ))}
+          </ul>
+        )}
+
+        {/* Conversas ativas na ordem normal */}
         <ul className="divide-y divide-[#2a3942]">
-          {filtradas.length === 0 && expiradas.length === 0 && (
+          {filtradas.length === 0 && pinadas.length === 0 && expiradas.length === 0 && (
             <li className="p-4 text-sm text-[#3b4a54] text-center">{tr('nenhumaConversa')}</li>
           )}
-          {filtradas.map(c => <ItemConversa key={c.id} c={c} selecionada={conversaSelecionada === c.id} onSelecionar={onSelecionar} tr={tr} />)}
+          {filtradas.map(c => <ItemConversa key={c.id} c={c} selecionada={conversaSelecionada === c.id} onSelecionar={handleSelecionar} tr={tr} />)}
         </ul>
 
         {/* Seção de janelas expiradas — só aparece se houver expiradas */}
@@ -361,7 +455,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
 
             {expiradaAberta && (
               <ul className="divide-y divide-[#2a3942] bg-[#111b21]">
-                {expiradas.map(c => <ItemConversa key={c.id} c={c} selecionada={conversaSelecionada === c.id} onSelecionar={onSelecionar} tr={tr} expirada />)}
+                {expiradas.map(c => <ItemConversa key={c.id} c={c} selecionada={conversaSelecionada === c.id} onSelecionar={handleSelecionar} tr={tr} expirada envio={enviosAtivos.get(c.id)} />)}
               </ul>
             )}
           </div>
