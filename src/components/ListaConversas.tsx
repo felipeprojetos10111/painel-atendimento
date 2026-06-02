@@ -70,7 +70,7 @@ function ItemConversa({
   onSelecionar: (id: number) => void
   tr: (key: string) => string
   expirada?: boolean
-  envio?: { enviados: number; total: number; temErro: boolean }
+  envio?: { enviados: number; total: number; temErro: boolean; countdown?: number }
 }) {
   const statusCor = STATUS_COR[c.status ?? ''] ?? 'bg-gray-100 text-gray-600'
   const statusLabel = STATUS_CHAVE[c.status ?? ''] ? tr(STATUS_CHAVE[c.status!]) : (c.status ?? '')
@@ -150,6 +150,13 @@ function ItemConversa({
               </div>
               <span className="text-xs text-red-400 shrink-0">⚠ Falha no envio</span>
             </div>
+          ) : envio.countdown !== undefined && envio.countdown > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 h-1 rounded-full bg-[#2a3942] overflow-hidden">
+                <div className="h-1 rounded-full bg-amber-500/60 w-full animate-pulse" />
+              </div>
+              <span className="text-xs text-amber-400 shrink-0 tabular-nums">⏱ {envio.countdown}s</span>
+            </div>
           ) : envio.enviados >= envio.total ? (
             <div className="flex items-center gap-1.5">
               <div className="flex-1 h-1 rounded-full bg-[#00a884]/30">
@@ -186,7 +193,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   const [expiradaAberta, setExpiradaAberta] = useState(false)
   const [toasts, setToasts] = useState<ToastEscalacao[]>([])
   const [ordemFixa, setOrdemFixa] = useState(false)
-  const [enviosAtivos, setEnviosAtivos] = useState<Map<number, { enviados: number; total: number; temErro: boolean }>>(new Map())
+  const [enviosAtivos, setEnviosAtivos] = useState<Map<number, { enviados: number; total: number; temErro: boolean; countdown?: number }>>(new Map())
   const limparEnvioTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
   const timerRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const operadorIdRef = useRef<number | null>(null)
@@ -232,6 +239,24 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
   useEffect(() => {
     carregar()
 
+    // Escuta eventos locais de countdown (disparados pelo Chat.tsx antes de chamar a API)
+    function onProgressoLocal(e: Event) {
+      const { conversaId, countdown, total } = (e as CustomEvent).detail as {
+        conversaId: number; countdown: number; total: number
+      }
+      clearTimeout(limparEnvioTimers.current[conversaId])
+      setEnviosAtivos(prev => {
+        const next = new Map(prev)
+        const atual = next.get(conversaId)
+        // Só aplica countdown se ainda não há envio real em andamento
+        if (!atual || atual.countdown !== undefined) {
+          next.set(conversaId, { enviados: 0, total, temErro: false, countdown: countdown > 0 ? countdown : undefined })
+        }
+        return next
+      })
+    }
+    window.addEventListener('progresso-local', onProgressoLocal)
+
     // Busca dados do operador atual para registrar presença
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
@@ -266,6 +291,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
         }) => {
           setEnviosAtivos(prev => {
             const next = new Map(prev)
+            // Remove countdown — envio real começou
             next.set(conversaId, { enviados, total, temErro })
             return next
           })
@@ -289,6 +315,7 @@ export default function ListaConversas({ conversaSelecionada, onSelecionar }: Pr
       socket?.off('nova-conversa-fila')
       socket?.off('conversa-atribuida')
       socket?.off('progresso-envio')
+      window.removeEventListener('progresso-local', onProgressoLocal)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

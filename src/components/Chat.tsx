@@ -894,14 +894,21 @@ export default function Chat({ conversaId, onUploadChange }: Props) {
 
     // Delay de início: aguarda N segundos com countdown antes do primeiro envio
     const delayInicio = resposta.delay_inicio ?? 0
+    const totalItens = (resposta.itens?.length ?? 1)
     if (delayInicio > 0) {
       enviandoLockRef.current = true
       setCountdownInicio(delayInicio)
+      window.dispatchEvent(new CustomEvent('progresso-local', {
+        detail: { conversaId, countdown: delayInicio, total: totalItens }
+      }))
       await new Promise<void>(resolve => {
         let restante = delayInicio
         const tick = setInterval(() => {
           restante -= 1
           setCountdownInicio(restante)
+          window.dispatchEvent(new CustomEvent('progresso-local', {
+            detail: { conversaId, countdown: restante, total: totalItens }
+          }))
           if (restante <= 0) {
             clearInterval(tick)
             setCountdownInicio(0)
